@@ -1,0 +1,13 @@
+# ---- FRONTEND ----
+frontend/node_modules/
+frontend/.next/
+
+# ---- BACKEND ----
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# ---- SECRETOS Y SO ----
+.env
+.env.local
+.DS_Store
