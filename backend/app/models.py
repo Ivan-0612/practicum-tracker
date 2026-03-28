@@ -85,9 +85,11 @@ class Rotacion(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     alumno_id = Column(UUID(as_uuid=True), ForeignKey("alumnos.id"), nullable=False)
+
     tutor_id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=True)
 
-    numero_rotacion = Column(Integer, nullable=False)  # 1, 2 o 3
+    numero_rotacion = Column(Integer, nullable=False)
+    version_cuadernillo = Column(String, nullable=False)
     fecha_inicio = Column(Date, nullable=True)
     fecha_fin = Column(Date, nullable=True)
     completada = Column(Boolean, default=False)
