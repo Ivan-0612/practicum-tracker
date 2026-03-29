@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
 from ..database import get_db
-from .. import models, schemas, security
+from .. import models, security
 
 router = APIRouter(prefix="/api/v1/profesores", tags=["Profesores"])
+
 
 @router.get("/mis-alumnos")
 def obtener_mis_alumnos(
@@ -12,46 +12,68 @@ def obtener_mis_alumnos(
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
     if current_user.rol != "profesor":
-        raise HTTPException(status_code=403, detail="No tienes permiso")
+        raise HTTPException(status_code=403, detail="Acceso solo para profesores")
 
-    # Buscar alumnos donde el tutor_id sea el del profesor logueado
-    mis_alumnos = (
-        db.query(models.Alumno).filter(models.Alumno.tutor_id == current_user.id).all()
+    asignaciones = (
+        db.query(models.AsignacionTutor)
+        .filter(models.AsignacionTutor.tutor_id == current_user.id)
+        .all()
     )
 
     resultado = []
-    for alumno in mis_alumnos:
-        # --- NUEVO: Buscamos la rotación del alumno (sin filtrar si está completada o no) ---
-        rotacion_activa = (
-            db.query(models.Rotacion)
-            .filter(
-                models.Rotacion.alumno_id == alumno.id
-            )
-            .order_by(models.Rotacion.creado_en.desc()) # Pillamos la más reciente por si acaso
+    for asig in asignaciones:
+        rotacion = asig.rotacion
+        if not rotacion:
+            continue
+
+        alumno = rotacion.alumno
+        if not alumno:
+            continue
+
+        # 1. Buscamos el usuario para sacar el email de acceso
+        usuario_estudiante = (
+            db.query(models.Usuario)
+            .filter(models.Usuario.id == alumno.usuario_id)
             .first()
         )
 
-        # --- NUEVO: Determinamos el estado para enviarlo al Frontend ---
-        estado = "Pendiente"
-        if rotacion_activa and rotacion_activa.completada:
-            estado = "Completada"
+        # 2. Desciframos los datos personales
+        try:
+            nombre = security.descifrar_dato(alumno.nombre_cifrado)
+            apellidos = security.descifrar_dato(alumno.apellidos_cifrado)
+        except:
+            nombre, apellidos = "Error", "Cifrado"
 
-        # Usamos la Master Key cargada en security.py automáticamente
-        nombre_real = security.descifrar_dato(alumno.nombre_cifrado)
-        apellidos_real = security.descifrar_dato(alumno.apellidos_cifrado)
-        email_real = security.descifrar_dato(alumno.email_cifrado)
+        # 3. Lógica de estados dinámica:
+        # Primero miramos si hay respuestas guardadas en la DB para esta rotación
+        tiene_respuestas = (
+            db.query(models.CuadernilloRespuesta)
+            .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
+            .first()
+            is not None
+        )
+
+        if rotacion.completada:
+            estado = "Completada"
+        elif tiene_respuestas:
+            estado = "En Proceso"  # Aparecerá como Borrador en el Frontend
+        else:
+            estado = "Pendiente"
 
         resultado.append(
             {
+                "rotacion_id": str(rotacion.id),
                 "alumno_id": str(alumno.id),
-                "rotacion_id": str(rotacion_activa.id) if rotacion_activa else "",
-                "nombre_completo": f"{nombre_real} {apellidos_real}",
-                "email_personal": email_real,
-                "curso": alumno.curso,
+                "email": (
+                    usuario_estudiante.email if usuario_estudiante else "Sin email"
+                ),
+                "nombre_completo": f"{nombre} {apellidos}",
+                "curso": rotacion.curso,
+                "numero_rotacion": rotacion.numero_rotacion,
                 "grupo": alumno.grupo,
-                "numero_rotacion": alumno.numero_rotacion,
-                # --- NUEVO: Añadimos el estado aquí ---
-                "estado_evaluacion": estado 
+                "completada": rotacion.completada,
+                "codigo_anonimo": alumno.codigo_anonimo,
+                "estado_evaluacion": estado,  # <--- Enviamos el estado calculado
             }
         )
 

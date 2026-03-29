@@ -20,7 +20,7 @@ interface AlumnoAsignado {
   rotacion_id: string;
   alumno_id: string;
   nombre_completo: string;
-  email_personal: string;
+  email: string;
   curso: number;
   grupo: string;
   numero_rotacion: number; 
@@ -83,7 +83,7 @@ export default function ProfesorDashboard() {
     const texto = busqueda.toLowerCase();
     alumnosAMostrar = alumnosPorEstado.filter(a => 
       a.nombre_completo.toLowerCase().includes(texto) || 
-      a.email_personal.toLowerCase().includes(texto)
+      a.email.toLowerCase().includes(texto)
     );
   } else if (cursoActivo && rotacionActiva) {
     alumnosAMostrar = alumnosPorEstado.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva);
@@ -110,6 +110,10 @@ export default function ProfesorDashboard() {
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 shrink-0">
               ✅ Evaluado
             </div>
+          ) : item.estado_evaluacion === "En Proceso" ? (
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 shrink-0">
+              📝 Borrador
+            </div>
           ) : (
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
               ⏳ Pendiente
@@ -121,7 +125,7 @@ export default function ProfesorDashboard() {
         <div className="mt-4 space-y-3">
           <div className="flex items-center text-sm text-slate-600">
             <Mail className="w-4 h-4 mr-3 text-slate-400" />
-            <span className="truncate" title={item.email_personal}>{item.email_personal}</span>
+            <span className="truncate" title={item.email}>{item.email}</span>
           </div>
         </div>
       </div>
@@ -180,6 +184,7 @@ export default function ProfesorDashboard() {
             >
               <option value="Todos">Todos los estados</option>
               <option value="Pendiente">⏳ Solo Pendientes</option>
+              <option value="En Proceso">📝 Solo Borradores</option>
               <option value="Completada">✅ Solo Evaluados</option>
             </select>
 

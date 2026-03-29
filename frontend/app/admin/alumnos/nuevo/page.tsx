@@ -14,7 +14,6 @@ export default function NuevoAlumno() {
     grupo: "",
     email_acceso: "",
     password_acceso: "",
-    // --- NUEVOS CAMPOS DE ROTACIÓN Y TUTOR ---
     email_tutor: "",
     numero_rotacion: 1,
   });
@@ -53,7 +52,6 @@ export default function NuevoAlumno() {
           const campo = primerError.loc[primerError.loc.length - 1]; 
           const mensajeOriginal = primerError.msg;
 
-          // --- 📚 NUESTRO DICCIONARIO DE TRADUCCIONES ---
           const traducciones: Record<string, string> = {
             "String should have at least 8 characters": "debe tener al menos 8 caracteres.",
             "Field required": "es un campo obligatorio y no puede estar vacío.",
@@ -61,10 +59,7 @@ export default function NuevoAlumno() {
             "Input should be a valid integer, unable to parse string as an integer": "debe ser un número válido."
           };
 
-          // Buscamos si tenemos la traducción. Si no, mostramos el original por si acaso.
           const mensajeTraducido = traducciones[mensajeOriginal] || mensajeOriginal;
-
-          // Formateamos el texto final para que quede perfecto
           errorMsg = `El campo '${campo}' ${mensajeTraducido}`;
         } 
         else if (data.detail && typeof data.detail === "string") {
@@ -86,6 +81,16 @@ export default function NuevoAlumno() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-xl p-8">
+        
+        {/* --- NUEVO BOTÓN DE VOLVER --- */}
+        <button 
+          type="button"
+          onClick={() => router.push("/admin/panel")}
+          className="mb-6 text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2 transition-colors"
+        >
+          <span>&larr;</span> Volver al Panel
+        </button>
+
         <h1 className="text-2xl font-bold mb-8 text-gray-900 border-b pb-4">Alta Completa de Alumno</h1>
         
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -137,10 +142,8 @@ export default function NuevoAlumno() {
           <section className="bg-blue-50 p-4 rounded-lg">
             <h3 className="text-lg font-semibold text-blue-800 mb-4">3. Asignación de Prácticas y Tutor</h3>
             
-            {/* Cambiamos a grid-cols-3 para hacer hueco al nuevo selector */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
-              {/* --- NUEVO: Selector de Número de Rotación --- */}
               <div className="md:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 font-bold">Número de Rotación</label>
                 <select 
@@ -155,7 +158,6 @@ export default function NuevoAlumno() {
                 <p className="text-xs text-gray-500 mt-1">1ª, 2ª o 3ª práctica.</p>
               </div>
 
-              {/* El campo del email del tutor que ya tenías */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 font-bold">Email del Tutor/a Responsable</label>
                 <input type="email" placeholder="Cualquier profesor ya registrado..." required className="w-full border-2 border-blue-200 p-2 rounded text-gray-900 bg-white focus:border-blue-500" 

@@ -25,25 +25,21 @@ def obtener_molde_cuadernillo(
     if not rotacion:
         raise HTTPException(status_code=404, detail="Rotación no encontrada")
 
-    alumno = (
-        db.query(models.Alumno).filter(models.Alumno.id == rotacion.alumno_id).first()
-    )
-
+    alumno = rotacion.alumno
     nombre_archivo = f"curso{alumno.curso}-rotacion{alumno.numero_rotacion}.json"
-    ruta_archivo = os.path.join(os.getcwd(), "cuadernillos", nombre_archivo)
+
+    # Lógica de rutas para encontrar el JSON
+    base_path = os.getcwd()
+    ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
+    if not os.path.exists(ruta_archivo):
+        ruta_archivo = os.path.join(base_path, "app", "cuadernillos", nombre_archivo)
 
     try:
         with open(ruta_archivo, "r", encoding="utf-8") as f:
             molde_json = json.load(f)
-    except FileNotFoundError:
+    except Exception:
         raise HTTPException(
-            status_code=404,
-            detail=f"No se encontró el archivo {nombre_archivo} en el servidor.",
-        )
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=500,
-            detail=f"El archivo {nombre_archivo} existe pero no tiene un formato JSON válido.",
+            status_code=404, detail=f"No se encontró el archivo {nombre_archivo}"
         )
 
     nombre_real = security.descifrar_dato(alumno.nombre_cifrado)
@@ -56,14 +52,27 @@ def obtener_molde_cuadernillo(
     )
 
     borrador = {}
-    for resp in respuestas_db:
-        borrador[resp.elemento_id] = {
-            "bloque": resp.bloque,
-            "elemento_id": resp.elemento_id,
-            "valor_sinon": resp.valor_sinon,
-            "valor_nivel": resp.valor_nivel,
-            "comentario": resp.comentario,
-        }
+    if current_user.rol == "profesor" or (
+        current_user.rol == "estudiante" and rotacion.completada
+    ):
+        for resp in respuestas_db:
+            borrador[resp.elemento_id] = {
+                "bloque": resp.bloque,
+                "elemento_id": resp.elemento_id,
+                "valor_sinon": resp.valor_sinon,
+                "valor_nivel": resp.valor_nivel,
+                "comentario": resp.comentario,
+            }
+    else:
+        # Si es estudiante y no está completada, el borrador se envía vacío
+        borrador = {}
+
+    asignaciones = (
+        db.query(models.AsignacionTutor)
+        .filter(models.AsignacionTutor.rotacion_id == rotacion.id)
+        .all()
+    )
+    tutores = [asig.tutor.email for asig in asignaciones]
 
     return {
         "alumno": {
@@ -73,7 +82,8 @@ def obtener_molde_cuadernillo(
         },
         "molde": molde_json,
         "borrador": borrador,
-        "rotacion_completada": rotacion.completada,  # Dato clave para el frontend
+        "rotacion_completada": rotacion.completada,
+        "tutores": tutores,
     }
 
 
@@ -84,24 +94,24 @@ def guardar_respuestas_cuadernillo(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
+    """
+    ESTE ES EL ENDPOINT PARA EL BORRADOR.
+    No valida si está todo completo, solo guarda lo que envíes.
+    """
     if current_user.rol != "profesor":
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
     rotacion = (
         db.query(models.Rotacion).filter(models.Rotacion.id == rotacion_id).first()
     )
-    if not rotacion:
-        raise HTTPException(status_code=404, detail="Rotación no encontrada")
-
-    # --- NUEVO: Bloqueo de seguridad si la rotación ya está finalizada ---
-    if rotacion.completada:
+    if not rotacion or rotacion.completada:
         raise HTTPException(
-            status_code=400,
-            detail="No se pueden guardar cambios: la evaluación ya ha sido finalizada y cerrada.",
+            status_code=400, detail="La rotación no existe o ya está cerrada"
         )
 
     for resp in respuestas:
-        respuesta_db = (
+        # Buscar si ya existe la respuesta para actualizarla, si no, crearla
+        db_resp = (
             db.query(models.CuadernilloRespuesta)
             .filter(
                 models.CuadernilloRespuesta.rotacion_id == rotacion.id,
@@ -110,17 +120,14 @@ def guardar_respuestas_cuadernillo(
             .first()
         )
 
-        if respuesta_db:
-            respuesta_db.valor_sinon = resp.valor_sinon
-            respuesta_db.valor_nivel = resp.valor_nivel
-            respuesta_db.comentario = resp.comentario
-            # Asegúrate de que 'modificado_en' existe en tu modelo [cite: 102]
-            if hasattr(respuesta_db, "modificado_en"):
-                respuesta_db.modificado_en = models.func.now()
+        if db_resp:
+            db_resp.valor_sinon = resp.valor_sinon
+            db_resp.valor_nivel = resp.valor_nivel
+            db_resp.comentario = resp.comentario
         else:
-            nueva_respuesta = models.CuadernilloRespuesta(
+            nueva_resp = models.CuadernilloRespuesta(
                 rotacion_id=rotacion.id,
-                version_cuadernillo=getattr(rotacion, "version_cuadernillo", "2025-v1"),
+                version_cuadernillo="2025-v1",
                 bloque=resp.bloque,
                 elemento_id=resp.elemento_id,
                 valor_sinon=resp.valor_sinon,
@@ -128,10 +135,10 @@ def guardar_respuestas_cuadernillo(
                 comentario=resp.comentario,
                 rellenado_por=current_user.id,
             )
-            db.add(nueva_respuesta)
+            db.add(nueva_resp)
 
     db.commit()
-    return {"mensaje": "Borrador actualizado correctamente."}
+    return {"mensaje": "Borrador guardado correctamente"}
 
 
 @router.post("/finalizar/{rotacion_id}")
@@ -140,25 +147,55 @@ def finalizar_rotacion(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
+    """
+    ESTE ES EL ENDPOINT DE CIERRE.
+    Aquí sí validamos que todo esté relleno antes de poner completada = True.
+    """
     if current_user.rol != "profesor":
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
     rotacion = (
         db.query(models.Rotacion).filter(models.Rotacion.id == rotacion_id).first()
     )
-
-    if not rotacion:
-        raise HTTPException(status_code=404, detail="Rotación no encontrada")
-
-    # --- NUEVO: Evitamos finalizar algo que ya está finalizado ---
-    if rotacion.completada:
+    if not rotacion or rotacion.completada:
         raise HTTPException(
-            status_code=400, detail="Esta rotación ya estaba finalizada."
+            status_code=400, detail="Rotación no encontrada o ya finalizada"
         )
 
-    rotacion.completada = True  # Cierre definitivo de la evaluación [cite: 100, 122]
-    db.commit()
+    # --- Lógica de validación de integridad ---
+    alumno = rotacion.alumno
+    nombre_archivo = f"curso{alumno.curso}-rotacion{alumno.numero_rotacion}.json"
+    base_path = os.getcwd()
+    ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
+    if not os.path.exists(ruta_archivo):
+        ruta_archivo = os.path.join(base_path, "app", "cuadernillos", nombre_archivo)
 
-    return {
-        "mensaje": "Rotación finalizada correctamente. El alumno ya puede ver su nota."
-    }
+    try:
+        with open(ruta_archivo, "r", encoding="utf-8") as f:
+            molde = json.load(f)
+
+        total_esperado = len(molde["bloque_sinon"]["elementos"])
+        for apartado in molde["apartados"]:
+            total_esperado += len(apartado["elementos"])
+
+        total_real = (
+            db.query(models.CuadernilloRespuesta)
+            .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
+            .count()
+        )
+
+        if total_real < total_esperado:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Incompleto: faltan {total_esperado - total_real} campos.",
+            )
+
+        # Si está todo, cerramos
+        rotacion.completada = True
+        db.commit()
+        return {"mensaje": "Evaluación finalizada con éxito"}
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="No se pudo validar el molde")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
