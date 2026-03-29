@@ -83,3 +83,32 @@ class Rotacion(Base):
     # Relaciones
     alumno = relationship("Alumno", back_populates="rotaciones")
     # ELIMINAMOS la relación con el tutor
+
+
+class CuadernilloRespuesta(Base):
+    __tablename__ = "cuadernillo_respuestas"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rotacion_id = Column(UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False)
+    
+    # Guardamos la versión del JSON usado (ej: "2025-C2-R1") por si el año que viene cambian las preguntas
+    version_cuadernillo = Column(String, nullable=False) 
+    
+    # 0 para lista Sí/No, 1-7 para los apartados de niveles
+    bloque = Column(Integer, nullable=False) 
+    
+    # El ID exacto que le pongamos a la pregunta en el JSON (ej: "b0_01")
+    elemento_id = Column(String, nullable=False) 
+    
+    # Aquí se guardan los datos (uno u otro dependiendo del bloque)
+    valor_sinon = Column(Boolean, nullable=True) # Para el bloque 0
+    valor_nivel = Column(Integer, nullable=True) # Para los bloques 1-7 (guardará 1, 2 o 3)
+    comentario = Column(String, nullable=True)
+    
+    # Quién rellenó esto
+    rellenado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False)
+    
+    guardado_en = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relación
+    rotacion = relationship("Rotacion")

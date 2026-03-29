@@ -6,7 +6,6 @@ from .. import models, schemas, security
 
 router = APIRouter(prefix="/api/v1/profesores", tags=["Profesores"])
 
-
 @router.get("/mis-alumnos")
 def obtener_mis_alumnos(
     db: Session = Depends(get_db),
@@ -22,15 +21,20 @@ def obtener_mis_alumnos(
 
     resultado = []
     for alumno in mis_alumnos:
-        # Buscamos su rotación activa (Seguimos necesitando esto para obtener el ID de la rotación y armar el link del botón "Evaluar")
+        # --- NUEVO: Buscamos la rotación del alumno (sin filtrar si está completada o no) ---
         rotacion_activa = (
             db.query(models.Rotacion)
             .filter(
-                models.Rotacion.alumno_id == alumno.id,
-                models.Rotacion.completada == False,
+                models.Rotacion.alumno_id == alumno.id
             )
+            .order_by(models.Rotacion.creado_en.desc()) # Pillamos la más reciente por si acaso
             .first()
         )
+
+        # --- NUEVO: Determinamos el estado para enviarlo al Frontend ---
+        estado = "Pendiente"
+        if rotacion_activa and rotacion_activa.completada:
+            estado = "Completada"
 
         # Usamos la Master Key cargada en security.py automáticamente
         nombre_real = security.descifrar_dato(alumno.nombre_cifrado)
@@ -45,8 +49,9 @@ def obtener_mis_alumnos(
                 "email_personal": email_real,
                 "curso": alumno.curso,
                 "grupo": alumno.grupo,
-                # --- AQUÍ ESTÁ EL CAMBIO: Enviamos el número de rotación directo del modelo Alumno ---
-                "numero_rotacion": alumno.numero_rotacion 
+                "numero_rotacion": alumno.numero_rotacion,
+                # --- NUEVO: Añadimos el estado aquí ---
+                "estado_evaluacion": estado 
             }
         )
 

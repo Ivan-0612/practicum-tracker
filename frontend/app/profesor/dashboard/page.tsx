@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { 
   User, 
-  BookOpen, 
   LogOut, 
   ChevronRight,
   ClipboardCheck,
@@ -24,7 +23,8 @@ interface AlumnoAsignado {
   email_personal: string;
   curso: number;
   grupo: string;
-  numero_rotacion: number; // NECESARIO PARA LAS CARPETAS
+  numero_rotacion: number; 
+  estado_evaluacion: string; // <-- NUEVO CAMPO AÑADIDO
 }
 
 export default function ProfesorDashboard() {
@@ -32,8 +32,9 @@ export default function ProfesorDashboard() {
   const [alumnos, setAlumnos] = useState<AlumnoAsignado[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // --- NUEVOS ESTADOS DE NAVEGACIÓN Y BÚSQUEDA ---
+  // --- ESTADOS DE NAVEGACIÓN Y BÚSQUEDA ---
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<string>("Todos"); // <-- NUEVO ESTADO
   const [cursoActivo, setCursoActivo] = useState<number | null>(null);
   const [rotacionActiva, setRotacionActiva] = useState<number | null>(null);
 
@@ -64,41 +65,58 @@ export default function ProfesorDashboard() {
     router.push("/login");
   };
 
-  // --- LÓGICA DE LAS CARPETAS DINÁMICAS ---
-  // Extraemos qué cursos y rotaciones tienen alumnos realmente
-  const cursosDisponibles = Array.from(new Set(alumnos.map(a => a.curso))).sort();
+  // --- 🧠 NUEVA LÓGICA DE FILTRADO INTELIGENTE ---
+  // 1. Primero filtramos TODOS los alumnos según el selector de Estado
+  const alumnosPorEstado = alumnos.filter(a => filtroEstado === "Todos" || a.estado_evaluacion === filtroEstado);
+
+  // 2. Extraemos las carpetas basándonos SOLO en los alumnos que cumplen el filtro
+  const cursosDisponibles = Array.from(new Set(alumnosPorEstado.map(a => a.curso))).sort();
   const rotacionesDelCurso = cursoActivo 
-    ? Array.from(new Set(alumnos.filter(a => a.curso === cursoActivo).map(a => a.numero_rotacion))).sort()
+    ? Array.from(new Set(alumnosPorEstado.filter(a => a.curso === cursoActivo).map(a => a.numero_rotacion))).sort()
     : [];
 
-  // --- LÓGICA DE BÚSQUEDA ---
+  // 3. Lógica final de Búsqueda y Navegación
   const isBuscando = busqueda.trim().length > 0;
+  let alumnosAMostrar = alumnosPorEstado;
   
-  let alumnosAMostrar = alumnos;
   if (isBuscando) {
-    // Si escribe en el buscador, mostramos coincidencias globales
     const texto = busqueda.toLowerCase();
-    alumnosAMostrar = alumnos.filter(a => 
+    alumnosAMostrar = alumnosPorEstado.filter(a => 
       a.nombre_completo.toLowerCase().includes(texto) || 
       a.email_personal.toLowerCase().includes(texto)
     );
   } else if (cursoActivo && rotacionActiva) {
-    // Si ha navegado hasta una rotación, mostramos esos alumnos
-    alumnosAMostrar = alumnos.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva);
+    alumnosAMostrar = alumnosPorEstado.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva);
   }
 
   // --- COMPONENTES VISUALES REUTILIZABLES ---
   const TarjetaAlumno = ({ item }: { item: AlumnoAsignado }) => (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
       <div className="p-6 flex-grow">
-        <div className="flex justify-between items-start mb-6">
-          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
-            {item.curso}º Curso - {item.grupo}
+        
+        {/* ENCABEZADO DE LA TARJETA (AQUÍ VAN LAS PÍLDORAS) */}
+        <div className="flex justify-between items-start mb-6 gap-2">
+          <div className="flex flex-wrap gap-2">
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+              {item.curso}º Curso - {item.grupo}
+            </div>
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+              Rotación {item.numero_rotacion}
+            </div>
           </div>
-          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-            Rotación {item.numero_rotacion}
-          </div>
+
+          {/* NUEVO: ETIQUETA VISUAL DE ESTADO */}
+          {item.estado_evaluacion === "Completada" ? (
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 shrink-0">
+              ✅ Evaluado
+            </div>
+          ) : (
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
+              ⏳ Pendiente
+            </div>
+          )}
         </div>
+
         <h3 className="text-xl font-bold text-slate-900 mb-1">{item.nombre_completo}</h3>
         <div className="mt-4 space-y-3">
           <div className="flex items-center text-sm text-slate-600">
@@ -107,12 +125,13 @@ export default function ProfesorDashboard() {
           </div>
         </div>
       </div>
+      
       <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto">
         <button 
           onClick={() => router.push(`/profesor/evaluar/${item.rotacion_id}`)}
           className="w-full bg-white border border-slate-200 text-slate-700 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600"
         >
-          Evaluar Alumno
+          {item.estado_evaluacion === "Completada" ? "Revisar Evaluación" : "Evaluar Alumno"}
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -146,18 +165,36 @@ export default function ProfesorDashboard() {
             <p className="text-slate-500 mt-2">Navega por las carpetas o busca un alumno directamente.</p>
           </div>
           
-          {/* BUSCADOR */}
-          <div className="relative w-full md:w-96">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-slate-400" />
+          {/* NUEVA BARRA DE CONTROLES: FILTRO + BUSCADOR */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            
+            <select 
+              value={filtroEstado} 
+              onChange={(e) => {
+                setFiltroEstado(e.target.value);
+                // Si cambian el filtro general, reiniciamos la navegación por seguridad
+                setCursoActivo(null); 
+                setRotacionActiva(null);
+              }}
+              className="bg-white border border-slate-200 text-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-3 shadow-sm font-medium outline-none"
+            >
+              <option value="Todos">Todos los estados</option>
+              <option value="Pendiente">⏳ Solo Pendientes</option>
+              <option value="Completada">✅ Solo Evaluados</option>
+            </select>
+
+            <div className="relative w-full sm:w-72">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
+                placeholder="Buscar por nombre..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
             </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
-              placeholder="Buscar por nombre o email..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
           </div>
         </header>
 
@@ -173,7 +210,7 @@ export default function ProfesorDashboard() {
           </div>
         ) : (
           <>
-            {/* MIGA DE PAN (BREADCRUMBS) - Solo visible si no estamos buscando */}
+            {/* MIGA DE PAN (BREADCRUMBS) */}
             {!isBuscando && (
               <div className="flex items-center text-sm text-slate-500 mb-6 bg-white p-3 rounded-xl border border-slate-200 shadow-sm inline-flex">
                 <button 
@@ -210,7 +247,7 @@ export default function ProfesorDashboard() {
                 <h3 className="text-lg font-semibold text-slate-700 mb-4">Resultados de búsqueda ({alumnosAMostrar.length})</h3>
                 {alumnosAMostrar.length === 0 ? (
                   <div className="text-center p-10 bg-white rounded-2xl border border-slate-200">
-                    <p className="text-slate-500">No se encontró ningún alumno con "{busqueda}"</p>
+                    <p className="text-slate-500">No se encontraron alumnos que coincidan.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -223,7 +260,9 @@ export default function ProfesorDashboard() {
             /* VISTA 2: CARPETAS DE CURSOS (NIVEL 1) */
             !cursoActivo ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {cursosDisponibles.map(curso => (
+                {cursosDisponibles.length === 0 ? (
+                  <p className="col-span-full text-center text-slate-500 py-10">No hay alumnos en este estado.</p>
+                ) : cursosDisponibles.map(curso => (
                   <button 
                     key={curso}
                     onClick={() => setCursoActivo(curso)}
@@ -234,7 +273,7 @@ export default function ProfesorDashboard() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">{curso}º Curso</h3>
-                      <p className="text-sm text-slate-500">{alumnos.filter(a => a.curso === curso).length} alumnos</p>
+                      <p className="text-sm text-slate-500">{alumnosPorEstado.filter(a => a.curso === curso).length} alumnos</p>
                     </div>
                   </button>
                 ))}
@@ -263,7 +302,7 @@ export default function ProfesorDashboard() {
                       <div>
                         <h3 className="text-xl font-bold text-slate-800 group-hover:text-amber-700 transition-colors">Rotación {rot}</h3>
                         <p className="text-sm text-slate-500">
-                          {alumnos.filter(a => a.curso === cursoActivo && a.numero_rotacion === rot).length} alumnos
+                          {alumnosPorEstado.filter(a => a.curso === cursoActivo && a.numero_rotacion === rot).length} alumnos
                         </p>
                       </div>
                     </button>

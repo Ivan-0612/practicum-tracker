@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from . import models
-from .routers import auth, alumnos, admin, profesores
+from .routers import auth, alumnos, admin, profesores, cuadernillos
 
 # Esta línea le dice a SQLAlchemy que cree las tablas en Supabase
 Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.include_router(auth.router)
 app.include_router(alumnos.router)
 app.include_router(admin.router)
 app.include_router(profesores.router)
+app.include_router(cuadernillos.router)
 
 
 @app.get("/")
