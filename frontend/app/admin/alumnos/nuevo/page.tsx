@@ -38,14 +38,40 @@ export default function NuevoAlumno() {
         body: JSON.stringify({
           ...formData,
           curso: Number(formData.curso),
-          numero_rotacion: Number(formData.numero_rotacion)
+          numero_rotacion: Number(formData.numero_rotacion),
+          version_cuadernillo: "General" 
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Error al crear el alumno y su rotación");
+        let errorMsg = "Error desconocido al crear el alumno";
+        
+        if (data.detail && Array.isArray(data.detail)) {
+          const primerError = data.detail[0];
+          const campo = primerError.loc[primerError.loc.length - 1]; 
+          const mensajeOriginal = primerError.msg;
+
+          // --- 📚 NUESTRO DICCIONARIO DE TRADUCCIONES ---
+          const traducciones: Record<string, string> = {
+            "String should have at least 8 characters": "debe tener al menos 8 caracteres.",
+            "Field required": "es un campo obligatorio y no puede estar vacío.",
+            "value is not a valid email address": "no tiene un formato de correo válido.",
+            "Input should be a valid integer, unable to parse string as an integer": "debe ser un número válido."
+          };
+
+          // Buscamos si tenemos la traducción. Si no, mostramos el original por si acaso.
+          const mensajeTraducido = traducciones[mensajeOriginal] || mensajeOriginal;
+
+          // Formateamos el texto final para que quede perfecto
+          errorMsg = `El campo '${campo}' ${mensajeTraducido}`;
+        } 
+        else if (data.detail && typeof data.detail === "string") {
+          errorMsg = data.detail;
+        }
+
+        throw new Error(errorMsg);
       }
 
       setMensaje({ tipo: "success", texto: "✅ Alumno, Tutor y Rotación vinculados con éxito" });
@@ -110,13 +136,33 @@ export default function NuevoAlumno() {
           {/* SECCIÓN 3: ASIGNACIÓN DE PRÁCTICAS Y TUTOR */}
           <section className="bg-blue-50 p-4 rounded-lg">
             <h3 className="text-lg font-semibold text-blue-800 mb-4">3. Asignación de Prácticas y Tutor</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* Cambiamos a grid-cols-3 para hacer hueco al nuevo selector */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* --- NUEVO: Selector de Número de Rotación --- */}
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 font-bold">Número de Rotación</label>
+                <select 
+                  value={formData.numero_rotacion}
+                  onChange={e => setFormData({...formData, numero_rotacion: parseInt(e.target.value)})}
+                  className="w-full border-2 border-blue-200 p-2 rounded text-gray-900 bg-white focus:border-blue-500"
+                >
+                  <option value={1}>Rotación 1</option>
+                  <option value={2}>Rotación 2</option>
+                  <option value={3}>Rotación 3</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">1ª, 2ª o 3ª práctica.</p>
+              </div>
+
+              {/* El campo del email del tutor que ya tenías */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 font-bold">Email del Tutor/a Responsable</label>
                 <input type="email" placeholder="Cualquier profesor ya registrado..." required className="w-full border-2 border-blue-200 p-2 rounded text-gray-900 bg-white focus:border-blue-500" 
                   onChange={e => setFormData({...formData, email_tutor: e.target.value})} />
                 <p className="text-xs text-gray-500 mt-1">El profesor debe estar dado de alta previamente.</p>
               </div>
+
             </div>
           </section>
 

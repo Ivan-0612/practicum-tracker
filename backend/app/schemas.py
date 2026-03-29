@@ -60,6 +60,7 @@ class AlumnoResponse(BaseModel):
     usuario_id: UUID
     curso: int
     grupo: str
+    numero_rotacion: int
     codigo_anonimo: str
     activo: bool
 
@@ -75,21 +76,18 @@ class AlumnoResponse(BaseModel):
 # ESQUEMAS DE ROTACIÓN
 # ==========================================
 class RotacionBase(BaseModel):
-    numero_rotacion: int = Field(..., ge=1, le=3)  # Solo permitimos rotación 1, 2 o 3
+    # Eliminamos numero_rotacion de aquí porque ya está en Alumno
+    fecha_inicio: Optional[date] = None
 
 
 class RotacionCreate(RotacionBase):
     alumno_id: UUID
-    tutor_id: Optional[UUID] = (
-        None  # Puede crearse la rotación antes de asignarle un tutor
-    )
+    # Eliminamos tutor_id de aquí
 
 
 class RotacionResponse(RotacionBase):
     id: UUID
     alumno_id: UUID
-    tutor_id: Optional[UUID]
-    fecha_inicio: Optional[date]
     fecha_fin: Optional[date]
     completada: bool
 

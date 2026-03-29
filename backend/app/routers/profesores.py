@@ -22,7 +22,7 @@ def obtener_mis_alumnos(
 
     resultado = []
     for alumno in mis_alumnos:
-        # Buscamos su rotación activa
+        # Buscamos su rotación activa (Seguimos necesitando esto para obtener el ID de la rotación y armar el link del botón "Evaluar")
         rotacion_activa = (
             db.query(models.Rotacion)
             .filter(
@@ -32,7 +32,6 @@ def obtener_mis_alumnos(
             .first()
         )
 
-        # --- NUEVO: DESCIFRAR DATOS AQUÍ MISMO PARA ENVIARLOS YA REALES ---
         # Usamos la Master Key cargada en security.py automáticamente
         nombre_real = security.descifrar_dato(alumno.nombre_cifrado)
         apellidos_real = security.descifrar_dato(alumno.apellidos_cifrado)
@@ -42,12 +41,12 @@ def obtener_mis_alumnos(
             {
                 "alumno_id": str(alumno.id),
                 "rotacion_id": str(rotacion_activa.id) if rotacion_activa else "",
-                # NUEVO: Enviamos el nombre y email reales
                 "nombre_completo": f"{nombre_real} {apellidos_real}",
                 "email_personal": email_real,
-                # Mantener campos académicos
                 "curso": alumno.curso,
                 "grupo": alumno.grupo,
+                # --- AQUÍ ESTÁ EL CAMBIO: Enviamos el número de rotación directo del modelo Alumno ---
+                "numero_rotacion": alumno.numero_rotacion 
             }
         )
 

@@ -1,22 +1,22 @@
 # --- CORE API ---
-fastapi==0.110.0
-uvicorn[standard]==0.29.0
-python-multipart==0.0.9
-python-dotenv==1.0.1
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
 
 # --- BASE DE DATOS (PostgreSQL + ORM) ---
-sqlalchemy==2.0.29
-alembic==1.13.1
-psycopg2-binary==2.9.9
+sqlalchemy
+alembic
+psycopg2-binary
 
 # --- SEGURIDAD Y RGPD ---
-pydantic[email]==2.6.4
-passlib[argon2]==1.7.4
-PyJWT==2.8.0
-cryptography==42.0.5
+pydantic[email]
+passlib[argon2]
+PyJWT
+cryptography
 
 # --- EXPORTACIÓN DE DATOS ---
-weasyprint==61.0
-openpyxl==3.1.2
+weasyprint
+openpyxl
 
 python-jose[cryptography]
