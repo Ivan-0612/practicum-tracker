@@ -52,7 +52,7 @@ export default function LoginPage() {
         } else if (data.rol === "profesor") {
         router.push("/profesor/dashboard"); 
         } else {
-        router.push("/alumno/panel");
+        router.push("/alumno/dashboard");
         }
 
     } catch (error: any) {

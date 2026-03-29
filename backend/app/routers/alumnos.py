@@ -10,13 +10,19 @@ router = APIRouter(prefix="/api/v1/alumnos", tags=["Alumnos"])
 
 @router.post("/", response_model=schemas.AlumnoResponse)
 def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db)):
-    tutor = db.query(models.Usuario).filter(
-        models.Usuario.email == alumno_in.email_tutor,
-        models.Usuario.rol == "profesor"
-    ).first()
+    tutor = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.email == alumno_in.email_tutor,
+            models.Usuario.rol == "profesor",
+        )
+        .first()
+    )
 
     if not tutor:
-        raise HTTPException(status_code=404, detail="No existe ningún profesor con ese email")
+        raise HTTPException(
+            status_code=404, detail="No existe ningún profesor con ese email"
+        )
 
     nuevo_usuario = models.Usuario(
         email=alumno_in.email_acceso,
@@ -29,10 +35,10 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
     # 3. Crear el Alumno (¡AHORA INCLUYE EL NÚMERO DE ROTACIÓN!)
     nuevo_alumno = models.Alumno(
         usuario_id=nuevo_usuario.id,
-        tutor_id=tutor.id,  
+        tutor_id=tutor.id,
         curso=alumno_in.curso,
         grupo=alumno_in.grupo,
-        numero_rotacion=alumno_in.numero_rotacion, # <--- AQUÍ SE GUARDA DIRECTAMENTE
+        numero_rotacion=alumno_in.numero_rotacion,  # <--- AQUÍ SE GUARDA DIRECTAMENTE
         codigo_anonimo=f"ALU-{secrets.token_hex(3).upper()}",
         nombre_cifrado=security.cifrar_dato(alumno_in.nombre),
         apellidos_cifrado=security.cifrar_dato(alumno_in.apellidos),
@@ -51,3 +57,49 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
     db.commit()
     db.refresh(nuevo_alumno)
     return nuevo_alumno
+
+
+@router.get("/mi-perfil-evaluacion")
+def obtener_mi_evaluacion(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "estudiante":
+        raise HTTPException(status_code=403, detail="Acceso solo para alumnos")
+
+    # 1. Buscamos el perfil del alumno
+    alumno = (
+        db.query(models.Alumno)
+        .filter(models.Alumno.usuario_id == current_user.id)
+        .first()
+    )
+
+    # 2. Buscamos todas sus rotaciones
+    rotaciones = (
+        db.query(models.Rotacion).filter(models.Rotacion.alumno_id == alumno.id).all()
+    )
+
+    # 3. Buscamos los datos del tutor asignado
+    tutor = (
+        db.query(models.Usuario).filter(models.Usuario.id == alumno.tutor_id).first()
+    )
+
+    return {
+        "alumno": {
+            "nombre": security.descifrar_dato(alumno.nombre_cifrado),
+            "apellidos": security.descifrar_dato(alumno.apellidos_cifrado),
+            "curso": alumno.curso,
+        },
+        "tutor": {
+            "nombre_tutor": tutor.email  # O el nombre si tuvieras tabla de perfiles de prof.
+        },
+        "rotaciones": [
+            {
+                "id": str(r.id),
+                "numero": alumno.numero_rotacion,  # O el número que corresponda
+                "completada": r.completada,
+                "fecha": r.fecha_inicio,
+            }
+            for r in rotaciones
+        ],
+    }

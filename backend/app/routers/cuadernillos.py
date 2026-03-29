@@ -16,7 +16,7 @@ def obtener_molde_cuadernillo(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
-    if current_user.rol != "profesor":
+    if current_user.rol not in ["profesor", "estudiante"]:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
     rotacion = (
