@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import { ChevronLeft, Save, CheckCircle2, Loader2, CheckSquare } from "lucide-react";
+import { ChevronLeft, Save, CheckCircle2, Loader2, CheckSquare, Lock } from "lucide-react";
 
 export default function PantallaEvaluacion() {
   const params = useParams();
@@ -17,6 +17,9 @@ export default function PantallaEvaluacion() {
   const [respuestas, setRespuestas] = useState<Record<string, any>>({});
   const [guardando, setGuardando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  
+  // --- NUEVO: Estado para bloquear la edición ---
+  const [esSoloLectura, setEsSoloLectura] = useState(false);
 
   useEffect(() => {
     cargarCuadernillo();
@@ -32,8 +35,12 @@ export default function PantallaEvaluacion() {
       
       const data = await res.json();
       setDatos(data);
+
+      // --- NUEVO: Comprobamos si la rotación ya está cerrada en la BD ---
+      if (data.rotacion_completada === true) {
+        setEsSoloLectura(true);
+      }
       
-      // --- NUEVO: SI EL BACKEND NOS MANDA UN BORRADOR, LO CARGAMOS EN EL ESTADO ---
       if (data.borrador && Object.keys(data.borrador).length > 0) {
         setRespuestas(data.borrador);
       }
@@ -46,6 +53,9 @@ export default function PantallaEvaluacion() {
   };
 
   const handleCambioRespuesta = (elemento_id: string, bloque: number, campo: string, valor: any) => {
+    // Si es solo lectura, no permitimos cambios en el estado
+    if (esSoloLectura) return;
+    
     setRespuestas(prev => ({
       ...prev,
       [elemento_id]: {
@@ -58,6 +68,7 @@ export default function PantallaEvaluacion() {
   };
 
   const handleGuardarBorrador = async () => {
+    if (esSoloLectura) return;
     setGuardando(true);
     try {
       const token = Cookies.get("practicum_token");
@@ -80,8 +91,9 @@ export default function PantallaEvaluacion() {
   };
 
   const handleFinalizarRotacion = async () => {
+    if (esSoloLectura) return;
     const confirmar = window.confirm(
-      "¿Estás seguro de que quieres FINALIZAR esta evaluación?\n\nUna vez finalizada, ya no podrás modificar las notas y el alumno podrá ver los resultados finales."
+      "¿Estás seguro de que quieres FINALIZAR esta evaluación?\n\nUna vez finalizada, ya no podrás modificar las notas."
     );
     if (!confirmar) return;
 
@@ -91,12 +103,11 @@ export default function PantallaEvaluacion() {
       const listaRespuestas = Object.values(respuestas);
       
       if (listaRespuestas.length > 0) {
-        const resGuardar = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/guardar/${rotacionId}`, {
+        await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/guardar/${rotacionId}`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify(listaRespuestas)
         });
-        if (!resGuardar.ok) throw new Error("Error al guardar las últimas notas.");
       }
 
       const resFinalizar = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/finalizar/${rotacionId}`, {
@@ -105,7 +116,7 @@ export default function PantallaEvaluacion() {
       });
       if (!resFinalizar.ok) throw new Error("Error al intentar finalizar la rotación.");
 
-      alert("🎉 Evaluación finalizada y cerrada con éxito.");
+      alert("🎉 Evaluación finalizada con éxito.");
       router.push("/profesor/dashboard");
 
     } catch (err: any) {
@@ -114,7 +125,7 @@ export default function PantallaEvaluacion() {
     }
   };
 
-  if (loading) return <div className="p-10 text-center text-indigo-600 font-bold animate-pulse">Cargando cuadernillo dinámico...</div>;
+  if (loading) return <div className="p-10 text-center text-indigo-600 font-bold animate-pulse">Cargando cuadernillo...</div>;
   if (error) return <div className="p-10 text-center text-red-600 font-bold bg-red-50 m-10 rounded-xl border border-red-200">{error}</div>;
   if (!datos) return null;
 
@@ -133,54 +144,65 @@ export default function PantallaEvaluacion() {
           </div>
           
           <div className="flex flex-wrap gap-3">
-            <button 
-              onClick={handleGuardarBorrador}
-              disabled={guardando || finalizando}
-              className={`bg-white border-2 border-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all hover:bg-slate-50 hover:border-slate-300`}
-            >
-              {guardando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-              Guardar Borrador
-            </button>
+            {/* --- NUEVO: Mostramos botones o etiqueta de cerrado --- */}
+            {!esSoloLectura ? (
+              <>
+                <button 
+                  onClick={handleGuardarBorrador}
+                  disabled={guardando || finalizando}
+                  className="bg-white border-2 border-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all"
+                >
+                  {guardando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  Guardar Borrador
+                </button>
 
-            <button 
-              onClick={handleFinalizarRotacion}
-              disabled={guardando || finalizando}
-              className={`bg-green-600 border border-green-700 text-white px-5 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md hover:bg-green-700 hover:shadow-lg`}
-            >
-              {finalizando ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckSquare className="w-5 h-5" />}
-              {finalizando ? "Cerrando acta..." : "Finalizar Rotación"}
-            </button>
+                <button 
+                  onClick={handleFinalizarRotacion}
+                  disabled={guardando || finalizando}
+                  className="bg-green-600 border border-green-700 text-white px-5 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-green-700 shadow-md transition-all"
+                >
+                  {finalizando ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckSquare className="w-5 h-5" />}
+                  Finalizar Rotación
+                </button>
+              </>
+            ) : (
+              <div className="bg-amber-50 text-amber-700 px-5 py-2 rounded-xl font-bold border border-amber-200 flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Evaluación Cerrada (Solo Lectura)
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
         {/* BLOQUE 0: SÍ / NO */}
-        <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <section className={`bg-white p-8 rounded-2xl shadow-sm border border-slate-200 ${esSoloLectura ? 'opacity-80' : ''}`}>
           <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
             <CheckCircle2 className="w-6 h-6 text-indigo-600" />
             {molde.bloque_sinon.titulo}
           </h2>
           <div className="space-y-6">
             {molde.bloque_sinon.elementos.map((item: any) => {
-              // --- NUEVO: Extraemos la respuesta previa si existe ---
               const respuestaPrevia = respuestas[item.id];
               return (
                 <div key={item.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                   <span className="font-medium text-slate-700 flex-grow">{item.texto}</span>
                   <div className="flex gap-4 shrink-0 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-                    <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-green-50 rounded-md cursor-pointer transition-colors">
+                    <label className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${esSoloLectura ? 'cursor-default' : 'cursor-pointer hover:bg-green-50'}`}>
                       <input type="radio" name={`radio_${item.id}`} 
+                        disabled={esSoloLectura}
                         onChange={() => handleCambioRespuesta(item.id, 0, 'valor_sinon', true)}
-                        checked={respuestaPrevia?.valor_sinon === true} // <-- NUEVO: Pone el check si estaba guardado
+                        checked={respuestaPrevia?.valor_sinon === true}
                         className="w-4 h-4 text-green-600 focus:ring-green-500" />
                       <span className="text-sm font-semibold text-slate-700">SÍ</span>
                     </label>
                     <div className="w-px bg-slate-200"></div>
-                    <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-50 rounded-md cursor-pointer transition-colors">
+                    <label className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${esSoloLectura ? 'cursor-default' : 'cursor-pointer hover:bg-red-50'}`}>
                       <input type="radio" name={`radio_${item.id}`} 
+                        disabled={esSoloLectura}
                         onChange={() => handleCambioRespuesta(item.id, 0, 'valor_sinon', false)}
-                        checked={respuestaPrevia?.valor_sinon === false} // <-- NUEVO: Pone el check si estaba guardado
+                        checked={respuestaPrevia?.valor_sinon === false}
                         className="w-4 h-4 text-red-600 focus:ring-red-500" />
                       <span className="text-sm font-semibold text-slate-700">NO</span>
                     </label>
@@ -193,7 +215,7 @@ export default function PantallaEvaluacion() {
 
         {/* BLOQUES 1-7: NIVELES */}
         {molde.apartados.map((apartado: any) => (
-          <section key={apartado.numero} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+          <section key={apartado.numero} className={`bg-white p-8 rounded-2xl shadow-sm border border-slate-200 ${esSoloLectura ? 'opacity-80' : ''}`}>
             <h2 className="text-xl font-bold text-slate-800 mb-2">Apartado {apartado.numero}: {apartado.titulo}</h2>
             <div className="mb-6 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 text-sm">
               <ul className="grid grid-cols-1 md:grid-cols-3 gap-2 text-indigo-800">
@@ -205,27 +227,28 @@ export default function PantallaEvaluacion() {
 
             <div className="space-y-4">
               {apartado.elementos.map((item: any) => {
-                // --- NUEVO: Extraemos la respuesta previa si existe ---
                 const respuestaPrevia = respuestas[item.id];
                 return (
                   <div key={item.id} className="p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                     <p className="font-medium text-slate-800 mb-4">{item.texto}</p>
                     <div className="flex flex-wrap gap-4">
                       {[1, 2, 3].map(num => (
-                        <label key={num} className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 px-4 py-2 rounded-lg hover:border-indigo-400 hover:shadow-sm transition-all">
+                        <label key={num} className={`flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white transition-all ${esSoloLectura ? 'cursor-default' : 'cursor-pointer hover:border-indigo-400'}`}>
                           <input type="radio" name={`radio_${item.id}`} 
+                            disabled={esSoloLectura}
                             onChange={() => handleCambioRespuesta(item.id, apartado.numero, 'valor_nivel', num)}
-                            checked={respuestaPrevia?.valor_nivel === num} // <-- NUEVO: Pone el check si estaba guardado
+                            checked={respuestaPrevia?.valor_nivel === num}
                             className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
                           <span className="text-sm font-semibold text-slate-700">Nivel {num}</span>
                         </label>
                       ))}
                     </div>
                     <textarea 
-                      placeholder="Comentario opcional sobre este punto..."
+                      placeholder={esSoloLectura ? "Sin comentario" : "Comentario opcional..."}
+                      disabled={esSoloLectura}
                       onChange={(e) => handleCambioRespuesta(item.id, apartado.numero, 'comentario', e.target.value)}
-                      value={respuestaPrevia?.comentario || ""} // <-- NUEVO: Pone el texto si estaba guardado
-                      className="mt-3 w-full border border-slate-200 rounded-lg p-2 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      value={respuestaPrevia?.comentario || ""}
+                      className={`mt-3 w-full border border-slate-200 rounded-lg p-2 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none ${esSoloLectura ? 'bg-slate-50' : 'bg-white'}`}
                       rows={1}
                     />
                   </div>
