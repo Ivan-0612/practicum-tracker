@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import { ChevronLeft, Save, CheckCircle2, Loader2, CheckSquare, Lock, AlertCircle } from "lucide-react";
+import { ChevronLeft, Save, CheckCircle2, Loader2, CheckSquare, Lock, AlertCircle, Download } from "lucide-react";
 
 export default function PantallaEvaluacion() {
   const params = useParams();
@@ -40,7 +40,6 @@ export default function PantallaEvaluacion() {
       const data = await res.json();
 
       // --- VALIDACIÓN DE SEGURIDAD ---
-      // Verificamos que el ID que devuelve el JSON sea el mismo que pedimos en la URL
       if (data.rotacion_id && String(data.rotacion_id) !== String(rotacionId)) {
         throw new Error("Error de integridad: Los datos recibidos no corresponden a esta rotación.");
       }
@@ -173,6 +172,35 @@ export default function PantallaEvaluacion() {
     }
   };
 
+  const handleDescargarPDF = async () => {
+    try {
+      const token = Cookies.get("practicum_token") || "";
+      
+      const res = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/descargar-pdf/${rotacionId}`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error("Error al generar el PDF");
+
+      // Convertimos la respuesta a un Blob (archivo binario)
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Forzamos la descarga
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Evaluacion_${datos.alumno.nombre_completo.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (err: any) {
+      alert("❌ Error al descargar el PDF: " + err.message);
+    }
+  };
+
   if (loading) return <div className="p-10 text-center text-indigo-600 font-bold animate-pulse">Cargando cuadernillo...</div>;
   if (error) return (
     <div className="min-h-screen flex items-center justify-center p-6">
@@ -235,9 +263,18 @@ export default function PantallaEvaluacion() {
                   </button>
                 </>
               ) : (
-                <div className="bg-amber-50 text-amber-700 px-5 py-2 rounded-xl font-bold border border-amber-200 flex items-center gap-2 shadow-sm">
-                  <Lock className="w-5 h-5" />
-                  Evaluación Cerrada
+                <div className="flex gap-3">
+                  <div className="bg-amber-50 text-amber-700 px-5 py-2 rounded-xl font-bold border border-amber-200 flex items-center gap-2 shadow-sm">
+                    <Lock className="w-5 h-5" />
+                    Evaluación Cerrada
+                  </div>
+                  <button 
+                    onClick={handleDescargarPDF}
+                    className="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all"
+                  >
+                    <Download className="w-4 h-4" />
+                    Descargar Acta PDF
+                  </button>
                 </div>
               )}
             </div>
