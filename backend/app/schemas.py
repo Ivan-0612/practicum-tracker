@@ -94,6 +94,7 @@ class RotacionResponse(RotacionBase):
     class Config:
         from_attributes = True
 
+
 # ==========================================
 # ESQUEMAS DE RESPUESTAS DEL CUADERNILLO
 # ==========================================
@@ -104,14 +105,39 @@ class RespuestaBase(BaseModel):
     valor_nivel: Optional[int] = None
     comentario: Optional[str] = None
 
+
 class RespuestaCreate(RespuestaBase):
     # Cuando React nos mande las respuestas, vendrán en este formato
     pass
+
 
 class RespuestaResponse(RespuestaBase):
     id: UUID
     rotacion_id: UUID
     version_cuadernillo: str
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# ESQUEMAS DE ASISTENCIA
+# ==========================================
+class AsistenciaCreate(BaseModel):
+    rotacion_id: UUID
+    tipo: str  # Tiene que ser "entrada" o "salida"
+    ubicacion_permitida: bool
+    latitud: Optional[str] = None
+    longitud: Optional[str] = None
+
+
+class AsistenciaResponse(BaseModel):
+    id: UUID
+    fecha: date
+    hora: datetime
+    ubicacion_permitida: bool
+    latitud: Optional[str] = None
+    longitud: Optional[str] = None
 
     class Config:
         from_attributes = True

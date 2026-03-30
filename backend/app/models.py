@@ -133,3 +133,35 @@ class CuadernilloRespuesta(Base):
     )
     guardado_en = Column(DateTime(timezone=True), server_default=func.now())
     rotacion = relationship("Rotacion")
+
+
+class RegistroAsistencia(Base):
+    __tablename__ = "registro_asistencia"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rotacion_id = Column(
+        UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False
+    )
+    alumno_id = Column(UUID(as_uuid=True), ForeignKey("alumnos.id"), nullable=False)
+
+    fecha = Column(Date, server_default=func.current_date())
+
+    # Fichaje de Entrada
+    hora_entrada = Column(DateTime(timezone=True), nullable=True)
+    ubicacion_entrada_permitida = Column(Boolean, default=False)
+    latitud_entrada = Column(String, nullable=True)
+    longitud_entrada = Column(String, nullable=True)
+
+    # Fichaje de Salida
+    hora_salida = Column(DateTime(timezone=True), nullable=True)
+    ubicacion_salida_permitida = Column(Boolean, default=False)
+    latitud_salida = Column(String, nullable=True)
+    longitud_salida = Column(String, nullable=True)
+
+    rotacion = relationship("Rotacion")
+    alumno = relationship("Alumno")
+
+    # Esto evita que se creen dos filas el mismo día para el mismo alumno
+    __table_args__ = (
+        UniqueConstraint("rotacion_id", "alumno_id", "fecha", name="_rot_alu_fecha_uc"),
+    )

@@ -64,21 +64,22 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
     return nuevo_alumno
 
 
+from datetime import date
+
+
 @router.get("/mi-perfil-evaluacion")
 def obtener_mi_evaluacion(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
     if current_user.rol != "estudiante":
-        raise HTTPException(status_code=403, detail="Acceso solo para alumnos")
+        raise HTTPException(status_code=403, detail="Solo para alumnos")
 
     alumno = (
         db.query(models.Alumno)
         .filter(models.Alumno.usuario_id == current_user.id)
         .first()
     )
-
-    # IMPORTANTE: Ordenamos las rotaciones por curso y número para que al alumno le salgan ordenadas
     rotaciones = (
         db.query(models.Rotacion)
         .filter(models.Rotacion.alumno_id == alumno.id)
@@ -86,28 +87,40 @@ def obtener_mi_evaluacion(
         .all()
     )
 
+    hoy = date.today()
     rotaciones_data = []
+
     for r in rotaciones:
-        asignaciones = (
-            db.query(models.AsignacionTutor)
+        tutores_emails = [
+            asig.tutor.email
+            for asig in db.query(models.AsignacionTutor)
             .filter(models.AsignacionTutor.rotacion_id == r.id)
             .all()
+        ]
+
+        # Comprobar si ya fichó hoy
+        fichaje_hoy = (
+            db.query(models.RegistroAsistencia)
+            .filter(
+                models.RegistroAsistencia.rotacion_id == r.id,
+                models.RegistroAsistencia.fecha == hoy,
+            )
+            .first()
         )
-        tutores_emails = [asig.tutor.email for asig in asignaciones]
 
         rotaciones_data.append(
             {
                 "id": str(r.id),
-                # CAMBIO CLAVE: Usamos r.curso y r.numero_rotacion (los de la rotación)
-                # Ponemos un 'or' como plan de rescate por si hay datos antiguos vacíos
-                "curso": r.curso if r.curso is not None else alumno.curso,
+                "curso": r.curso if r.curso else alumno.curso,
                 "numero": (
-                    r.numero_rotacion
-                    if r.numero_rotacion is not None
-                    else alumno.numero_rotacion
+                    r.numero_rotacion if r.numero_rotacion else alumno.numero_rotacion
                 ),
                 "completada": r.completada,
                 "tutores": tutores_emails,
+                "estado_fichaje_hoy": {
+                    "entrada": bool(fichaje_hoy and fichaje_hoy.hora_entrada),
+                    "salida": bool(fichaje_hoy and fichaje_hoy.hora_salida),
+                },
             }
         )
 
@@ -294,7 +307,12 @@ def eliminar_rotacion(
     if not rotacion:
         raise HTTPException(status_code=404, detail="Rotación no encontrada")
 
-    # Borrar dependencias (evaluaciones y asignaciones)
+    # 1. LIMPIEZA DE ASISTENCIA (Evita el error de ForeignKey)
+    db.query(models.RegistroAsistencia).filter(
+        models.RegistroAsistencia.rotacion_id == rotacion_id
+    ).delete()
+
+    # 2. Borrar otras dependencias
     db.query(models.AsignacionTutor).filter(
         models.AsignacionTutor.rotacion_id == rotacion_id
     ).delete()
@@ -305,7 +323,7 @@ def eliminar_rotacion(
     db.delete(rotacion)
     db.commit()
 
-    return {"mensaje": "Rotación eliminada"}
+    return {"mensaje": "Rotación y registros de asistencia eliminados"}
 
 
 @router.delete("/{alumno_id}")
@@ -314,22 +332,22 @@ def eliminar_alumno_completo(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
-    # Verificación de seguridad
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
 
-    # 1. Buscar el perfil del alumno
     alumno = db.query(models.Alumno).filter(models.Alumno.id == alumno_id).first()
     if not alumno:
         raise HTTPException(status_code=404, detail="Alumno no encontrado")
 
     usuario_id = alumno.usuario_id
-
-    # 2. Limpiar dependencias en cascada manualmente
-    # Buscamos todas las rotaciones del alumno
     rotaciones_ids = [r.id for r in alumno.rotaciones]
 
-    # Borrar asignaciones de tutores y respuestas de esas rotaciones
+    # 1. LIMPIEZA DE ASISTENCIA DE TODAS SUS ROTACIONES
+    db.query(models.RegistroAsistencia).filter(
+        models.RegistroAsistencia.rotacion_id.in_(rotaciones_ids)
+    ).delete(synchronize_session=False)
+
+    # 2. Resto de dependencias
     db.query(models.AsignacionTutor).filter(
         models.AsignacionTutor.rotacion_id.in_(rotaciones_ids)
     ).delete(synchronize_session=False)
@@ -337,16 +355,104 @@ def eliminar_alumno_completo(
         models.CuadernilloRespuesta.rotacion_id.in_(rotaciones_ids)
     ).delete(synchronize_session=False)
 
-    # Borrar las rotaciones
     db.query(models.Rotacion).filter(models.Rotacion.alumno_id == alumno_id).delete()
-
-    # Borrar el perfil del alumno
     db.delete(alumno)
 
-    # 3. Borrar el usuario de acceso (la cuenta de login)
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
     if usuario:
         db.delete(usuario)
 
     db.commit()
-    return {"mensaje": "Alumno y todos sus datos eliminados correctamente"}
+    return {"mensaje": "Alumno, rotaciones y asistencias eliminados correctamente"}
+
+
+from datetime import datetime
+
+
+@router.post("/fichar")
+def fichar_asistencia(
+    datos: schemas.AsistenciaCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "estudiante":
+        raise HTTPException(status_code=403)
+
+    alumno = (
+        db.query(models.Alumno)
+        .filter(models.Alumno.usuario_id == current_user.id)
+        .first()
+    )
+    rotacion = (
+        db.query(models.Rotacion)
+        .filter(
+            models.Rotacion.id == datos.rotacion_id,
+            models.Rotacion.alumno_id == alumno.id,
+        )
+        .first()
+    )
+    if not rotacion or rotacion.completada:
+        raise HTTPException(status_code=400, detail="Rotación inválida o terminada")
+
+    hoy = date.today()
+    ahora = datetime.now()
+
+    registro = (
+        db.query(models.RegistroAsistencia)
+        .filter(
+            models.RegistroAsistencia.rotacion_id == rotacion.id,
+            models.RegistroAsistencia.fecha == hoy,
+        )
+        .first()
+    )
+
+    if datos.tipo == "entrada":
+        if registro and registro.hora_entrada:
+            raise HTTPException(status_code=400, detail="Ya has fichado la entrada hoy")
+        if not registro:
+            registro = models.RegistroAsistencia(
+                rotacion_id=rotacion.id,
+                alumno_id=alumno.id,
+                fecha=hoy,
+                hora_entrada=ahora,
+                ubicacion_entrada_permitida=datos.ubicacion_permitida,
+                latitud_entrada=datos.latitud,
+                longitud_entrada=datos.longitud,
+            )
+            db.add(registro)
+
+    elif datos.tipo == "salida":
+        if not registro or not registro.hora_entrada:
+            raise HTTPException(status_code=400, detail="Debes fichar entrada primero")
+        if registro.hora_salida:
+            raise HTTPException(status_code=400, detail="Ya has fichado la salida hoy")
+
+        registro.hora_salida = ahora
+        registro.ubicacion_salida_permitida = datos.ubicacion_permitida
+        registro.latitud_salida = datos.latitud
+        registro.longitud_salida = datos.longitud
+
+    db.commit()
+    return {"mensaje": f"Fichaje de {datos.tipo} registrado"}
+
+
+@router.get("/asistencia/{rotacion_id}")
+def obtener_historial_asistencia_alumno(
+    rotacion_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    alumno = (
+        db.query(models.Alumno)
+        .filter(models.Alumno.usuario_id == current_user.id)
+        .first()
+    )
+    return (
+        db.query(models.RegistroAsistencia)
+        .filter(
+            models.RegistroAsistencia.rotacion_id == rotacion_id,
+            models.RegistroAsistencia.alumno_id == alumno.id,
+        )
+        .order_by(models.RegistroAsistencia.fecha.desc())
+        .all()
+    )

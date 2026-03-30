@@ -24,7 +24,7 @@ interface AlumnoAsignado {
   curso: number;
   grupo: string;
   numero_rotacion: number; 
-  estado_evaluacion: string; // <-- NUEVO CAMPO AÑADIDO
+  estado_evaluacion: string;
 }
 
 export default function ProfesorDashboard() {
@@ -34,7 +34,7 @@ export default function ProfesorDashboard() {
 
   // --- ESTADOS DE NAVEGACIÓN Y BÚSQUEDA ---
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState<string>("Todos"); // <-- NUEVO ESTADO
+  const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
   const [cursoActivo, setCursoActivo] = useState<number | null>(null);
   const [rotacionActiva, setRotacionActiva] = useState<number | null>(null);
 
@@ -65,7 +65,7 @@ export default function ProfesorDashboard() {
     router.push("/login");
   };
 
-  // --- 🧠 NUEVA LÓGICA DE FILTRADO INTELIGENTE ---
+  // --- LÓGICA DE FILTRADO INTELIGENTE ---
   // 1. Primero filtramos TODOS los alumnos según el selector de Estado
   const alumnosPorEstado = alumnos.filter(a => filtroEstado === "Todos" || a.estado_evaluacion === filtroEstado);
 
@@ -94,7 +94,7 @@ export default function ProfesorDashboard() {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
       <div className="p-6 flex-grow">
         
-        {/* ENCABEZADO DE LA TARJETA (AQUÍ VAN LAS PÍLDORAS) */}
+        {/* ENCABEZADO DE LA TARJETA */}
         <div className="flex justify-between items-start mb-6 gap-2">
           <div className="flex flex-wrap gap-2">
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
@@ -105,7 +105,7 @@ export default function ProfesorDashboard() {
             </div>
           </div>
 
-          {/* NUEVO: ETIQUETA VISUAL DE ESTADO */}
+          {/* ETIQUETA VISUAL DE ESTADO */}
           {item.estado_evaluacion === "Completada" ? (
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 shrink-0">
               ✅ Evaluado
@@ -130,13 +130,22 @@ export default function ProfesorDashboard() {
         </div>
       </div>
       
-      <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto">
+      {/* SECCIÓN DE BOTONES INFERIOR */}
+      <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto flex flex-col gap-2">
         <button 
           onClick={() => router.push(`/profesor/evaluar/${item.rotacion_id}`)}
-          className="w-full bg-white border border-slate-200 text-slate-700 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600"
+          className="w-full bg-white border border-slate-200 text-slate-700 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-600 hover:text-white transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600"
         >
           {item.estado_evaluacion === "Completada" ? "Revisar Evaluación" : "Evaluar Alumno"}
           <ChevronRight className="w-4 h-4" />
+        </button>
+        
+        {/* BOTÓN DE ASISTENCIA */}
+        <button 
+          onClick={() => router.push(`/profesor/asistencia/${item.rotacion_id}`)}
+          className="w-full bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-300 transition-all"
+        >
+          Ver Calendario de Asistencia
         </button>
       </div>
     </div>
@@ -169,7 +178,7 @@ export default function ProfesorDashboard() {
             <p className="text-slate-500 mt-2">Navega por las carpetas o busca un alumno directamente.</p>
           </div>
           
-          {/* NUEVA BARRA DE CONTROLES: FILTRO + BUSCADOR */}
+          {/* BARRA DE CONTROLES: FILTRO + BUSCADOR */}
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             
             <select 
@@ -195,7 +204,7 @@ export default function ProfesorDashboard() {
               <input
                 type="text"
                 className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
-                placeholder="Buscar por nombre..."
+                placeholder="Buscar por nombre o email..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
@@ -256,7 +265,7 @@ export default function ProfesorDashboard() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {alumnosAMostrar.map(item => <TarjetaAlumno key={item.alumno_id} item={item} />)}
+                    {alumnosAMostrar.map(item => <TarjetaAlumno key={item.rotacion_id} item={item} />)}
                   </div>
                 )}
               </div>
@@ -326,7 +335,7 @@ export default function ProfesorDashboard() {
                   <ChevronLeft className="w-4 h-4" /> Volver a rotaciones
                 </button>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {alumnosAMostrar.map(item => <TarjetaAlumno key={item.alumno_id} item={item} />)}
+                  {alumnosAMostrar.map(item => <TarjetaAlumno key={item.rotacion_id} item={item} />)}
                 </div>
               </div>
             )}

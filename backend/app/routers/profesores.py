@@ -78,3 +78,39 @@ def obtener_mis_alumnos(
         )
 
     return resultado
+
+
+@router.get("/asistencia/{rotacion_id}")
+def obtener_asistencia_alumno(
+    rotacion_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "profesor":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
+    # Verificar que el profesor es tutor de esta rotación
+    asignacion = (
+        db.query(models.AsignacionTutor)
+        .filter(
+            models.AsignacionTutor.tutor_id == current_user.id,
+            models.AsignacionTutor.rotacion_id == rotacion_id,
+        )
+        .first()
+    )
+
+    if not asignacion:
+        raise HTTPException(status_code=403, detail="No eres tutor de esta rotación")
+
+    # CORRECCIÓN: Ordenamos por fecha y luego por hora_entrada (ya que 'hora' a secas no existe)
+    fichajes = (
+        db.query(models.RegistroAsistencia)
+        .filter(models.RegistroAsistencia.rotacion_id == rotacion_id)
+        .order_by(
+            models.RegistroAsistencia.fecha.desc(),
+            models.RegistroAsistencia.hora_entrada.desc(),
+        )
+        .all()
+    )
+
+    return fichajes
