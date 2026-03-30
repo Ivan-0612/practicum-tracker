@@ -165,3 +165,24 @@ class RegistroAsistencia(Base):
     __table_args__ = (
         UniqueConstraint("rotacion_id", "alumno_id", "fecha", name="_rot_alu_fecha_uc"),
     )
+
+
+class IntentoLogin(Base):
+    __tablename__ = "intentos_login"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Cambiamos el nombre a usuario_id para que sea claro y usamos el tipo correcto (UUID)
+    usuario_id = Column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False, unique=True
+    )
+
+    # Mantenemos el email como un campo informativo si quieres, pero sin ser la Foreign Key
+    email = Column(String, nullable=False, index=True)
+
+    intentos = Column(Integer, default=0)
+    ultimo_intento = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    bloqueado_hasta = Column(DateTime(timezone=True), nullable=True)
+
+    usuario = relationship("Usuario")

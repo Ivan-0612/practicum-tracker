@@ -121,3 +121,28 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+MAX_INTENTOS = 5
+MINUTOS_BLOQUEO = 5
+
+
+def verificar_bloqueo(db: Session, email: str):
+    """Comprueba si un usuario está temporalmente bloqueado por demasiados intentos"""
+    registro = (
+        db.query(models.IntentoLogin).filter(models.IntentoLogin.email == email).first()
+    )
+
+    if registro and registro.bloqueado_hasta:
+        if datetime.now(timezone.utc) < registro.bloqueado_hasta.replace(
+            tzinfo=timezone.utc
+        ):
+            tiempo_restante = (
+                registro.bloqueado_hasta.replace(tzinfo=timezone.utc)
+                - datetime.now(timezone.utc)
+            ).seconds // 60
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Cuenta bloqueada temporalmente. Inténtalo de nuevo en {tiempo_restante + 1} minutos.",
+            )
+    return registro
