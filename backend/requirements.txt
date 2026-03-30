@@ -20,3 +20,7 @@ weasyprint
 openpyxl
 
 python-jose[cryptography]
+
+pypdf
+reportlab
+fastapi_mail

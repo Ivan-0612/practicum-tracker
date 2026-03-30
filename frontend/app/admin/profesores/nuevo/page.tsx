@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
+import { ArrowLeft } from "lucide-react"; // Opcional: para un icono de flecha
 
 export default function NuevoProfesor() {
   const router = useRouter();
@@ -34,21 +35,46 @@ export default function NuevoProfesor() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow">
+        
+        {/* Botón para volver atrás */}
+        <button 
+          onClick={() => router.push("/admin/panel")}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Volver al Panel
+        </button>
+
         <h1 className="text-xl font-bold mb-6 text-gray-900">Registrar Profesor</h1>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Email Docente</label>
-            <input type="email" required className="w-full border p-2 rounded text-gray-900 bg-white" 
-              onChange={e => setEmail(e.target.value)} />
+            <input 
+              type="email" 
+              required 
+              className="w-full border p-2 rounded text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+              onChange={e => setEmail(e.target.value)} 
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Contraseña Provisional</label>
-            <input type="password" required className="w-full border p-2 rounded text-gray-900 bg-white" 
-              onChange={e => setPassword(e.target.value)} />
+            <input 
+              type="password" 
+              required 
+              className="w-full border p-2 rounded text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+              onChange={e => setPassword(e.target.value)} 
+            />
           </div>
-          <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">
-            Dar de Alta
-          </button>
+          
+          <div className="pt-2 space-y-3">
+            <button 
+              type="submit" 
+              className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all"
+            >
+              Dar de Alta
+            </button>
+          </div>
+
           {mensaje && <p className="text-center text-sm font-medium mt-2">{mensaje}</p>}
         </form>
       </div>
