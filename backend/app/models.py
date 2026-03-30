@@ -186,3 +186,17 @@ class IntentoLogin(Base):
     bloqueado_hasta = Column(DateTime(timezone=True), nullable=True)
 
     usuario = relationship("Usuario")
+
+
+class TokenRecuperacion(Base):
+    __tablename__ = "tokens_recuperacion"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("usuarios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token = Column(String, unique=True, index=True, nullable=False)
+    expira_at = Column(DateTime(timezone=True), nullable=False)
+    usado = Column(Boolean, default=False)

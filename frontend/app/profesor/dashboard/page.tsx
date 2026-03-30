@@ -11,7 +11,9 @@ import {
   Folder,
   Search,
   Home,
-  ChevronLeft
+  ChevronLeft,
+  Lock,
+  X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -37,6 +39,11 @@ export default function ProfesorDashboard() {
   const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
   const [cursoActivo, setCursoActivo] = useState<number | null>(null);
   const [rotacionActiva, setRotacionActiva] = useState<number | null>(null);
+
+  // --- ESTADOS PARA CAMBIO DE CONTRASEÑA ---
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [passFormData, setPassFormData] = useState({ actual: "", nueva: "", confirmar: "" });
+  const [passStatus, setPassStatus] = useState({ type: "", msg: "" });
 
   useEffect(() => {
     cargarAlumnos();
@@ -65,17 +72,55 @@ export default function ProfesorDashboard() {
     router.push("/login");
   };
 
+  const handleCambiarPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPassStatus({ type: "info", msg: "Actualizando..." });
+
+    if (passFormData.nueva !== passFormData.confirmar) {
+      setPassStatus({ type: "error", msg: "Las contraseñas nuevas no coinciden." });
+      return;
+    }
+
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch("http://127.0.0.1:8000/api/v1/auth/cambiar-password", {
+        method: "POST",
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({
+          password_actual: passFormData.actual,
+          nueva_password: passFormData.nueva,
+          confirmar_password: passFormData.confirmar
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setPassStatus({ type: "success", msg: "¡Contraseña actualizada con éxito!" });
+        setTimeout(() => {
+          setShowPassModal(false);
+          setPassFormData({ actual: "", nueva: "", confirmar: "" });
+          setPassStatus({ type: "", msg: "" });
+        }, 2000);
+      } else {
+        setPassStatus({ type: "error", msg: data.detail || "Error al cambiar la contraseña." });
+      }
+    } catch (error) {
+      setPassStatus({ type: "error", msg: "Error de conexión." });
+    }
+  };
+
   // --- LÓGICA DE FILTRADO INTELIGENTE ---
-  // 1. Primero filtramos TODOS los alumnos según el selector de Estado
   const alumnosPorEstado = alumnos.filter(a => filtroEstado === "Todos" || a.estado_evaluacion === filtroEstado);
 
-  // 2. Extraemos las carpetas basándonos SOLO en los alumnos que cumplen el filtro
   const cursosDisponibles = Array.from(new Set(alumnosPorEstado.map(a => a.curso))).sort();
   const rotacionesDelCurso = cursoActivo 
     ? Array.from(new Set(alumnosPorEstado.filter(a => a.curso === cursoActivo).map(a => a.numero_rotacion))).sort()
     : [];
 
-  // 3. Lógica final de Búsqueda y Navegación
   const isBuscando = busqueda.trim().length > 0;
   let alumnosAMostrar = alumnosPorEstado;
   
@@ -93,8 +138,6 @@ export default function ProfesorDashboard() {
   const TarjetaAlumno = ({ item }: { item: AlumnoAsignado }) => (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
       <div className="p-6 flex-grow">
-        
-        {/* ENCABEZADO DE LA TARJETA */}
         <div className="flex justify-between items-start mb-6 gap-2">
           <div className="flex flex-wrap gap-2">
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
@@ -104,8 +147,6 @@ export default function ProfesorDashboard() {
               Rotación {item.numero_rotacion}
             </div>
           </div>
-
-          {/* ETIQUETA VISUAL DE ESTADO */}
           {item.estado_evaluacion === "Completada" ? (
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 shrink-0">
               ✅ Evaluado
@@ -120,7 +161,6 @@ export default function ProfesorDashboard() {
             </div>
           )}
         </div>
-
         <h3 className="text-xl font-bold text-slate-900 mb-1">{item.nombre_completo}</h3>
         <div className="mt-4 space-y-3">
           <div className="flex items-center text-sm text-slate-600">
@@ -129,8 +169,6 @@ export default function ProfesorDashboard() {
           </div>
         </div>
       </div>
-      
-      {/* SECCIÓN DE BOTONES INFERIOR */}
       <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto flex flex-col gap-2">
         <button 
           onClick={() => router.push(`/profesor/evaluar/${item.rotacion_id}`)}
@@ -139,8 +177,6 @@ export default function ProfesorDashboard() {
           {item.estado_evaluacion === "Completada" ? "Revisar Evaluación" : "Evaluar Alumno"}
           <ChevronRight className="w-4 h-4" />
         </button>
-        
-        {/* BOTÓN DE ASISTENCIA */}
         <button 
           onClick={() => router.push(`/profesor/asistencia/${item.rotacion_id}`)}
           className="w-full bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-300 transition-all"
@@ -161,13 +197,22 @@ export default function ProfesorDashboard() {
             </div>
             <span className="font-bold text-xl text-slate-800 tracking-tight">Practicum <span className="text-indigo-600">Docente</span></span>
           </div>
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-slate-500 hover:text-red-600 transition-colors font-medium text-sm"
-          >
-            <LogOut className="w-4 h-4" />
-            Cerrar Sesión
-          </button>
+          
+          <div className="flex items-center gap-5">
+            <button 
+              onClick={() => setShowPassModal(true)}
+              className="text-slate-500 hover:text-indigo-600 font-medium flex items-center gap-2 transition-colors text-sm"
+            >
+              <Lock className="w-4 h-4"/> Cambiar contraseña
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-slate-500 hover:text-red-600 transition-colors font-medium text-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -177,15 +222,11 @@ export default function ProfesorDashboard() {
             <h1 className="text-3xl font-extrabold text-slate-900">Directorio de Alumnos</h1>
             <p className="text-slate-500 mt-2">Navega por las carpetas o busca un alumno directamente.</p>
           </div>
-          
-          {/* BARRA DE CONTROLES: FILTRO + BUSCADOR */}
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            
             <select 
               value={filtroEstado} 
               onChange={(e) => {
                 setFiltroEstado(e.target.value);
-                // Si cambian el filtro general, reiniciamos la navegación por seguridad
                 setCursoActivo(null); 
                 setRotacionActiva(null);
               }}
@@ -196,7 +237,6 @@ export default function ProfesorDashboard() {
               <option value="En Proceso">📝 Solo Borradores</option>
               <option value="Completada">✅ Solo Evaluados</option>
             </select>
-
             <div className="relative w-full sm:w-72">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-slate-400" />
@@ -224,7 +264,6 @@ export default function ProfesorDashboard() {
           </div>
         ) : (
           <>
-            {/* MIGA DE PAN (BREADCRUMBS) */}
             {!isBuscando && (
               <div className="flex items-center text-sm text-slate-500 mb-6 bg-white p-3 rounded-xl border border-slate-200 shadow-sm inline-flex">
                 <button 
@@ -233,7 +272,6 @@ export default function ProfesorDashboard() {
                 >
                   <Home className="w-4 h-4" /> Inicio
                 </button>
-                
                 {cursoActivo && (
                   <>
                     <ChevronRight className="w-4 h-4 mx-2 text-slate-300" />
@@ -245,7 +283,6 @@ export default function ProfesorDashboard() {
                     </button>
                   </>
                 )}
-
                 {rotacionActiva && (
                   <>
                     <ChevronRight className="w-4 h-4 mx-2 text-slate-300" />
@@ -255,7 +292,6 @@ export default function ProfesorDashboard() {
               </div>
             )}
 
-            {/* VISTA 1: BUSCADOR ACTIVO */}
             {isBuscando ? (
               <div>
                 <h3 className="text-lg font-semibold text-slate-700 mb-4">Resultados de búsqueda ({alumnosAMostrar.length})</h3>
@@ -269,10 +305,7 @@ export default function ProfesorDashboard() {
                   </div>
                 )}
               </div>
-            ) : 
-
-            /* VISTA 2: CARPETAS DE CURSOS (NIVEL 1) */
-            !cursoActivo ? (
+            ) : !cursoActivo ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {cursosDisponibles.length === 0 ? (
                   <p className="col-span-full text-center text-slate-500 py-10">No hay alumnos en este estado.</p>
@@ -292,10 +325,7 @@ export default function ProfesorDashboard() {
                   </button>
                 ))}
               </div>
-            ) :
-
-            /* VISTA 3: CARPETAS DE ROTACIONES (NIVEL 2) */
-            !rotacionActiva ? (
+            ) : !rotacionActiva ? (
               <div>
                 <button 
                   onClick={() => setCursoActivo(null)}
@@ -323,10 +353,7 @@ export default function ProfesorDashboard() {
                   ))}
                 </div>
               </div>
-            ) : 
-
-            /* VISTA 4: LISTA DE ALUMNOS FINAL (NIVEL 3) */
-            (
+            ) : (
               <div>
                 <button 
                   onClick={() => setRotacionActiva(null)}
@@ -342,6 +369,64 @@ export default function ProfesorDashboard() {
           </>
         )}
       </main>
+
+      {/* MODAL CAMBIO CONTRASEÑA */}
+      {showPassModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200 text-slate-900">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-slate-800">Cambiar contraseña</h2>
+              <button onClick={() => setShowPassModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCambiarPassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Contraseña Actual</label>
+                <input 
+                  type="password" required
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                  value={passFormData.actual}
+                  onChange={(e) => setPassFormData({...passFormData, actual: e.target.value})}
+                />
+              </div>
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Nueva Contraseña (mín. 8)</label>
+                <input 
+                  type="password" required minLength={8}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                  value={passFormData.nueva}
+                  onChange={(e) => setPassFormData({...passFormData, nueva: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Confirmar Nueva</label>
+                <input 
+                  type="password" required
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                  value={passFormData.confirmar}
+                  onChange={(e) => setPassFormData({...passFormData, confirmar: e.target.value})}
+                />
+              </div>
+
+              {passStatus.msg && (
+                <p className={`text-center text-sm font-bold p-3 rounded-xl ${
+                  passStatus.type === 'error' ? 'bg-red-50 text-red-600' : 
+                  passStatus.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'
+                }`}>
+                  {passStatus.msg}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowPassModal(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-100 rounded-2xl transition-colors">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -141,3 +141,18 @@ class AsistenciaResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CambioPassword(BaseModel):
+    password_actual: str
+    nueva_password: str = Field(..., min_length=8)
+    confirmar_password: str
+
+
+class SolicitarRecuperacion(BaseModel):
+    email: EmailStr
+
+
+class RestablecerPassword(BaseModel):
+    token: str
+    nueva_password: str = Field(..., min_length=8)

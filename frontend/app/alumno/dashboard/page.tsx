@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { BookOpen, LogOut, Folder, Lock, CheckCircle, Clock, Users, MapPin, Loader2, CalendarDays } from "lucide-react";
+import { BookOpen, LogOut, Folder, Lock, CheckCircle, Clock, Users, MapPin, Loader2, CalendarDays, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function AlumnoDashboard() {
@@ -10,6 +10,11 @@ export default function AlumnoDashboard() {
   const [datos, setDatos] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [fichando, setFichando] = useState<{ id: string, tipo: string } | null>(null);
+
+  // ESTADOS PARA CAMBIO DE CONTRASEÑA (NUEVO)
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [passFormData, setPassFormData] = useState({ actual: "", nueva: "", confirmar: "" });
+  const [passStatus, setPassStatus] = useState({ type: "", msg: "" });
 
   useEffect(() => {
     cargarDatos();
@@ -30,8 +35,49 @@ export default function AlumnoDashboard() {
     }
   };
 
+  // FUNCIÓN PARA CAMBIO DE CONTRASEÑA (NUEVO)
+  const handleCambiarPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPassStatus({ type: "info", msg: "Actualizando..." });
+
+    if (passFormData.nueva !== passFormData.confirmar) {
+      setPassStatus({ type: "error", msg: "Las contraseñas nuevas no coinciden." });
+      return;
+    }
+
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch("http://127.0.0.1:8000/api/v1/auth/cambiar-password", {
+        method: "POST",
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({
+          password_actual: passFormData.actual,
+          nueva_password: passFormData.nueva,
+          confirmar_password: passFormData.confirmar
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setPassStatus({ type: "success", msg: "¡Contraseña actualizada con éxito!" });
+        setTimeout(() => {
+          setShowPassModal(false);
+          setPassFormData({ actual: "", nueva: "", confirmar: "" });
+          setPassStatus({ type: "", msg: "" });
+        }, 2000);
+      } else {
+        setPassStatus({ type: "error", msg: data.detail || "Error al cambiar la contraseña." });
+      }
+    } catch (error) {
+      setPassStatus({ type: "error", msg: "Error de conexión con el servidor." });
+    }
+  };
+
 const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
-    // 1. AVISO LEGAL Y CONTROL MANUAL DEL USUARIO (RGPD)
     const quiereUbicacion = window.confirm(
       `Vas a registrar tu ${tipo.toUpperCase()}.\n\nPara validar tu asistencia correctamente, se recomienda adjuntar tu ubicación GPS actual. Esta ubicación solo será visible para tus tutores asignados y el administrador.\n\n¿Deseas incluir tu ubicación en este fichaje?`
     );
@@ -58,7 +104,7 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
 
         if (res.ok) {
           alert(`✅ Fichaje de ${tipo.toUpperCase()} registrado ${ubicacionPermitida ? 'CON' : 'SIN'} ubicación.`);
-          cargarDatos(); // Recargamos para bloquear el botón instantáneamente
+          cargarDatos();
         } else {
           const err = await res.json();
           alert("Error: " + err.detail);
@@ -70,15 +116,11 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
       }
     };
 
-    // 2. LÓGICA DE UBICACIÓN BASADA EN SU RESPUESTA
     if (quiereUbicacion) {
-      // Si dijo que SÍ, llamamos al GPS del navegador
-      // (Si el navegador ya tiene permisos, lo cogerá directo. Si no, sacará su ventanita nativa)
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
           (pos) => enviarFichaje(true, pos.coords.latitude.toString(), pos.coords.longitude.toString()),
           (error) => {
-            // Si dijo que sí en nuestra app, pero el navegador lo tiene bloqueado en el candado:
             alert("⚠️ Tienes la ubicación bloqueada en tu navegador. Tu fichaje se guardará SIN ubicación.");
             enviarFichaje(false);
           },
@@ -88,7 +130,6 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
         enviarFichaje(false);
       }
     } else {
-      // Si dijo que NO en nuestro mensaje legal, ni siquiera molestamos al GPS del navegador
       enviarFichaje(false);
     }
   };
@@ -97,7 +138,7 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
-      {/* NAVEGACIÓN */}
+      {/* NAVEGACIÓN ESTILO ORIGINAL */}
       <nav className="bg-white border-b px-8 py-4 flex justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <div className="bg-indigo-600 p-2 rounded-lg text-white">
@@ -105,12 +146,24 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
           </div>
           <span className="font-bold text-slate-800">Practicum<span className="text-indigo-600">Alumno</span></span>
         </div>
-        <button 
-          onClick={() => { Cookies.remove("practicum_token"); router.push("/login"); }} 
-          className="text-slate-500 hover:text-red-600 font-medium flex items-center gap-2 transition-colors"
-        >
-          <LogOut className="w-4 h-4"/> Salir
-        </button>
+        
+        {/* ZONA DE ACCIONES ACTUALIZADA */}
+        <div className="flex items-center gap-5">
+          {/* BOTÓN RENOMBRADO Y CON ESTILO IGUAL A SALIR */}
+          <button 
+            onClick={() => setShowPassModal(true)}
+            className="text-slate-500 hover:text-indigo-600 font-medium flex items-center gap-2 transition-colors text-sm"
+          >
+            <Lock className="w-4 h-4"/> Cambiar contraseña
+          </button>
+          
+          <button 
+            onClick={() => { Cookies.remove("practicum_token"); router.push("/login"); }} 
+            className="text-slate-500 hover:text-red-600 font-medium flex items-center gap-2 transition-colors text-sm"
+          >
+            <LogOut className="w-4 h-4"/> Salir
+          </button>
+        </div>
       </nav>
 
       <main className="max-w-5xl mx-auto px-6 py-10">
@@ -124,7 +177,7 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
             return (
               <div key={rot.id} className="relative bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col hover:shadow-md transition-shadow">
                 
-                {/* ZONA SUPERIOR: INFO DE ROTACIÓN */}
+                {/* ZONA SUPERIOR ESTILO ORIGINAL (Verde/Ámbar) */}
                 <div onClick={() => router.push(`/alumno/evaluar/${rot.id}`)} className="cursor-pointer group mb-4">
                   <div className="flex items-center gap-4 mb-4">
                     <div className={`p-4 rounded-xl transition-colors ${rot.completada ? 'bg-green-50 group-hover:bg-green-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}>
@@ -138,7 +191,6 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
                     </div>
                   </div>
 
-                  {/* ZONA TUTORES RECUPERADA */}
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
                       <Users className="w-3 h-3" /> Tutores Asignados
@@ -155,7 +207,7 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
                   </div>
                 </div>
 
-                {/* ZONA INFERIOR: CONTROL DIARIO Y FICHAJE */}
+                {/* ZONA INFERIOR ESTILO ORIGINAL (Emerald/Rose) */}
                 <div className="mt-auto pt-5 border-t border-slate-100">
                   {rot.completada ? (
                      <div className="flex items-center justify-center gap-2 text-sm font-bold text-green-600 bg-green-50 px-4 py-3 rounded-xl">
@@ -166,7 +218,6 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Control de Asistencia Diario</p>
                       
                       <div className="grid grid-cols-2 gap-2 mb-3">
-                        {/* BOTÓN ENTRADA */}
                         <button
                           onClick={() => handleFichar(rot.id, "entrada")}
                           disabled={yaFichoEntrada || fichando?.id === rot.id}
@@ -176,7 +227,6 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
                           <span className="text-xs">{yaFichoEntrada ? "Entrada Fichada" : "Fichar Entrada"}</span>
                         </button>
 
-                        {/* BOTÓN SALIDA */}
                         <button
                           onClick={() => handleFichar(rot.id, "salida")}
                           disabled={!yaFichoEntrada || yaFichoSalida || fichando?.id === rot.id}
@@ -187,7 +237,6 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
                         </button>
                       </div>
 
-                      {/* BOTÓN VER CALENDARIO */}
                       <button 
                         onClick={() => router.push(`/alumno/asistencia/${rot.id}`)}
                         className="w-full mt-2 py-2.5 bg-slate-50 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 hover:bg-slate-100 flex items-center justify-center gap-2 transition-colors"
@@ -202,6 +251,77 @@ const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
           })}
         </div>
       </main>
+
+      {/* MODAL DE CAMBIO DE CONTRASEÑA (ESTILO MODERNO ADAPTADO) */}
+      {showPassModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-slate-800">Cambiar contraseña</h2>
+              <button onClick={() => setShowPassModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCambiarPassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Contraseña Actual</label>
+                <input 
+                  type="password" required
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                  value={passFormData.actual}
+                  onChange={(e) => setPassFormData({...passFormData, actual: e.target.value})}
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Nueva Contraseña (mín. 8)</label>
+                <input 
+                  type="password" required minLength={8}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                  value={passFormData.nueva}
+                  onChange={(e) => setPassFormData({...passFormData, nueva: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Confirmar Nueva</label>
+                <input 
+                  type="password" required
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900"
+                  value={passFormData.confirmar}
+                  onChange={(e) => setPassFormData({...passFormData, confirmar: e.target.value})}
+                />
+              </div>
+
+              {passStatus.msg && (
+                <p className={`text-center text-sm font-bold p-3 rounded-xl ${
+                  passStatus.type === 'error' ? 'bg-red-50 text-red-600' : 
+                  passStatus.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'
+                }`}>
+                  {passStatus.msg}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => setShowPassModal(false)}
+                  className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-100 rounded-2xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"
+                >
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
