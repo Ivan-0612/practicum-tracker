@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import or_  # <-- IMPORTANTE: Lo usamos para el filtro
 from ..database import get_db
 from .. import models, security
 from fastapi.responses import StreamingResponse
@@ -41,7 +42,6 @@ def obtener_molde_cuadernillo(
     alumno = rotacion.alumno
     nombre_archivo = f"curso{rotacion.curso}-rotacion{rotacion.numero_rotacion}.json"
 
-    # Lógica de rutas para encontrar el JSON
     base_path = os.getcwd()
     ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
     if not os.path.exists(ruta_archivo):
@@ -77,7 +77,6 @@ def obtener_molde_cuadernillo(
                 "comentario": resp.comentario,
             }
     else:
-        # Si es estudiante y no está completada, el borrador se envía vacío
         borrador = {}
 
     asignaciones = (
@@ -107,10 +106,6 @@ def guardar_respuestas_cuadernillo(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
-    """
-    ESTE ES EL ENDPOINT PARA EL BORRADOR.
-    No valida si está todo completo, solo guarda lo que envíes.
-    """
     if current_user.rol != "profesor":
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
@@ -123,7 +118,6 @@ def guardar_respuestas_cuadernillo(
         )
 
     for resp in respuestas:
-        # Buscar si ya existe la respuesta para actualizarla, si no, crearla
         db_resp = (
             db.query(models.CuadernilloRespuesta)
             .filter(
@@ -160,10 +154,6 @@ def finalizar_rotacion(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
-    """
-    ESTE ES EL ENDPOINT DE CIERRE.
-    Aquí sí validamos que todo esté relleno antes de poner completada = True.
-    """
     if current_user.rol != "profesor":
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
@@ -175,9 +165,9 @@ def finalizar_rotacion(
             status_code=400, detail="Rotación no encontrada o ya finalizada"
         )
 
-    # --- Lógica de validación de integridad ---
-    alumno = rotacion.alumno
-    nombre_archivo = f"curso{alumno.curso}-rotacion{alumno.numero_rotacion}.json"
+    # 1. CORRECCIÓN LÓGICA: Usamos rotacion.curso y rotacion.numero_rotacion
+    nombre_archivo = f"curso{rotacion.curso}-rotacion{rotacion.numero_rotacion}.json"
+
     base_path = os.getcwd()
     ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
     if not os.path.exists(ruta_archivo):
@@ -191,23 +181,32 @@ def finalizar_rotacion(
         for apartado in molde["apartados"]:
             total_esperado += len(apartado["elementos"])
 
+        # Solo contamos filas donde el profesor haya metido una nota real
         total_real = (
             db.query(models.CuadernilloRespuesta)
-            .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
+            .filter(
+                models.CuadernilloRespuesta.rotacion_id == rotacion.id,
+                or_(
+                    models.CuadernilloRespuesta.valor_sinon.isnot(None),
+                    models.CuadernilloRespuesta.valor_nivel.isnot(None),
+                ),
+            )
             .count()
         )
 
         if total_real < total_esperado:
             raise HTTPException(
                 status_code=400,
-                detail=f"Incompleto: faltan {total_esperado - total_real} campos.",
+                detail=f"Incompleto: faltan {total_esperado - total_real} campos de nota por rellenar.",
             )
 
-        # Si está todo, cerramos
         rotacion.completada = True
         db.commit()
         return {"mensaje": "Evaluación finalizada con éxito"}
 
+    # 2. CORRECCIÓN DEL SERVIDOR: Respetamos los errores de validación sin convertirlos en 500
+    except HTTPException:
+        raise
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="No se pudo validar el molde")
     except Exception as e:
@@ -220,7 +219,6 @@ def descargar_pdf_evaluacion_desde_cero(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
-    # 1. Obtener datos
     rotacion = (
         db.query(models.Rotacion).filter(models.Rotacion.id == rotacion_id).first()
     )
@@ -301,7 +299,6 @@ def descargar_pdf_evaluacion_desde_cero(
         alignment=TA_CENTER,
     )
 
-    # --- PÁGINA 1: PORTADA ---
     story.append(
         Paragraph(
             "RÚBRICA PARA LA EVALUACIÓN POR COMPETENCIAS DE PRÁCTICAS CLÍNICAS",
@@ -337,7 +334,6 @@ def descargar_pdf_evaluacion_desde_cero(
     )
     story.append(t_portada)
 
-    # --- PÁGINA 2: TEXTOS INTRODUCTORIOS (UFV) ---
     story.append(PageBreak())
 
     story.append(Paragraph("1. INTRODUCCIÓN UFV", h2_style))
@@ -403,7 +399,6 @@ def descargar_pdf_evaluacion_desde_cero(
         )
     )
 
-    # --- PÁGINA 3: TABLA NIC ---
     story.append(PageBreak())
     story.append(Paragraph("5. ACTIVIDADES ESPECÍFICAS (NIC)", h2_style))
     story.append(Paragraph("Clasificación de las Intervenciones Enfermeras", h3_style))
@@ -432,9 +427,6 @@ def descargar_pdf_evaluacion_desde_cero(
     )
     story.append(t_nic)
 
-    # --- UNIDADES DE COMPETENCIA 1 A 7 ---
-
-    # Función para inyectar la tabla de explicación de niveles antes de las notas
     def obtener_tabla_criterios():
         data = [
             [
@@ -498,11 +490,9 @@ def descargar_pdf_evaluacion_desde_cero(
         )
         story.append(Spacer(1, 10))
 
-        # Insertar tabla explicativa de niveles
         story.append(obtener_tabla_criterios())
         story.append(Spacer(1, 20))
 
-        # Insertar tabla de evaluación
         datos_uc = [["Resultado de Aprendizaje", "Nivel 1", "Nivel 2", "Nivel 3"]]
         for item in apartado["elementos"]:
             r = resp_tutor.get(item["id"])
@@ -513,15 +503,21 @@ def descargar_pdf_evaluacion_desde_cero(
             texto_uc = Paragraph(item["texto"], table_text_style)
             datos_uc.append([texto_uc, n1, n2, n3])
 
-            if r and r.comentario:
-                datos_uc.append(
-                    [
-                        Paragraph(f"<i>Obs: {r.comentario}</i>", table_text_style),
-                        "",
-                        "",
-                        "",
-                    ]
-                )
+            # (HEMOS QUITADO EL COMENTARIO INDIVIDUAL AQUÍ)
+
+        # CAMBIO CLAVE: Buscamos si hay un comentario general para este apartado y lo añadimos al final de la tabla
+        comentario_obj = resp_tutor.get(f"comentario_apartado_{apartado['numero']}")
+        if comentario_obj and comentario_obj.comentario:
+            datos_uc.append(
+                [
+                    Paragraph(
+                        f"<i>Obs: {comentario_obj.comentario}</i>", table_text_style
+                    ),
+                    "",
+                    "",
+                    "",
+                ]
+            )
 
         t_uc = Table(datos_uc, colWidths=[350, 50, 50, 50], repeatRows=1)
         estilos_uc = [
@@ -533,6 +529,7 @@ def descargar_pdf_evaluacion_desde_cero(
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ]
 
+        # Combinamos las celdas para el comentario general
         for idx, row in enumerate(datos_uc):
             if isinstance(row[0], Paragraph) and row[0].text.startswith("<i>Obs:"):
                 estilos_uc.append(("SPAN", (0, idx), (3, idx)))
@@ -541,7 +538,6 @@ def descargar_pdf_evaluacion_desde_cero(
         t_uc.setStyle(TableStyle(estilos_uc))
         story.append(t_uc)
 
-    # --- PÁGINA FINAL: FIRMAS ---
     story.append(Spacer(1, 40))
     story.append(Paragraph("COMENTARIOS Y FIRMAS", h2_style))
     story.append(
@@ -560,7 +556,6 @@ def descargar_pdf_evaluacion_desde_cero(
         )
     )
 
-    # 3. CONSTRUIR EL PDF Y ENVIAR
     doc.build(story)
     buffer.seek(0)
     nombre_descarga = f"Evaluacion_{nombre_real.replace(' ', '_')}_{apellidos_real.replace(' ', '_')}.pdf"

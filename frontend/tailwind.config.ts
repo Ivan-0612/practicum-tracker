@@ -9,8 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        ufv: {
+          blanco: "#ffffff",
+          azul: "#003866",
+          "azul-oscuro": "#001a33",
+          "azul-claro": "#639eff",
+          "rosa-claro": "#ff5c73",
+          "rosa-oscuro": "#bf3657",
+        },
       },
     },
   },
