@@ -24,9 +24,8 @@ def obtener_molde_cuadernillo(
     )
     if not rotacion:
         raise HTTPException(status_code=404, detail="Rotación no encontrada")
-
     alumno = rotacion.alumno
-    nombre_archivo = f"curso{alumno.curso}-rotacion{alumno.numero_rotacion}.json"
+    nombre_archivo = f"curso{rotacion.curso}-rotacion{rotacion.numero_rotacion}.json"
 
     # Lógica de rutas para encontrar el JSON
     base_path = os.getcwd()
@@ -77,7 +76,7 @@ def obtener_molde_cuadernillo(
     return {
         "alumno": {
             "nombre_completo": f"{nombre_real} {apellidos_real}",
-            "curso": alumno.curso,
+            "curso": rotacion.curso,
             "grupo": alumno.grupo,
         },
         "molde": molde_json,

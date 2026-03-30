@@ -30,9 +30,21 @@ export default function PantallaEvaluacion() {
       const res = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/molde/${rotacionId}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error("No se pudo cargar el cuadernillo.");
+
+      if (res.status === 404) {
+        throw new Error("No existe una evaluación o cuadernillo para esta rotación específica.");
+      }
+
+      if (!res.ok) throw new Error("Error al conectar con el servidor.");
       
       const data = await res.json();
+
+      // --- VALIDACIÓN DE SEGURIDAD ---
+      // Verificamos que el ID que devuelve el JSON sea el mismo que pedimos en la URL
+      if (data.rotacion_id && String(data.rotacion_id) !== String(rotacionId)) {
+        throw new Error("Error de integridad: Los datos recibidos no corresponden a esta rotación.");
+      }
+      
       setDatos(data);
 
       if (data.rotacion_completada === true) {
