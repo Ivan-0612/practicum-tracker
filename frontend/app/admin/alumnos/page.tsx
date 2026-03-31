@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import ModalNuevaRotacion from "@/components/ModalNuevaRotacion";
-import { Trash2, Mail, GraduationCap, ChevronLeft, Filter } from "lucide-react";
+import { Trash2, Mail, GraduationCap, ChevronLeft, Filter, Briefcase } from "lucide-react";
 
 interface RotacionInfo {
   id: string;
   curso: number;
   numero_rotacion: number;
+  especialidad: string; // <-- AÑADIMOS EL CAMPO DE ESPECIALIDAD AQUÍ
   tutores: string[];
 }
 
@@ -193,11 +194,18 @@ export default function ListaAlumnosAdmin() {
                               .sort((a, b) => b.curso - a.curso)
                               .map((rot, i) => (
                                 <div key={i} className="group text-sm bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between hover:border-ufv-azul-claro transition-all">
-                                  <div className="flex flex-col">
-                                    {/* Aplicamos el rosa oscuro a la rotación que coincide con el filtro activo */}
-                                    <span className={`font-bold ${rot.curso.toString() === filtroCurso ? 'text-ufv-rosa-oscuro' : 'text-gray-700'}`}>
+                                  <div className="flex flex-col gap-1">
+                                    
+                                    {/* NUEVO: Mostramos la Especialidad en la tabla */}
+                                    <span className={`font-bold flex items-center gap-1.5 ${rot.curso.toString() === filtroCurso ? 'text-ufv-rosa-oscuro' : 'text-ufv-azul-oscuro'}`}>
+                                      <Briefcase className="w-3.5 h-3.5" />
+                                      {rot.especialidad}
+                                    </span>
+                                    
+                                    <span className="text-xs font-bold text-gray-500">
                                       {rot.curso}º Curso - Rotación {rot.numero_rotacion}
                                     </span>
+                                    
                                     <span className="text-xs text-gray-400 italic">Tutor: {rot.tutores.join(", ") || "No asignado"}</span>
                                   </div>
                                   <button onClick={() => handleEliminarRotacion(rot.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">

@@ -1,7 +1,5 @@
-# esquema que deben tener los datos para entrar en postgress
-
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import date, datetime
 
@@ -10,14 +8,12 @@ from datetime import date, datetime
 # ESQUEMAS DE USUARIO (Login y Autenticación)
 # ==========================================
 class UsuarioBase(BaseModel):
-    email: EmailStr  # Valida automáticamente que tenga un @ y formato correcto
+    email: EmailStr
     rol: str = Field(..., pattern="^(admin|profesor|estudiante)$")
 
 
 class UsuarioCreate(UsuarioBase):
-    password: str = Field(
-        ..., min_length=8
-    )  # Obliga a que la contraseña tenga mínimo 8 caracteres
+    password: str = Field(..., min_length=8)
 
 
 class UsuarioResponse(UsuarioBase):
@@ -26,16 +22,33 @@ class UsuarioResponse(UsuarioBase):
     creado_en: datetime
 
     class Config:
-        from_attributes = (
-            True  # Permite a Pydantic leer los datos directamente de SQLAlchemy
-        )
+        from_attributes = True
+
+
+# ==========================================
+# NUEVO: ESQUEMAS DE ESPECIALIDADES
+# ==========================================
+class EspecialidadBase(BaseModel):
+    nombre: str
+    archivo_json: str
+
+
+class EspecialidadCreate(EspecialidadBase):
+    pass
+
+
+class EspecialidadResponse(EspecialidadBase):
+    id: UUID
+    creado_en: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # ==========================================
 # ESQUEMAS DE ALUMNO
 # ==========================================
 class AlumnoBase(BaseModel):
-    # Datos Personales/Académicos
     nombre: str
     apellidos: str
     email_personal: EmailStr
@@ -43,16 +56,13 @@ class AlumnoBase(BaseModel):
     grupo: str
     email_acceso: EmailStr
     password_acceso: str
-    email_tutor: UUID
+    email_tutor: EmailStr
     numero_rotacion: int = 1
+    especialidad_id: UUID  # <-- NUEVO: Obligatorio al matricular
 
 
 class AlumnoCreate(AlumnoBase):
-    # Al crear un alumno desde el panel de Admin, necesitamos crear también su cuenta de acceso
-    email_acceso: EmailStr
-    password_acceso: str = Field(..., min_length=8)
-    email_tutor: EmailStr
-    numero_rotacion: int = 1
+    pass
 
 
 class AlumnoResponse(BaseModel):
@@ -64,10 +74,6 @@ class AlumnoResponse(BaseModel):
     codigo_anonimo: str
     activo: bool
 
-    # ⚠️ ATENCIÓN RGPD:  en la respuesta NO se incluye el nombre ni los apellidos.
-    # Por defecto, la API devuelve los alumnos anonimizados.
-    # Habrá un endpoint especial para "desbloquear" la identidad.
-
     class Config:
         from_attributes = True
 
@@ -76,18 +82,21 @@ class AlumnoResponse(BaseModel):
 # ESQUEMAS DE ROTACIÓN
 # ==========================================
 class RotacionBase(BaseModel):
-    # Eliminamos numero_rotacion de aquí porque ya está en Alumno
     fecha_inicio: Optional[date] = None
 
 
 class RotacionCreate(RotacionBase):
     alumno_id: UUID
-    # Eliminamos tutor_id de aquí
+    especialidad_id: UUID  # <-- NUEVO: Al asignar rotación nueva
+    curso: int
+    numero_rotacion: int
+    email_tutor: EmailStr
 
 
 class RotacionResponse(RotacionBase):
     id: UUID
     alumno_id: UUID
+    especialidad_id: Optional[UUID]
     fecha_fin: Optional[date]
     completada: bool
 
@@ -107,7 +116,6 @@ class RespuestaBase(BaseModel):
 
 
 class RespuestaCreate(RespuestaBase):
-    # Cuando React nos mande las respuestas, vendrán en este formato
     pass
 
 
@@ -121,11 +129,11 @@ class RespuestaResponse(RespuestaBase):
 
 
 # ==========================================
-# ESQUEMAS DE ASISTENCIA
+# ESQUEMAS DE ASISTENCIA Y SEGURIDAD
 # ==========================================
 class AsistenciaCreate(BaseModel):
     rotacion_id: UUID
-    tipo: str  # Tiene que ser "entrada" o "salida"
+    tipo: str
     ubicacion_permitida: bool
     latitud: Optional[str] = None
     longitud: Optional[str] = None
@@ -134,10 +142,8 @@ class AsistenciaCreate(BaseModel):
 class AsistenciaResponse(BaseModel):
     id: UUID
     fecha: date
-    hora: datetime
-    ubicacion_permitida: bool
-    latitud: Optional[str] = None
-    longitud: Optional[str] = None
+    hora_entrada: Optional[datetime]
+    hora_salida: Optional[datetime]
 
     class Config:
         from_attributes = True

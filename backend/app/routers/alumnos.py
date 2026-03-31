@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models, schemas, security
 import secrets
+from datetime import date, datetime
 
 router = APIRouter(prefix="/api/v1/alumnos", tags=["Alumnos"])
 
@@ -22,6 +23,17 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
             status_code=404, detail="No existe ningún profesor con ese email"
         )
 
+    # Validar Especialidad
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == alumno_in.especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(
+            status_code=404, detail="La especialidad seleccionada no existe"
+        )
+
     nuevo_usuario = models.Usuario(
         email=alumno_in.email_acceso,
         password_hash=security.get_password_hash(alumno_in.password_acceso),
@@ -32,7 +44,6 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
 
     nuevo_alumno = models.Alumno(
         usuario_id=nuevo_usuario.id,
-        # tutor_id YA NO EXISTE AQUÍ
         curso=alumno_in.curso,
         grupo=alumno_in.grupo,
         numero_rotacion=alumno_in.numero_rotacion,
@@ -44,16 +55,16 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
     db.add(nuevo_alumno)
     db.flush()
 
-    # 4. Crear la Rotación
+    # Crear la Rotación con la Especialidad
     nueva_rotacion = models.Rotacion(
         alumno_id=nuevo_alumno.id,
+        especialidad_id=especialidad.id,  # <-- NUEVO
         curso=alumno_in.curso,
         numero_rotacion=alumno_in.numero_rotacion,
     )
     db.add(nueva_rotacion)
     db.flush()
 
-    # --- NUEVO: Enlazar el tutor a la rotación mediante la tabla intermedia ---
     nueva_asignacion = models.AsignacionTutor(
         tutor_id=tutor.id, rotacion_id=nueva_rotacion.id
     )
@@ -62,9 +73,6 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
     db.commit()
     db.refresh(nuevo_alumno)
     return nuevo_alumno
-
-
-from datetime import date
 
 
 @router.get("/mi-perfil-evaluacion")
@@ -98,7 +106,6 @@ def obtener_mi_evaluacion(
             .all()
         ]
 
-        # Comprobar si ya fichó hoy
         fichaje_hoy = (
             db.query(models.RegistroAsistencia)
             .filter(
@@ -108,6 +115,11 @@ def obtener_mi_evaluacion(
             .first()
         )
 
+        # Extraemos el nombre de la especialidad directamente de la base de datos
+        nombre_especialidad = (
+            r.especialidad.nombre if r.especialidad else "Sin especialidad"
+        )
+
         rotaciones_data.append(
             {
                 "id": str(r.id),
@@ -115,6 +127,7 @@ def obtener_mi_evaluacion(
                 "numero": (
                     r.numero_rotacion if r.numero_rotacion else alumno.numero_rotacion
                 ),
+                "especialidad": nombre_especialidad,  # <-- NUEVO
                 "completada": r.completada,
                 "tutores": tutores_emails,
                 "estado_fichaje_hoy": {
@@ -131,47 +144,6 @@ def obtener_mi_evaluacion(
         },
         "rotaciones": rotaciones_data,
     }
-
-
-@router.post("/asignar-rotacion")
-def asignar_rotacion_adicional(
-    alumno_id: str,
-    email_tutor: str,
-    curso: int,  # <-- ¡NUEVO! Atrapa el curso del frontend
-    numero_rotacion: int,  # <-- ¡NUEVO! Atrapa el numero del frontend
-    db: Session = Depends(get_db),
-):
-    # 1. Verificar que el alumno existe
-    alumno = db.query(models.Alumno).filter(models.Alumno.id == alumno_id).first()
-    if not alumno:
-        raise HTTPException(status_code=404, detail="Alumno no encontrado")
-
-    # 2. Buscar al nuevo tutor
-    tutor = (
-        db.query(models.Usuario)
-        .filter(models.Usuario.email == email_tutor, models.Usuario.rol == "profesor")
-        .first()
-    )
-    if not tutor:
-        raise HTTPException(status_code=404, detail="El tutor no existe")
-
-    # 3. Crear la nueva Rotación guardando el curso y el número correctos
-    nueva_rotacion = models.Rotacion(
-        alumno_id=alumno.id,
-        curso=curso,  # <-- ¡NUEVO! Lo guardamos en la BD
-        numero_rotacion=numero_rotacion,  # <-- ¡NUEVO! Lo guardamos en la BD
-    )
-    db.add(nueva_rotacion)
-    db.flush()  # Para obtener el ID de la rotación antes del commit
-
-    # 4. Crear el vínculo en la tabla intermedia
-    nueva_asig = models.AsignacionTutor(
-        tutor_id=tutor.id, rotacion_id=nueva_rotacion.id
-    )
-    db.add(nueva_asig)
-    db.commit()
-
-    return {"mensaje": "Nueva rotación asignada con éxito"}
 
 
 @router.get("/")
@@ -191,7 +163,6 @@ def listar_alumnos_por_email(
 
     resultado = []
     for usuario, alumno in estudiantes:
-        # Buscamos todas las rotaciones de este alumno
         rotaciones_db = (
             db.query(models.Rotacion)
             .filter(models.Rotacion.alumno_id == alumno.id)
@@ -201,7 +172,6 @@ def listar_alumnos_por_email(
 
         lista_rotaciones = []
         for rot in rotaciones_db:
-            # Buscamos los tutores de cada rotación
             asignaciones = (
                 db.query(models.AsignacionTutor)
                 .filter(models.AsignacionTutor.rotacion_id == rot.id)
@@ -212,9 +182,13 @@ def listar_alumnos_por_email(
             lista_rotaciones.append(
                 {
                     "id": str(rot.id),
-                    "curso": rot.curso
-                    or alumno.curso,  # Fallback por si hay rotaciones antiguas
+                    "curso": rot.curso or alumno.curso,
                     "numero_rotacion": rot.numero_rotacion or alumno.numero_rotacion,
+                    "especialidad": (
+                        rot.especialidad.nombre
+                        if rot.especialidad
+                        else "Sin especialidad"
+                    ),  # <-- NUEVO
                     "tutores": tutores,
                 }
             )
@@ -234,51 +208,54 @@ def listar_alumnos_por_email(
 
 @router.post("/asignar-rotacion")
 def asignar_rotacion_adicional(
-    alumno_id: str,
-    email_tutor: str,
-    curso: int,
-    numero_rotacion: int,
+    datos: schemas.RotacionCreate,  # <-- Usamos el esquema para recibir especialidad_id
     db: Session = Depends(get_db),
 ):
-    # 1. ¿Existe el alumno?
-    alumno = db.query(models.Alumno).filter(models.Alumno.id == alumno_id).first()
+    alumno = db.query(models.Alumno).filter(models.Alumno.id == datos.alumno_id).first()
     if not alumno:
         raise HTTPException(status_code=404, detail="Alumno no encontrado")
 
-    # 2. ¿EXISTE YA ESTA ROTACIÓN PARA ESTE ALUMNO? (EL BLOQUEO)
-    # Buscamos en la tabla rotaciones si ese alumno ya tiene ese curso y ese número
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == datos.especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+
     existe = (
         db.query(models.Rotacion)
         .filter(
             models.Rotacion.alumno_id == alumno.id,
-            models.Rotacion.curso == curso,
-            models.Rotacion.numero_rotacion == numero_rotacion,
+            models.Rotacion.curso == datos.curso,
+            models.Rotacion.numero_rotacion == datos.numero_rotacion,
         )
         .first()
     )
 
     if existe:
-        # Si existe, lanzamos un error 400 (Bad Request)
         raise HTTPException(
             status_code=400,
-            detail=f"Error: El alumno ya tiene asignada la Rotación {numero_rotacion} de {curso}º curso.",
+            detail=f"Error: El alumno ya tiene asignada la Rotación {datos.numero_rotacion} de {datos.curso}º curso.",
         )
 
-    # 3. ¿Existe el tutor?
     tutor = (
         db.query(models.Usuario)
-        .filter(models.Usuario.email == email_tutor, models.Usuario.rol == "profesor")
+        .filter(
+            models.Usuario.email == datos.email_tutor, models.Usuario.rol == "profesor"
+        )
         .first()
     )
-
     if not tutor:
         raise HTTPException(
             status_code=404, detail="El tutor no existe o no es profesor"
         )
 
-    # 4. Si todo es correcto, creamos
     nueva_rotacion = models.Rotacion(
-        alumno_id=alumno.id, curso=curso, numero_rotacion=numero_rotacion
+        alumno_id=alumno.id,
+        especialidad_id=especialidad.id,  # <-- NUEVO
+        curso=datos.curso,
+        numero_rotacion=datos.numero_rotacion,
     )
     db.add(nueva_rotacion)
     db.flush()
@@ -307,12 +284,9 @@ def eliminar_rotacion(
     if not rotacion:
         raise HTTPException(status_code=404, detail="Rotación no encontrada")
 
-    # 1. LIMPIEZA DE ASISTENCIA (Evita el error de ForeignKey)
     db.query(models.RegistroAsistencia).filter(
         models.RegistroAsistencia.rotacion_id == rotacion_id
     ).delete()
-
-    # 2. Borrar otras dependencias
     db.query(models.AsignacionTutor).filter(
         models.AsignacionTutor.rotacion_id == rotacion_id
     ).delete()
@@ -322,8 +296,7 @@ def eliminar_rotacion(
 
     db.delete(rotacion)
     db.commit()
-
-    return {"mensaje": "Rotación y registros de asistencia eliminados"}
+    return {"mensaje": "Rotación eliminada"}
 
 
 @router.delete("/{alumno_id}")
@@ -342,31 +315,24 @@ def eliminar_alumno_completo(
     usuario_id = alumno.usuario_id
     rotaciones_ids = [r.id for r in alumno.rotaciones]
 
-    # 1. LIMPIEZA DE ASISTENCIA DE TODAS SUS ROTACIONES
     db.query(models.RegistroAsistencia).filter(
         models.RegistroAsistencia.rotacion_id.in_(rotaciones_ids)
     ).delete(synchronize_session=False)
-
-    # 2. Resto de dependencias
     db.query(models.AsignacionTutor).filter(
         models.AsignacionTutor.rotacion_id.in_(rotaciones_ids)
     ).delete(synchronize_session=False)
     db.query(models.CuadernilloRespuesta).filter(
         models.CuadernilloRespuesta.rotacion_id.in_(rotaciones_ids)
     ).delete(synchronize_session=False)
-
     db.query(models.Rotacion).filter(models.Rotacion.alumno_id == alumno_id).delete()
-    db.delete(alumno)
 
+    db.delete(alumno)
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
     if usuario:
         db.delete(usuario)
 
     db.commit()
-    return {"mensaje": "Alumno, rotaciones y asistencias eliminados correctamente"}
-
-
-from datetime import datetime
+    return {"mensaje": "Alumno eliminado correctamente"}
 
 
 @router.post("/fichar")
@@ -391,12 +357,12 @@ def fichar_asistencia(
         )
         .first()
     )
+
     if not rotacion or rotacion.completada:
         raise HTTPException(status_code=400, detail="Rotación inválida o terminada")
 
     hoy = date.today()
     ahora = datetime.now()
-
     registro = (
         db.query(models.RegistroAsistencia)
         .filter(
@@ -426,7 +392,6 @@ def fichar_asistencia(
             raise HTTPException(status_code=400, detail="Debes fichar entrada primero")
         if registro.hora_salida:
             raise HTTPException(status_code=400, detail="Ya has fichado la salida hoy")
-
         registro.hora_salida = ahora
         registro.ubicacion_salida_permitida = datos.ubicacion_permitida
         registro.latitud_salida = datos.latitud

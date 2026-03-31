@@ -40,8 +40,12 @@ def obtener_molde_cuadernillo(
     if not rotacion:
         raise HTTPException(status_code=404, detail="Rotación no encontrada")
     alumno = rotacion.alumno
-    nombre_archivo = f"curso{rotacion.curso}-rotacion{rotacion.numero_rotacion}.json"
+    if not rotacion.especialidad:
+        raise HTTPException(
+            status_code=400, detail="Esta rotación no tiene especialidad asignada"
+        )
 
+    nombre_archivo = rotacion.especialidad.archivo_json
     base_path = os.getcwd()
     ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
     if not os.path.exists(ruta_archivo):
@@ -57,6 +61,7 @@ def obtener_molde_cuadernillo(
 
     nombre_real = security.descifrar_dato(alumno.nombre_cifrado)
     apellidos_real = security.descifrar_dato(alumno.apellidos_cifrado)
+    email_real = security.descifrar_dato(alumno.email_cifrado)
 
     respuestas_db = (
         db.query(models.CuadernilloRespuesta)
@@ -89,8 +94,10 @@ def obtener_molde_cuadernillo(
     return {
         "alumno": {
             "nombre_completo": f"{nombre_real} {apellidos_real}",
+            "email": email_real,
             "curso": rotacion.curso,
             "grupo": alumno.grupo,
+            "numero_rotacion": rotacion.numero_rotacion,
         },
         "molde": molde_json,
         "borrador": borrador,
@@ -165,8 +172,12 @@ def finalizar_rotacion(
             status_code=400, detail="Rotación no encontrada o ya finalizada"
         )
 
-    # 1. CORRECCIÓN LÓGICA: Usamos rotacion.curso y rotacion.numero_rotacion
-    nombre_archivo = f"curso{rotacion.curso}-rotacion{rotacion.numero_rotacion}.json"
+    if not rotacion.especialidad:
+        raise HTTPException(
+            status_code=400, detail="Esta rotación no tiene especialidad asignada"
+        )
+
+    nombre_archivo = rotacion.especialidad.archivo_json
 
     base_path = os.getcwd()
     ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
@@ -238,7 +249,15 @@ def descargar_pdf_evaluacion_desde_cero(
     if asignacion:
         tutor_nombre = asignacion.tutor.email
 
-    nombre_json = f"curso{rotacion.curso}-rotacion{rotacion.numero_rotacion}.json"
+    nombre_especialidad = (
+        rotacion.especialidad.nombre if rotacion.especialidad else "Sin especialidad"
+    )
+    if not rotacion.especialidad:
+        raise HTTPException(
+            status_code=400, detail="Esta rotación no tiene especialidad asignada"
+        )
+
+    nombre_json = rotacion.especialidad.archivo_json
     base_path = os.getcwd()
     ruta_json = os.path.join(base_path, "cuadernillos", nombre_json)
     if not os.path.exists(ruta_json):
@@ -311,7 +330,10 @@ def descargar_pdf_evaluacion_desde_cero(
         ["Nombre:", nombre_real],
         ["Apellidos:", apellidos_real],
         ["Centro de prácticas:", ""],
-        ["Unidad de prácticas:", ""],
+        [
+            Paragraph("<b>Unidad de prácticas:</b>", normal_style),
+            f"{nombre_especialidad}",
+        ],
         ["Tutor/a de prácticas:", tutor_nombre],
         [
             "Curso y Grupo:",

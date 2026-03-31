@@ -6,14 +6,14 @@ import {
   User, 
   LogOut, 
   ChevronRight,
-  ClipboardCheck,
   Mail,
   Folder,
   Search,
   Home,
   ChevronLeft,
   Lock,
-  X
+  X,
+  Briefcase
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -27,6 +27,7 @@ interface AlumnoAsignado {
   curso: number;
   grupo: string;
   numero_rotacion: number; 
+  especialidad: string;
   estado_evaluacion: string;
 }
 
@@ -38,8 +39,11 @@ export default function ProfesorDashboard() {
   // --- ESTADOS DE NAVEGACIÓN Y BÚSQUEDA ---
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
+  
+  // Niveles de navegación
   const [cursoActivo, setCursoActivo] = useState<number | null>(null);
   const [rotacionActiva, setRotacionActiva] = useState<number | null>(null);
+  const [especialidadActiva, setEspecialidadActiva] = useState<string | null>(null);
 
   // --- ESTADOS PARA CAMBIO DE CONTRASEÑA ---
   const [showPassModal, setShowPassModal] = useState(false);
@@ -117,9 +121,20 @@ export default function ProfesorDashboard() {
   // --- LÓGICA DE FILTRADO INTELIGENTE ---
   const alumnosPorEstado = alumnos.filter(a => filtroEstado === "Todos" || a.estado_evaluacion === filtroEstado);
 
+  // Nivel 1: Cursos
   const cursosDisponibles = Array.from(new Set(alumnosPorEstado.map(a => a.curso))).sort();
+  
+  // Nivel 2: Rotaciones (dentro del curso activo)
   const rotacionesDelCurso = cursoActivo 
     ? Array.from(new Set(alumnosPorEstado.filter(a => a.curso === cursoActivo).map(a => a.numero_rotacion))).sort()
+    : [];
+
+  // Nivel 3: Especialidades (dentro de la rotación activa)
+  const especialidadesDeLaRotacion = (cursoActivo && rotacionActiva)
+    ? Array.from(new Set(alumnosPorEstado
+        .filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva)
+        .map(a => a.especialidad)
+      )).sort()
     : [];
 
   const isBuscando = busqueda.trim().length > 0;
@@ -131,8 +146,12 @@ export default function ProfesorDashboard() {
       a.nombre_completo.toLowerCase().includes(texto) || 
       a.email.toLowerCase().includes(texto)
     );
-  } else if (cursoActivo && rotacionActiva) {
-    alumnosAMostrar = alumnosPorEstado.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva);
+  } else if (cursoActivo && rotacionActiva && especialidadActiva) {
+    alumnosAMostrar = alumnosPorEstado.filter(a => 
+        a.curso === cursoActivo && 
+        a.numero_rotacion === rotacionActiva &&
+        a.especialidad === especialidadActiva
+    );
   }
 
   // --- COMPONENTES VISUALES REUTILIZABLES ---
@@ -144,8 +163,9 @@ export default function ProfesorDashboard() {
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-ufv-azul">
               {item.curso}º Curso - {item.grupo}
             </div>
-            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-              Rotación {item.numero_rotacion}
+            {/* Como ya estamos en la carpeta de especialidad, mostramos solo la rotación aquí para simplificar, o ambas si se prefiere. */}
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 truncate max-w-[220px]" title={item.especialidad}>
+              {item.especialidad} (Rot. {item.numero_rotacion})
             </div>
           </div>
           {item.estado_evaluacion === "Completada" ? (
@@ -241,6 +261,7 @@ export default function ProfesorDashboard() {
                   setFiltroEstado(e.target.value);
                   setCursoActivo(null); 
                   setRotacionActiva(null);
+                  setEspecialidadActiva(null);
                 }}
                 className="bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul p-3.5 shadow-sm font-bold outline-none cursor-pointer"
               >
@@ -276,10 +297,11 @@ export default function ProfesorDashboard() {
             </div>
           ) : (
             <>
+              {/* BREADCRUMBS DE NAVEGACIÓN */}
               {!isBuscando && (
-                <div className="flex items-center text-sm text-gray-500 mb-6 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm inline-flex font-medium">
+                <div className="flex flex-wrap items-center text-sm text-gray-500 mb-6 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm font-medium w-fit">
                   <button 
-                    onClick={() => { setCursoActivo(null); setRotacionActiva(null); }}
+                    onClick={() => { setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); }}
                     className={`flex items-center gap-1.5 hover:text-ufv-azul transition-colors px-2 ${!cursoActivo ? "font-bold text-ufv-azul" : ""}`}
                   >
                     <Home className="w-4 h-4" /> Inicio
@@ -288,7 +310,7 @@ export default function ProfesorDashboard() {
                     <>
                       <ChevronRight className="w-4 h-4 mx-1 text-gray-300" />
                       <button 
-                        onClick={() => setRotacionActiva(null)}
+                        onClick={() => { setRotacionActiva(null); setEspecialidadActiva(null); }}
                         className={`hover:text-ufv-azul transition-colors px-2 ${!rotacionActiva ? "font-bold text-ufv-azul" : ""}`}
                       >
                         {cursoActivo}º Curso
@@ -298,12 +320,24 @@ export default function ProfesorDashboard() {
                   {rotacionActiva && (
                     <>
                       <ChevronRight className="w-4 h-4 mx-1 text-gray-300" />
-                      <span className="font-bold text-ufv-azul px-2">Rotación {rotacionActiva}</span>
+                      <button 
+                        onClick={() => setEspecialidadActiva(null)}
+                        className={`hover:text-ufv-azul transition-colors px-2 ${!especialidadActiva ? "font-bold text-ufv-azul" : ""}`}
+                      >
+                        Rotación {rotacionActiva}
+                      </button>
+                    </>
+                  )}
+                  {especialidadActiva && (
+                    <>
+                      <ChevronRight className="w-4 h-4 mx-1 text-gray-300" />
+                      <span className="font-bold text-ufv-azul px-2">{especialidadActiva}</span>
                     </>
                   )}
                 </div>
               )}
 
+              {/* CONTENIDO PRINCIPAL SEGÚN EL NIVEL */}
               {isBuscando ? (
                 <div>
                   <h3 className="text-lg font-black text-ufv-azul-oscuro mb-4">Resultados de búsqueda ({alumnosAMostrar.length})</h3>
@@ -318,6 +352,7 @@ export default function ProfesorDashboard() {
                   )}
                 </div>
               ) : !cursoActivo ? (
+                /* NIVEL 1: CURSOS */
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {cursosDisponibles.length === 0 ? (
                     <p className="col-span-full text-center text-gray-500 py-10 font-medium">No hay alumnos en este estado.</p>
@@ -338,6 +373,7 @@ export default function ProfesorDashboard() {
                   ))}
                 </div>
               ) : !rotacionActiva ? (
+                /* NIVEL 2: ROTACIONES */
                 <div>
                   <button 
                     onClick={() => setCursoActivo(null)}
@@ -365,7 +401,8 @@ export default function ProfesorDashboard() {
                     ))}
                   </div>
                 </div>
-              ) : (
+              ) : !especialidadActiva ? (
+                /* NIVEL 3: ESPECIALIDADES */
                 <div>
                   <button 
                     onClick={() => setRotacionActiva(null)}
@@ -373,10 +410,39 @@ export default function ProfesorDashboard() {
                   >
                     <ChevronLeft className="w-4 h-4" /> Volver a rotaciones
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {alumnosAMostrar.map(item => <TarjetaAlumno key={item.rotacion_id} item={item} />)}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {especialidadesDeLaRotacion.map(esp => (
+                      <button 
+                        key={esp}
+                        onClick={() => setEspecialidadActiva(esp)}
+                        className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group"
+                      >
+                        <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors">
+                          <Briefcase className="w-8 h-8 text-ufv-azul group-hover:text-white transition-colors" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-black text-ufv-azul-oscuro group-hover:text-ufv-azul transition-colors truncate max-w-[200px]" title={esp}>{esp}</h3>
+                          <p className="text-sm font-bold text-gray-500 mt-1">
+                            {alumnosPorEstado.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva && a.especialidad === esp).length} alumnos
+                          </p>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
+              ) : (
+                 /* NIVEL 4: TARJETAS DE ALUMNOS */
+                 <div>
+                 <button 
+                   onClick={() => setEspecialidadActiva(null)}
+                   className="flex items-center gap-2 text-sm text-gray-500 hover:text-ufv-azul mb-6 font-bold transition-colors"
+                 >
+                   <ChevronLeft className="w-4 h-4" /> Volver a especialidades
+                 </button>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                   {alumnosAMostrar.map(item => <TarjetaAlumno key={item.rotacion_id} item={item} />)}
+                 </div>
+               </div>
               )}
             </>
           )}

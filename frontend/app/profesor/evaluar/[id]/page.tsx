@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { ChevronLeft, Save, CheckCircle2, Loader2, CheckSquare, Lock, AlertCircle, Download } from "lucide-react";
+import { ChevronLeft, Save, CheckCircle2, Loader2, CheckSquare, Lock, AlertCircle, Download, Mail } from "lucide-react";
 
 export default function PantallaEvaluacion() {
   const params = useParams();
@@ -198,12 +198,12 @@ export default function PantallaEvaluacion() {
 
   if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse">Cargando cuadernillo...</div>;
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-        <div className="bg-red-50 border border-red-200 p-8 rounded-3xl max-w-md text-center shadow-sm">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-red-900 font-bold text-xl mb-2">Error de carga</h2>
-            <p className="text-red-700 mb-6 font-medium">{error}</p>
-            <button onClick={() => router.push("/profesor/dashboard")} className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-md">Volver al panel</button>
+    <div className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-gray-50">
+        <div className="bg-red-50 border border-red-200 p-6 md:p-8 rounded-2xl md:rounded-3xl w-full max-w-md text-center shadow-sm">
+            <AlertCircle className="w-10 h-10 md:w-12 md:h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-red-900 font-bold text-lg md:text-xl mb-2">Error de carga</h2>
+            <p className="text-red-700 mb-6 font-medium text-sm md:text-base">{error}</p>
+            <button onClick={() => router.push("/profesor/dashboard")} className="w-full md:w-auto bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-md">Volver al panel</button>
         </div>
     </div>
   );
@@ -212,7 +212,6 @@ export default function PantallaEvaluacion() {
   const { alumno, molde } = datos;
   const totalCount = obtenerTotalPreguntas();
   
-  // CAMBIO IMPORTANTE AQUÍ TAMBIÉN
   const respondidasCount = Object.values(respuestas).filter(
     r => (r.valor_sinon !== undefined && r.valor_sinon !== null) || 
          (r.valor_nivel !== undefined && r.valor_nivel !== null)
@@ -220,72 +219,79 @@ export default function PantallaEvaluacion() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-// ...
       
       {/* HEADER ADHERIDO CON LOGO Y BOTONES */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 md:py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
           <div>
-            <button onClick={() => router.push("/profesor/dashboard")} className="text-sm text-gray-500 hover:text-ufv-azul flex items-center gap-1 mb-4 font-bold transition-colors">
+            <button onClick={() => router.push("/profesor/dashboard")} className="text-xs md:text-sm text-gray-500 hover:text-ufv-azul flex items-center gap-1 mb-3 md:mb-4 font-bold transition-colors">
               <ChevronLeft className="w-4 h-4" /> Volver al panel
             </button>
             
-            <div className="flex items-center gap-3 mb-1">
-              <Image src="/logo-ufv.png" alt="UFV" width={32} height={32} className="object-contain" />
-              <span className="text-[10px] font-bold text-ufv-rosa-oscuro uppercase tracking-widest">Universidad Francisco de Vitoria</span>
+            <div className="flex items-center gap-2 md:gap-3 mb-1">
+              <Image src="/logo-ufv.png" alt="UFV" width={28} height={28} className="object-contain md:w-[32px] md:h-[32px]" />
+              <span className="text-[9px] md:text-[10px] font-bold text-ufv-rosa-oscuro uppercase tracking-widest">Universidad Francisco de Vitoria</span>
             </div>
 
-            <h1 className="text-2xl font-black text-ufv-azul-oscuro leading-tight">{alumno.nombre_completo}</h1>
-            <p className="text-xs text-gray-500 font-bold mt-1 uppercase tracking-widest">{molde.titulo_rotacion} • {alumno.curso}º Curso</p>
+            <h1 className="text-xl md:text-2xl font-black text-ufv-azul-oscuro leading-tight mb-1.5">{alumno.nombre_completo}</h1>
+            
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm font-bold text-gray-600 flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-gray-400" /> {alumno.email}
+              </p>
+              <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-widest">
+                {datos.especialidad} (Rotación {alumno.numero_rotacion}) • {alumno.curso}º Curso
+              </p>
+            </div>
           </div>
           
-          <div className="flex items-center gap-5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-5 w-full md:w-auto mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-0 border-gray-100">
             {/* CONTADOR DE PROGRESO */}
             {!esSoloLectura && (
-              <div className="hidden md:flex flex-col items-end mr-2 shrink-0">
+              <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto mr-0 md:mr-2 shrink-0">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Progreso</span>
-                <span className={`text-lg font-black ${respondidasCount === totalCount ? 'text-green-600' : 'text-ufv-azul'}`}>
+                <span className={`text-base md:text-lg font-black ${respondidasCount === totalCount ? 'text-green-600' : 'text-ufv-azul'}`}>
                   {respondidasCount} / {totalCount}
                 </span>
               </div>
             )}
 
-            {/* CONTENEDOR DE BOTONES (Forzamos una sola línea sin wrap) */}
-            <div className="flex items-center gap-3">
+            {/* CONTENEDOR DE BOTONES */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full md:w-auto">
               {!esSoloLectura && (
                 <>
                   <button 
                     onClick={handleGuardarBorrador}
                     disabled={guardando || finalizando}
-                    className="whitespace-nowrap bg-white border-2 border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:border-ufv-azul hover:text-ufv-azul transition-all disabled:opacity-50"
+                    className="w-full sm:w-auto sm:whitespace-nowrap bg-white border-2 border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold flex justify-center items-center gap-2 hover:border-ufv-azul hover:text-ufv-azul transition-all disabled:opacity-50 text-sm md:text-base"
                   >
-                    {guardando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    {guardando ? "..." : "Guardar Borrador"}
+                    {guardando ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <Save className="w-4 h-4 md:w-5 md:h-5" />}
+                    {guardando ? "Guardando..." : "Guardar Borrador"}
                   </button>
 
                   <button 
                     onClick={handleFinalizarRotacion}
                     disabled={guardando || finalizando}
-                    className="whitespace-nowrap bg-ufv-azul text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all disabled:opacity-50"
+                    className="w-full sm:w-auto sm:whitespace-nowrap bg-ufv-azul text-white px-5 py-2.5 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all disabled:opacity-50 text-sm md:text-base"
                   >
-                    {finalizando ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckSquare className="w-5 h-5" />}
-                    {finalizando ? "..." : "Finalizar Evaluación"}
+                    {finalizando ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <CheckSquare className="w-4 h-4 md:w-5 md:h-5" />}
+                    {finalizando ? "Finalizando..." : "Finalizar Evaluación"}
                   </button>
                 </>
               )}
 
               {esSoloLectura && (
                 <>
-                  <div className="whitespace-nowrap bg-amber-50 text-amber-700 px-5 py-2.5 rounded-xl font-bold border border-amber-200 flex items-center gap-2 shadow-sm">
-                    <Lock className="w-5 h-5" />
+                  <div className="w-full sm:w-auto sm:whitespace-nowrap bg-amber-50 text-amber-700 px-5 py-2.5 rounded-xl font-bold border border-amber-200 flex items-center justify-center gap-2 shadow-sm text-sm md:text-base">
+                    <Lock className="w-4 h-4 md:w-5 md:h-5" />
                     Acta Cerrada
                   </div>
 
                   <button 
                     onClick={handleDescargarPDF}
-                    className="whitespace-nowrap bg-ufv-azul-oscuro text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-ufv-azul shadow-md transition-all active:scale-95"
+                    className="w-full sm:w-auto sm:whitespace-nowrap bg-ufv-azul-oscuro text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul shadow-md transition-all active:scale-95 text-sm md:text-base"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-4 h-4 md:w-5 md:h-5" />
                     Descargar PDF
                   </button>
                 </>
@@ -295,37 +301,37 @@ export default function PantallaEvaluacion() {
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-4xl mx-auto px-3 sm:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
         
         {/* BLOQUE 0: SÍ / NO (NICs) */}
-        <section className={`bg-white p-6 md:p-10 rounded-[2rem] shadow-sm border border-gray-200 transition-opacity ${esSoloLectura ? 'opacity-80' : ''}`}>
-          <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
-            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-ufv-azul">
-                <CheckCircle2 className="w-6 h-6" />
+        <section className={`bg-white p-4 md:p-10 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-gray-200 transition-opacity ${esSoloLectura ? 'opacity-80' : ''}`}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 mb-6 md:mb-8 pb-4 md:pb-6 border-b border-gray-100">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-50 rounded-xl md:rounded-2xl flex items-center justify-center text-ufv-azul shrink-0">
+                <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
             </div>
-            <h2 className="text-2xl font-black text-ufv-azul-oscuro">
+            <h2 className="text-xl md:text-2xl font-black text-ufv-azul-oscuro">
               {molde.bloque_sinon.titulo}
             </h2>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {molde.bloque_sinon.elementos.map((item: any) => {
               const respuestaPrevia = respuestas[item.id];
               return (
-                <div key={item.id} className="p-5 bg-gray-50/50 rounded-2xl border border-gray-100 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:bg-white transition-colors">
-                  <span className="font-bold text-gray-700 flex-grow leading-snug">{item.texto}</span>
-                  <div className="flex gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm shrink-0">
+                <div key={item.id} className="p-4 md:p-5 bg-gray-50/50 rounded-xl md:rounded-2xl border border-gray-100 flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-center justify-between hover:bg-white transition-colors">
+                  <span className="font-bold text-sm md:text-base text-gray-700 flex-grow leading-snug">{item.texto}</span>
+                  <div className="flex gap-2 bg-white p-1 md:p-1.5 rounded-lg md:rounded-xl border border-gray-200 shadow-sm shrink-0 w-full sm:w-auto justify-center">
                     <button 
                         disabled={esSoloLectura}
                         onClick={() => handleCambioRespuesta(item.id, 0, 'valor_sinon', true)}
-                        className={`px-5 py-2 rounded-lg font-black text-xs transition-all ${respuestaPrevia?.valor_sinon === true ? 'bg-green-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+                        className={`flex-1 sm:flex-none px-4 md:px-5 py-2 rounded-md md:rounded-lg font-black text-xs transition-all ${respuestaPrevia?.valor_sinon === true ? 'bg-green-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
                     >
                         SÍ
                     </button>
                     <button 
                         disabled={esSoloLectura}
                         onClick={() => handleCambioRespuesta(item.id, 0, 'valor_sinon', false)}
-                        className={`px-5 py-2 rounded-lg font-black text-xs transition-all ${respuestaPrevia?.valor_sinon === false ? 'bg-red-500 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+                        className={`flex-1 sm:flex-none px-4 md:px-5 py-2 rounded-md md:rounded-lg font-black text-xs transition-all ${respuestaPrevia?.valor_sinon === false ? 'bg-red-500 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
                     >
                         NO
                     </button>
@@ -338,23 +344,23 @@ export default function PantallaEvaluacion() {
 
         {/* BLOQUES 1-7: NIVELES Y COMPETENCIAS */}
         {molde.apartados.map((apartado: any) => (
-          <section key={apartado.numero} className={`bg-white p-6 md:p-10 rounded-[2rem] shadow-sm border border-gray-200 transition-opacity ${esSoloLectura ? 'opacity-80' : ''}`}>
+          <section key={apartado.numero} className={`bg-white p-4 md:p-10 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-gray-200 transition-opacity ${esSoloLectura ? 'opacity-80' : ''}`}>
             
-            <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center font-black text-ufv-azul text-xl border border-blue-100">
+            <div className="flex items-center gap-3 md:gap-4 mb-5 md:mb-6">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-50 rounded-xl md:rounded-2xl flex items-center justify-center font-black text-ufv-azul text-lg md:text-xl border border-blue-100 shrink-0">
                     {apartado.numero}
                 </div>
-                <h2 className="text-2xl font-black text-ufv-azul-oscuro">{apartado.titulo}</h2>
+                <h2 className="text-xl md:text-2xl font-black text-ufv-azul-oscuro leading-tight">{apartado.titulo}</h2>
             </div>
 
             {/* GUÍA DE CALIFICACIÓN (Leyenda) */}
-            <div className="mb-10 p-5 bg-gray-50 rounded-2xl border border-gray-200">
-              <h4 className="text-[10px] font-black text-ufv-azul uppercase tracking-widest mb-3">Guía de calificación - Escala ECOEnf</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mb-6 md:mb-10 p-4 md:p-5 bg-gray-50 rounded-xl md:rounded-2xl border border-gray-200">
+              <h4 className="text-[9px] md:text-[10px] font-black text-ufv-azul uppercase tracking-widest mb-3">Guía de calificación - Escala ECOEnf</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                 {[1, 2, 3].map(n => (
-                    <div key={n} className="flex gap-3 items-start">
-                        <span className="w-6 h-6 rounded-lg bg-ufv-azul text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{n}</span>
-                        <p className="text-xs text-gray-600 font-medium leading-relaxed">{molde.niveles[n.toString()]}</p>
+                    <div key={n} className="flex gap-2 md:gap-3 items-start">
+                        <span className="w-5 h-5 md:w-6 md:h-6 rounded-md md:rounded-lg bg-ufv-azul text-white text-[9px] md:text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{n}</span>
+                        <p className="text-[11px] md:text-xs text-gray-600 font-medium leading-relaxed">{molde.niveles[n.toString()]}</p>
                     </div>
                 ))}
               </div>
@@ -365,19 +371,19 @@ export default function PantallaEvaluacion() {
               {apartado.elementos.map((item: any) => {
                 const respuestaPrevia = respuestas[item.id];
                 return (
-                  <div key={item.id} className="group pb-6 border-b border-gray-50 last:border-0 last:pb-0">
-                    <p className="font-bold text-gray-800 mb-4 leading-relaxed text-lg group-hover:text-ufv-azul transition-colors">{item.texto}</p>
+                  <div key={item.id} className="group pb-5 md:pb-6 border-b border-gray-50 last:border-0 last:pb-0">
+                    <p className="font-bold text-gray-800 text-sm md:text-lg mb-3 md:mb-4 leading-relaxed group-hover:text-ufv-azul transition-colors">{item.texto}</p>
                     
                     {/* BOTONES DE NIVEL */}
-                    <div className="flex flex-wrap gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
                       {[1, 2, 3].map(num => (
                         <button
                             key={num}
                             disabled={esSoloLectura}
                             onClick={() => handleCambioRespuesta(item.id, apartado.numero, 'valor_nivel', num)}
-                            className={`flex-1 min-w-[120px] py-4 rounded-xl border-2 font-black text-sm transition-all flex items-center justify-center gap-2 ${
+                            className={`py-3 md:py-4 rounded-xl border-2 font-black text-xs md:text-sm transition-all flex items-center justify-center gap-2 ${
                                 respuestaPrevia?.valor_nivel === num 
-                                ? 'border-ufv-azul bg-ufv-azul text-white shadow-lg shadow-blue-900/20 scale-[1.02]' 
+                                ? 'border-ufv-azul bg-ufv-azul text-white shadow-md md:shadow-lg md:shadow-blue-900/20 md:scale-[1.02]' 
                                 : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-gray-300'
                             }`}
                         >
@@ -395,14 +401,14 @@ export default function PantallaEvaluacion() {
                 const idComentario = `comentario_apartado_${apartado.numero}`;
                 const respuestaPrevia = respuestas[idComentario];
                 return (
-                    <div className="mt-8 pt-8 border-t border-gray-200">
-                        <label className="block text-sm font-bold text-ufv-azul-oscuro mb-3">Observaciones del Apartado {apartado.numero} (Opcional)</label>
+                    <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-200">
+                        <label className="block text-xs md:text-sm font-bold text-ufv-azul-oscuro mb-2 md:mb-3">Observaciones del Apartado {apartado.numero} (Opcional)</label>
                         <textarea 
                             placeholder={esSoloLectura ? "Sin observaciones registradas." : "Añadir un comentario general sobre este bloque de competencias..."}
                             disabled={esSoloLectura}
                             onChange={(e) => handleCambioRespuesta(idComentario, apartado.numero, 'comentario', e.target.value)}
                             value={respuestaPrevia?.comentario || ""}
-                            className={`w-full border-2 rounded-xl p-4 text-sm focus:outline-none transition-all ${
+                            className={`w-full border-2 rounded-xl p-3 md:p-4 text-xs md:text-sm focus:outline-none transition-all ${
                                 esSoloLectura 
                                 ? 'border-transparent bg-gray-50 text-gray-600 italic font-medium' 
                                 : 'border-gray-200 bg-gray-50 text-gray-900 focus:border-ufv-azul focus:bg-white hover:border-gray-300 font-medium'

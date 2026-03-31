@@ -45,7 +45,6 @@ def obtener_mis_alumnos(
             nombre, apellidos = "Error", "Cifrado"
 
         # 3. Lógica de estados dinámica:
-        # Primero miramos si hay respuestas guardadas en la DB para esta rotación
         tiene_respuestas = (
             db.query(models.CuadernilloRespuesta)
             .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
@@ -56,9 +55,16 @@ def obtener_mis_alumnos(
         if rotacion.completada:
             estado = "Completada"
         elif tiene_respuestas:
-            estado = "En Proceso"  # Aparecerá como Borrador en el Frontend
+            estado = "En Proceso"
         else:
             estado = "Pendiente"
+
+        # --- NUEVO: Extraemos el nombre de la especialidad ---
+        nombre_especialidad = (
+            rotacion.especialidad.nombre
+            if rotacion.especialidad
+            else "Sin especialidad"
+        )
 
         resultado.append(
             {
@@ -70,10 +76,11 @@ def obtener_mis_alumnos(
                 "nombre_completo": f"{nombre} {apellidos}",
                 "curso": rotacion.curso,
                 "numero_rotacion": rotacion.numero_rotacion,
+                "especialidad": nombre_especialidad,  # <--- AÑADIMOS ESTO AQUÍ
                 "grupo": alumno.grupo,
                 "completada": rotacion.completada,
                 "codigo_anonimo": alumno.codigo_anonimo,
-                "estado_evaluacion": estado,  # <--- Enviamos el estado calculado
+                "estado_evaluacion": estado,
             }
         )
 

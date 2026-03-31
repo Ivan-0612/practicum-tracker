@@ -163,7 +163,7 @@ export default function AlumnoDashboard() {
               onClick={() => setShowPassModal(true)}
               className="flex items-center gap-2 bg-white text-ufv-azul px-4 py-2.5 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm active:scale-95"
             >
-              <Lock className="w-4 h-4"/> Contraseña
+              <Lock className="w-4 h-4"/> Cambiar Contraseña
             </button>
             <button 
               onClick={() => { Cookies.remove("practicum_token"); router.push("/login"); }} 
@@ -199,7 +199,7 @@ export default function AlumnoDashboard() {
                     </div>
                     <div>
                       <h3 className="text-lg font-black text-ufv-azul-oscuro group-hover:text-ufv-azul transition-colors leading-tight">
-                        Rotación {rot.numero}
+                        {rot.especialidad} (Rotación {rot.numero})
                       </h3>
                       <p className="text-xs text-gray-500 font-bold mt-1 uppercase tracking-widest">{rot.curso}º Curso</p>
                     </div>

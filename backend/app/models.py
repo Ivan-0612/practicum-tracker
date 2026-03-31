@@ -18,7 +18,6 @@ from .database import Base
 
 class Usuario(Base):
     __tablename__ = "usuarios"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
@@ -26,7 +25,6 @@ class Usuario(Base):
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relaciones
     alumno_perfil = relationship(
         "Alumno",
         foreign_keys="[Alumno.usuario_id]",
@@ -34,7 +32,6 @@ class Usuario(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
-    # NUEVO: Relación con la tabla intermedia
     asignaciones_rotaciones = relationship(
         "AsignacionTutor", back_populates="tutor", cascade="all, delete-orphan"
     )
@@ -42,21 +39,16 @@ class Usuario(Base):
 
 class Alumno(Base):
     __tablename__ = "alumnos"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     usuario_id = Column(
         UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False, unique=True
     )
 
-    # ELIMINADO: tutor_id. ¡El tutor ya no pertenece al alumno!
-
-    # Datos Académicos base
     curso = Column(Integer, nullable=False)
     grupo = Column(String, nullable=False)
     numero_rotacion = Column(Integer, nullable=False, default=1)
     codigo_anonimo = Column(String, unique=True, nullable=False, index=True)
 
-    # Datos Personales (Cifrados por RGPD)
     nombre_cifrado = Column(LargeBinary, nullable=False)
     apellidos_cifrado = Column(LargeBinary, nullable=False)
     email_cifrado = Column(LargeBinary, nullable=False)
@@ -64,7 +56,6 @@ class Alumno(Base):
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relaciones
     usuario_login = relationship(
         "Usuario", foreign_keys=[usuario_id], back_populates="alumno_perfil"
     )
@@ -73,16 +64,29 @@ class Alumno(Base):
     )
 
 
+# --- NUEVA TABLA: ESPECIALIDADES ---
+class Especialidad(Base):
+    __tablename__ = "especialidades"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nombre = Column(String, unique=True, nullable=False)  # Ej: "Hospitalización I"
+    archivo_json = Column(String, nullable=False)  # Ej: "hospitalizacion_1.json"
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+
+    rotaciones = relationship("Rotacion", back_populates="especialidad")
+
+
 class Rotacion(Base):
     __tablename__ = "rotaciones"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     alumno_id = Column(UUID(as_uuid=True), ForeignKey("alumnos.id"), nullable=False)
 
-    # --- NUEVOS CAMPOS ---
+    # --- NUEVO: VINCULAMOS LA ROTACIÓN A LA ESPECIALIDAD ---
+    especialidad_id = Column(
+        UUID(as_uuid=True), ForeignKey("especialidades.id"), nullable=True
+    )
+
     curso = Column(Integer, nullable=True)
     numero_rotacion = Column(Integer, nullable=True)
-    # ---------------------
 
     fecha_inicio = Column(Date, nullable=True)
     fecha_fin = Column(Date, nullable=True)
@@ -90,9 +94,11 @@ class Rotacion(Base):
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     alumno = relationship("Alumno", back_populates="rotaciones")
+    especialidad = relationship("Especialidad", back_populates="rotaciones")
     asignaciones_tutores = relationship(
         "AsignacionTutor", back_populates="rotacion", cascade="all, delete-orphan"
     )
+
     __table_args__ = (
         UniqueConstraint(
             "alumno_id", "curso", "numero_rotacion", name="_alumno_curso_rot_uc"
@@ -100,10 +106,8 @@ class Rotacion(Base):
     )
 
 
-# --- NUEVA TABLA INTERMEDIA (N:M) ---
 class AsignacionTutor(Base):
     __tablename__ = "asignaciones_tutores"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tutor_id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False)
     rotacion_id = Column(
@@ -116,7 +120,6 @@ class AsignacionTutor(Base):
 
 
 class CuadernilloRespuesta(Base):
-    # ... (Se mantiene exactamente igual que lo tienes) ...
     __tablename__ = "cuadernillo_respuestas"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     rotacion_id = Column(
@@ -137,22 +140,18 @@ class CuadernilloRespuesta(Base):
 
 class RegistroAsistencia(Base):
     __tablename__ = "registro_asistencia"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     rotacion_id = Column(
         UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False
     )
     alumno_id = Column(UUID(as_uuid=True), ForeignKey("alumnos.id"), nullable=False)
-
     fecha = Column(Date, server_default=func.current_date())
 
-    # Fichaje de Entrada
     hora_entrada = Column(DateTime(timezone=True), nullable=True)
     ubicacion_entrada_permitida = Column(Boolean, default=False)
     latitud_entrada = Column(String, nullable=True)
     longitud_entrada = Column(String, nullable=True)
 
-    # Fichaje de Salida
     hora_salida = Column(DateTime(timezone=True), nullable=True)
     ubicacion_salida_permitida = Column(Boolean, default=False)
     latitud_salida = Column(String, nullable=True)
@@ -160,8 +159,6 @@ class RegistroAsistencia(Base):
 
     rotacion = relationship("Rotacion")
     alumno = relationship("Alumno")
-
-    # Esto evita que se creen dos filas el mismo día para el mismo alumno
     __table_args__ = (
         UniqueConstraint("rotacion_id", "alumno_id", "fecha", name="_rot_alu_fecha_uc"),
     )
@@ -169,28 +166,21 @@ class RegistroAsistencia(Base):
 
 class IntentoLogin(Base):
     __tablename__ = "intentos_login"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # Cambiamos el nombre a usuario_id para que sea claro y usamos el tipo correcto (UUID)
     usuario_id = Column(
         UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False, unique=True
     )
-
-    # Mantenemos el email como un campo informativo si quieres, pero sin ser la Foreign Key
     email = Column(String, nullable=False, index=True)
-
     intentos = Column(Integer, default=0)
     ultimo_intento = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     bloqueado_hasta = Column(DateTime(timezone=True), nullable=True)
-
     usuario = relationship("Usuario")
 
 
 class TokenRecuperacion(Base):
     __tablename__ = "tokens_recuperacion"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     usuario_id = Column(
         UUID(as_uuid=True),
