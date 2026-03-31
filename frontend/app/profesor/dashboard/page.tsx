@@ -57,7 +57,7 @@ export default function ProfesorDashboard() {
   const cargarAlumnos = async () => {
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch("http://127.0.0.1:8000/api/v1/profesores/mis-alumnos", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/profesores/mis-alumnos`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -88,7 +88,7 @@ export default function ProfesorDashboard() {
 
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch("http://127.0.0.1:8000/api/v1/auth/cambiar-password", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/cambiar-password`, {
         method: "POST",
         headers: { 
           "Authorization": `Bearer ${token}`,
