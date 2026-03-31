@@ -7,6 +7,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     LargeBinary,
+    JSON,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -68,10 +69,12 @@ class Alumno(Base):
 class Especialidad(Base):
     __tablename__ = "especialidades"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nombre = Column(String, unique=True, nullable=False)  # Ej: "Hospitalización I"
-    archivo_json = Column(String, nullable=False)  # Ej: "hospitalizacion_1.json"
-    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+    nombre = Column(String, unique=True, nullable=False)
 
+    # --- CAMBIO AQUÍ: Ahora guardamos el JSON directamente ---
+    contenido_json = Column(JSON, nullable=False)
+
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
     rotaciones = relationship("Rotacion", back_populates="especialidad")
 
 
@@ -123,18 +126,20 @@ class CuadernilloRespuesta(Base):
     __tablename__ = "cuadernillo_respuestas"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     rotacion_id = Column(
-        UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False, unique=True
     )
-    version_cuadernillo = Column(String, nullable=False)
-    bloque = Column(Integer, nullable=False)
-    elemento_id = Column(String, nullable=False)
-    valor_sinon = Column(Boolean, nullable=True)
-    valor_nivel = Column(Integer, nullable=True)
-    comentario = Column(String, nullable=True)
+
+    # Aquí guardamos TODO el borrador en un solo campo:
+    # { "elemento_1": {"valor_nivel": 3, "comentario": "..."}, "elemento_2": {...} }
+    respuestas_json = Column(JSON, nullable=False)
+
     rellenado_por = Column(
         UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False
     )
-    guardado_en = Column(DateTime(timezone=True), server_default=func.now())
+    guardado_en = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
     rotacion = relationship("Rotacion")
 
 

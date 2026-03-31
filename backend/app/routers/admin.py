@@ -34,6 +34,9 @@ def crear_profesor(profesor_in: schemas.UsuarioCreate, db: Session = Depends(get
 # --- NUEVO: GESTIÓN DE ESPECIALIDADES ---
 
 
+import json
+
+
 @router.post("/especialidades", response_model=schemas.EspecialidadResponse)
 async def crear_especialidad(
     nombre: str = Form(...),
@@ -47,7 +50,6 @@ async def crear_especialidad(
     if not file.filename.endswith(".json"):
         raise HTTPException(status_code=400, detail="El archivo debe ser un JSON")
 
-    # 1. Comprobar si el nombre de especialidad ya existe
     existe = (
         db.query(models.Especialidad)
         .filter(models.Especialidad.nombre == nombre)
@@ -58,21 +60,20 @@ async def crear_especialidad(
             status_code=400, detail="Ya existe una especialidad con este nombre"
         )
 
-    # 2. Guardar el archivo físicamente
-    if not os.path.exists(UPLOAD_DIR):
-        os.makedirs(UPLOAD_DIR)
+    # --- MAGIA: LEEMOS EL ARCHIVO EN MEMORIA ---
+    contenido_crudo = await file.read()
+    try:
+        datos_json = json.loads(contenido_crudo)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400, detail="El archivo JSON está corrupto o mal formateado"
+        )
 
-    # Limpiar el nombre del archivo para evitar problemas (ej. "Hospitalización I" -> "hospitalizacion_i.json")
-    safe_filename = (
-        nombre.lower().replace(" ", "_").replace("ñ", "n") + "_" + file.filename
+    # --- GUARDAMOS DIRECTAMENTE EN LA BASE DE DATOS ---
+    nueva_especialidad = models.Especialidad(
+        nombre=nombre,
+        contenido_json=datos_json,  # Se guarda como tipo JSON nativo de PostgreSQL
     )
-    file_path = os.path.join(UPLOAD_DIR, safe_filename)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # 3. Guardar en Base de Datos
-    nueva_especialidad = models.Especialidad(nombre=nombre, archivo_json=safe_filename)
     db.add(nueva_especialidad)
     db.commit()
     db.refresh(nueva_especialidad)
@@ -89,24 +90,3 @@ def listar_especialidades(
         raise HTTPException(status_code=403, detail="No autorizado")
 
     return db.query(models.Especialidad).all()
-
-
-# Mantenemos el endpoint genérico por si necesitas subir JSONs de otra forma
-@router.post("/upload-json")
-async def upload_json_files(files: List[UploadFile] = File(...)):
-    if not os.path.exists(UPLOAD_DIR):
-        os.makedirs(UPLOAD_DIR)
-
-    subidos = []
-    for file in files:
-        if not file.filename.endswith(".json"):
-            continue
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        subidos.append(file.filename)
-
-    return {
-        "mensaje": f"Se han actualizado {len(subidos)} archivos",
-        "archivos": subidos,
-    }

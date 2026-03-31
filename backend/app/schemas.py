@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import date, datetime
 
@@ -30,7 +30,7 @@ class UsuarioResponse(UsuarioBase):
 # ==========================================
 class EspecialidadBase(BaseModel):
     nombre: str
-    archivo_json: str
+    contenido_json: Dict[str, Any]
 
 
 class EspecialidadCreate(EspecialidadBase):

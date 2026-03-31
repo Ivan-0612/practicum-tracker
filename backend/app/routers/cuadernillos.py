@@ -39,50 +39,40 @@ def obtener_molde_cuadernillo(
     )
     if not rotacion:
         raise HTTPException(status_code=404, detail="Rotación no encontrada")
+
     alumno = rotacion.alumno
     if not rotacion.especialidad:
         raise HTTPException(
             status_code=400, detail="Esta rotación no tiene especialidad asignada"
         )
 
-    nombre_archivo = rotacion.especialidad.archivo_json
-    base_path = os.getcwd()
-    ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
-    if not os.path.exists(ruta_archivo):
-        ruta_archivo = os.path.join(base_path, "app", "cuadernillos", nombre_archivo)
+    # Extraemos el molde (rúbrica) directamente de la especialidad
+    molde_json = rotacion.especialidad.contenido_json
 
-    try:
-        with open(ruta_archivo, "r", encoding="utf-8") as f:
-            molde_json = json.load(f)
-    except Exception:
+    if not molde_json:
         raise HTTPException(
-            status_code=404, detail=f"No se encontró el archivo {nombre_archivo}"
+            status_code=404,
+            detail="El contenido del cuadernillo está vacío en la base de datos",
         )
 
     nombre_real = security.descifrar_dato(alumno.nombre_cifrado)
     apellidos_real = security.descifrar_dato(alumno.apellidos_cifrado)
     email_real = security.descifrar_dato(alumno.email_cifrado)
 
-    respuestas_db = (
+    # --- CAMBIO CLAVE: Consultamos la fila única de respuestas ---
+    db_resp = (
         db.query(models.CuadernilloRespuesta)
         .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
-        .all()
+        .first()
     )
 
     borrador = {}
-    if current_user.rol == "profesor" or (
-        current_user.rol == "estudiante" and rotacion.completada
-    ):
-        for resp in respuestas_db:
-            borrador[resp.elemento_id] = {
-                "bloque": resp.bloque,
-                "elemento_id": resp.elemento_id,
-                "valor_sinon": resp.valor_sinon,
-                "valor_nivel": resp.valor_nivel,
-                "comentario": resp.comentario,
-            }
-    else:
-        borrador = {}
+    # Solo mostramos respuestas si el usuario es profesor o si la rotación está terminada
+    if db_resp and (current_user.rol == "profesor" or rotacion.completada):
+        # Simplemente asignamos el objeto JSON que ya tenemos en la BD
+        borrador = db_resp.respuestas_json
+
+    # -------------------------------------------------------------
 
     asignaciones = (
         db.query(models.AsignacionTutor)
@@ -99,6 +89,11 @@ def obtener_molde_cuadernillo(
             "grupo": alumno.grupo,
             "numero_rotacion": rotacion.numero_rotacion,
         },
+        "especialidad": (
+            rotacion.especialidad.nombre
+            if rotacion.especialidad
+            else "Sin especialidad"
+        ),
         "molde": molde_json,
         "borrador": borrador,
         "rotacion_completada": rotacion.completada,
@@ -124,35 +119,38 @@ def guardar_respuestas_cuadernillo(
             status_code=400, detail="La rotación no existe o ya está cerrada"
         )
 
-    for resp in respuestas:
-        db_resp = (
-            db.query(models.CuadernilloRespuesta)
-            .filter(
-                models.CuadernilloRespuesta.rotacion_id == rotacion.id,
-                models.CuadernilloRespuesta.elemento_id == resp.elemento_id,
-            )
-            .first()
-        )
+    # 1. Convertimos la lista que envía el frontend en un diccionario indexado por elemento_id
+    nuevas_respuestas_dict = {}
+    for r in respuestas:
+        nuevas_respuestas_dict[r.elemento_id] = r.dict()
 
-        if db_resp:
-            db_resp.valor_sinon = resp.valor_sinon
-            db_resp.valor_nivel = resp.valor_nivel
-            db_resp.comentario = resp.comentario
-        else:
-            nueva_resp = models.CuadernilloRespuesta(
-                rotacion_id=rotacion.id,
-                version_cuadernillo="2025-v1",
-                bloque=resp.bloque,
-                elemento_id=resp.elemento_id,
-                valor_sinon=resp.valor_sinon,
-                valor_nivel=resp.valor_nivel,
-                comentario=resp.comentario,
-                rellenado_por=current_user.id,
-            )
-            db.add(nueva_resp)
+    # 2. Buscamos si ya existe un registro de respuestas para esta rotación
+    db_resp = (
+        db.query(models.CuadernilloRespuesta)
+        .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
+        .first()
+    )
+
+    if db_resp:
+        # Si existe, fusionamos el JSON antiguo con el nuevo
+        # (Esto permite guardar partes del cuadernillo sin borrar lo anterior)
+        respuestas_actuales = dict(db_resp.respuestas_json)
+        respuestas_actuales.update(nuevas_respuestas_dict)
+
+        # IMPORTANTE: Notificar a SQLAlchemy que el JSON ha cambiado
+        db_resp.respuestas_json = respuestas_actuales
+        db_resp.rellenado_por = current_user.id
+    else:
+        # Si no existe, creamos la fila única
+        nueva_resp = models.CuadernilloRespuesta(
+            rotacion_id=rotacion.id,
+            respuestas_json=nuevas_respuestas_dict,
+            rellenado_por=current_user.id,
+        )
+        db.add(nueva_resp)
 
     db.commit()
-    return {"mensaje": "Borrador guardado correctamente"}
+    return {"mensaje": "Borrador guardado correctamente en formato compacto"}
 
 
 @router.post("/finalizar/{rotacion_id}")
@@ -177,49 +175,54 @@ def finalizar_rotacion(
             status_code=400, detail="Esta rotación no tiene especialidad asignada"
         )
 
-    nombre_archivo = rotacion.especialidad.archivo_json
-
-    base_path = os.getcwd()
-    ruta_archivo = os.path.join(base_path, "cuadernillos", nombre_archivo)
-    if not os.path.exists(ruta_archivo):
-        ruta_archivo = os.path.join(base_path, "app", "cuadernillos", nombre_archivo)
-
     try:
-        with open(ruta_archivo, "r", encoding="utf-8") as f:
-            molde = json.load(f)
+        # 1. Cargamos el molde (rúbrica) desde la especialidad
+        molde = rotacion.especialidad.contenido_json
+        if not molde:
+            raise HTTPException(
+                status_code=404,
+                detail="No se pudo cargar el molde desde la base de datos",
+            )
 
+        # 2. Calculamos cuántas respuestas debería haber en total
         total_esperado = len(molde["bloque_sinon"]["elementos"])
         for apartado in molde["apartados"]:
             total_esperado += len(apartado["elementos"])
 
-        # Solo contamos filas donde el profesor haya metido una nota real
-        total_real = (
+        # 3. Buscamos la fila única de respuestas en la base de datos
+        db_resp = (
             db.query(models.CuadernilloRespuesta)
-            .filter(
-                models.CuadernilloRespuesta.rotacion_id == rotacion.id,
-                or_(
-                    models.CuadernilloRespuesta.valor_sinon.isnot(None),
-                    models.CuadernilloRespuesta.valor_nivel.isnot(None),
-                ),
-            )
-            .count()
+            .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
+            .first()
         )
 
+        respuestas_dict = db_resp.respuestas_json if db_resp else {}
+
+        # 4. Contamos cuántos indicadores tienen una nota real en el JSON
+        # Filtramos para asegurar que el valor no sea None
+        total_real = 0
+        for elemento_id, data in respuestas_dict.items():
+            # Verificamos si es una respuesta de SÍ/NO o de Niveles 1-3
+            if (
+                data.get("valor_sinon") is not None
+                or data.get("valor_nivel") is not None
+            ):
+                total_real += 1
+
+        # 5. Validación de integridad
         if total_real < total_esperado:
             raise HTTPException(
                 status_code=400,
                 detail=f"Incompleto: faltan {total_esperado - total_real} campos de nota por rellenar.",
             )
 
+        # 6. Marcamos como completada y cerramos el acta
         rotacion.completada = True
         db.commit()
         return {"mensaje": "Evaluación finalizada con éxito"}
 
-    # 2. CORRECCIÓN DEL SERVIDOR: Respetamos los errores de validación sin convertirlos en 500
     except HTTPException:
         raise
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="No se pudo validar el molde")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -257,26 +260,24 @@ def descargar_pdf_evaluacion_desde_cero(
             status_code=400, detail="Esta rotación no tiene especialidad asignada"
         )
 
-    nombre_json = rotacion.especialidad.archivo_json
-    base_path = os.getcwd()
-    ruta_json = os.path.join(base_path, "cuadernillos", nombre_json)
-    if not os.path.exists(ruta_json):
-        ruta_json = os.path.join(base_path, "app", "cuadernillos", nombre_json)
+    # Extraemos el molde directamente de la columna JSON de la base de datos
+    molde = rotacion.especialidad.contenido_json
 
-    if not os.path.exists(ruta_json):
+    if not molde:
         raise HTTPException(
-            status_code=500, detail=f"No se encuentra el molde {nombre_json}"
+            status_code=404,
+            detail="El contenido del molde no está disponible en la base de datos",
         )
 
-    with open(ruta_json, "r", encoding="utf-8") as f:
-        molde = json.load(f)
-
-    respuestas_db = (
+    # Buscamos la fila única de respuestas para esta rotación
+    db_resp = (
         db.query(models.CuadernilloRespuesta)
         .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
-        .all()
+        .first()
     )
-    resp_tutor = {r.elemento_id: r for r in respuestas_db}
+
+    # Extraemos el JSON. Si no hay respuestas aún, devolvemos un diccionario vacío
+    resp_tutor = db_resp.respuestas_json if db_resp else {}
 
     # 2. CONFIGURACIÓN DEL PDF
     buffer = BytesIO()
@@ -429,8 +430,8 @@ def descargar_pdf_evaluacion_desde_cero(
     datos_nic = [["Código / Intervención", "SÍ", "NO"]]
     for item in molde["bloque_sinon"]["elementos"]:
         r = resp_tutor.get(item["id"])
-        marca_si = "X" if r and r.valor_sinon is True else ""
-        marca_no = "X" if r and r.valor_sinon is False else ""
+        marca_si = "X" if r and r.get("valor_sinon") is True else ""
+        marca_no = "X" if r and r.get("valor_sinon") is False else ""
         texto_nic = Paragraph(item["texto"], table_text_style)
         datos_nic.append([texto_nic, marca_si, marca_no])
 
@@ -518,9 +519,9 @@ def descargar_pdf_evaluacion_desde_cero(
         datos_uc = [["Resultado de Aprendizaje", "Nivel 1", "Nivel 2", "Nivel 3"]]
         for item in apartado["elementos"]:
             r = resp_tutor.get(item["id"])
-            n1 = "X" if r and r.valor_nivel == 1 else ""
-            n2 = "X" if r and r.valor_nivel == 2 else ""
-            n3 = "X" if r and r.valor_nivel == 3 else ""
+            n1 = "X" if r and r.get("valor_nivel") == 1 else ""
+            n2 = "X" if r and r.get("valor_nivel") == 2 else ""
+            n3 = "X" if r and r.get("valor_nivel") == 3 else ""
 
             texto_uc = Paragraph(item["texto"], table_text_style)
             datos_uc.append([texto_uc, n1, n2, n3])
