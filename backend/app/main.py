@@ -17,14 +17,15 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "*"
+        "http://localhost:3000",
+        "https://gestion-practicas-7ont.onrender.com/",
     ],  # Temporalmente "*" para facilitar el despliegue, luego pon la URL de Render
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Autenticación"])
+app.include_router(auth.router)
 app.include_router(alumnos.router)
 app.include_router(admin.router)
 app.include_router(profesores.router)
