@@ -24,7 +24,7 @@ export default function AlumnoDashboard() {
   const cargarDatos = async () => {
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch("http://127.0.0.1:8000/api/v1/alumnos/mi-perfil-evaluacion", { 
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/mi-perfil-evaluacion`, { 
         headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
@@ -47,7 +47,7 @@ export default function AlumnoDashboard() {
 
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch("http://127.0.0.1:8000/api/v1/auth/cambiar-password", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/cambiar-password`, {
         method: "POST",
         headers: { 
           "Authorization": `Bearer ${token}`,
@@ -87,7 +87,7 @@ export default function AlumnoDashboard() {
     const enviarFichaje = async (ubicacionPermitida: boolean, lat?: string, lng?: string) => {
       try {
         const token = Cookies.get("practicum_token");
-        const res = await fetch("http://127.0.0.1:8000/api/v1/alumnos/fichar", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/fichar`, {
           method: "POST",
           headers: { 
             "Authorization": `Bearer ${token}`, 

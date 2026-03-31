@@ -28,7 +28,7 @@ export default function PantallaEvaluacion() {
   const cargarCuadernillo = async () => {
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/molde/${rotacionId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cuadernillos/molde/${rotacionId}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
 
@@ -91,7 +91,7 @@ export default function PantallaEvaluacion() {
     const listaRespuestas = Object.values(respuestas);
     if (listaRespuestas.length === 0) return true;
 
-    const res = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/guardar/${rotacionId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cuadernillos/guardar/${rotacionId}`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(listaRespuestas)
@@ -148,7 +148,7 @@ export default function PantallaEvaluacion() {
       
       await ejecutarGuardado(token);
 
-      const resFinalizar = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/finalizar/${rotacionId}`, {
+      const resFinalizar = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cuadernillos/finalizar/${rotacionId}`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -173,7 +173,7 @@ export default function PantallaEvaluacion() {
     try {
       const token = Cookies.get("practicum_token") || "";
       
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/cuadernillos/descargar-pdf/${rotacionId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cuadernillos/descargar-pdf/${rotacionId}`, {
         method: "GET",
         headers: { "Authorization": `Bearer ${token}` }
       });

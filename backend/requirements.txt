@@ -8,19 +8,22 @@ python-dotenv
 sqlalchemy
 alembic
 psycopg2-binary
+pydantic-settings
 
 # --- SEGURIDAD Y RGPD ---
 pydantic[email]
+email-validator
 passlib[argon2]
 PyJWT
 cryptography
+python-jose[cryptography]
 
-# --- EXPORTACIÓN DE DATOS ---
+# --- EXPORTACIÓN Y PDF ---
+reportlab
+pypdf
+pillow
 weasyprint
 openpyxl
 
-python-jose[cryptography]
-
-pypdf
-reportlab
+# --- OTROS ---
 fastapi_mail

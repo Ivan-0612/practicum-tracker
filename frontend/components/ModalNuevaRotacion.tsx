@@ -36,7 +36,7 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
   const cargarEspecialidades = async () => {
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch("http://127.0.0.1:8000/api/v1/admin/especialidades", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -64,7 +64,7 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
 
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch("http://127.0.0.1:8000/api/v1/alumnos/asignar-rotacion", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/asignar-rotacion`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

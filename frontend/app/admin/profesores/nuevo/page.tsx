@@ -23,7 +23,7 @@ export default function NuevoProfesor() {
     const token = Cookies.get("practicum_token");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/admin/profesores", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

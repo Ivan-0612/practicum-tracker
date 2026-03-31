@@ -16,7 +16,9 @@ app = FastAPI(
 # permitir que el frontend se conecte
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "*"
+    ],  # Temporalmente "*" para facilitar el despliegue, luego pon la URL de Render
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

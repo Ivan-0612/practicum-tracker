@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Cargar las variables de entorno del archivo .env
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
-
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 # Crear el motor de conexión
 engine = create_engine(DATABASE_URL)
 
@@ -16,6 +16,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Clase base de la que heredarán todos nuestros modelos
 Base = declarative_base()
+
 
 # Dependencia para inyectar la conexión en nuestros endpoints de FastAPI
 def get_db():

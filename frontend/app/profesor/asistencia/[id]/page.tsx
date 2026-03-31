@@ -50,7 +50,7 @@ export default function CalendarioAsistenciaProfesor() {
   const cargarAsistencia = async () => {
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/profesores/asistencia/${rotacionId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/profesores/asistencia/${rotacionId}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       
