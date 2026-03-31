@@ -90,3 +90,37 @@ def listar_especialidades(
         raise HTTPException(status_code=403, detail="No autorizado")
 
     return db.query(models.Especialidad).all()
+
+
+@router.delete("/especialidades/{especialidad_id}")
+def eliminar_especialidad(
+    especialidad_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+
+    # VALIDACIÓN: Verificar si hay rotaciones usando esta especialidad
+    uso_activo = (
+        db.query(models.Rotacion)
+        .filter(models.Rotacion.especialidad_id == especialidad_id)
+        .first()
+    )
+    if uso_activo:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede eliminar: hay alumnos matriculados en esta especialidad.",
+        )
+
+    db.delete(especialidad)
+    db.commit()
+    return {"mensaje": "Especialidad eliminada correctamente"}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
@@ -12,17 +12,45 @@ import {
   GraduationCap, 
   Settings, 
   Loader2, 
-  CheckCircle2, 
-  AlertCircle 
+  Tag,
+  Trash2
 } from "lucide-react";
 
 export default function AdminPanel() {
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   
-  // NUEVOS ESTADOS PARA LA ESPECIALIDAD
+  // ESTADOS PARA LA ESPECIALIDAD
   const [nombreEspecialidad, setNombreEspecialidad] = useState("");
   const [archivoJSON, setArchivoJSON] = useState<File | null>(null);
+  
+  // ESTADOS PARA LA LISTA DE ESPECIALIDADES
+  const [especialidades, setEspecialidades] = useState<any[]>([]);
+  const [isLoadingEspecialidades, setIsLoadingEspecialidades] = useState(true);
+
+  // FUNCIÓN PARA CARGAR LAS ESPECIALIDADES
+  const fetchEspecialidades = async () => {
+    setIsLoadingEspecialidades(true);
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEspecialidades(data);
+      }
+    } catch (error) {
+      console.error("Error al cargar especialidades", error);
+    } finally {
+      setIsLoadingEspecialidades(false);
+    }
+  };
+
+  // SE EJECUTA AL ENTRAR A LA PÁGINA
+  useEffect(() => {
+    fetchEspecialidades();
+  }, []);
 
   const handleLogout = () => {
     Cookies.remove("practicum_token");
@@ -30,6 +58,7 @@ export default function AdminPanel() {
     router.push("/login");
   };
 
+  // FUNCIÓN PARA CREAR ESPECIALIDAD
   const handleCrearEspecialidad = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombreEspecialidad || !archivoJSON) {
@@ -45,7 +74,7 @@ export default function AdminPanel() {
     const token = Cookies.get("practicum_token");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/admin/especialidades", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -57,6 +86,8 @@ export default function AdminPanel() {
         alert("✅ Especialidad y Rúbrica creadas correctamente.");
         setNombreEspecialidad("");
         setArchivoJSON(null);
+        // Refrescamos la lista automáticamente
+        fetchEspecialidades();
       } else {
         const errorData = await res.json();
         alert(`❌ Error: ${errorData.detail || "No se pudo crear la especialidad"}`);
@@ -65,6 +96,29 @@ export default function AdminPanel() {
       alert("❌ Error de conexión: Asegúrate de que el backend esté ejecutándose.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // FUNCIÓN PARA ELIMINAR ESPECIALIDAD
+  const handleEliminarEspecialidad = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar "${nombre}"?`)) return;
+
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        alert("✅ Especialidad eliminada.");
+        fetchEspecialidades(); // Refrescamos la lista tras borrar
+      } else {
+        const errorData = await res.json();
+        alert(`❌ Error: ${errorData.detail || "No se pudo eliminar la especialidad"}`);
+      }
+    } catch (error) {
+      alert("❌ Error de conexión con el servidor.");
     }
   };
 
@@ -101,13 +155,13 @@ export default function AdminPanel() {
         {/* GRID DE MÓDULOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          {/* MÓDULO 1: CREAR ESPECIALIDAD (JSON) */}
-          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative overflow-hidden group">
+          {/* MÓDULO 1: GESTIÓN DE ESPECIALIDADES */}
+          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative overflow-hidden group flex flex-col h-full">
             <div className="absolute -right-6 -top-6 text-gray-50 opacity-50 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
               <FileJson className="w-40 h-40" />
             </div>
             
-            <div className="relative z-10">
+            <div className="relative z-10 flex-1 flex flex-col">
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-blue-50 p-2.5 rounded-xl text-ufv-azul">
                   <Settings className="w-6 h-6" />
@@ -156,17 +210,55 @@ export default function AdminPanel() {
                   <span>{isUploading ? "Guardando..." : "Crear Especialidad"}</span>
                 </button>
               </form>
+
+              {/* SECCIÓN: LISTA DE ESPECIALIDADES ACTIVAS */}
+              <div className="mt-8 pt-6 border-t border-gray-100 flex-1 flex flex-col">
+                <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Especialidades Activas</h3>
+                
+                <div className="bg-gray-50 rounded-xl border border-gray-200 flex-1 overflow-hidden flex flex-col max-h-48">
+                  {isLoadingEspecialidades ? (
+                    <div className="flex justify-center items-center p-6">
+                      <Loader2 className="w-6 h-6 animate-spin text-ufv-azul" />
+                    </div>
+                  ) : especialidades.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500 text-sm font-medium">
+                      Aún no hay especialidades creadas.
+                    </div>
+                  ) : (
+                    <ul className="overflow-y-auto p-2">
+                      {especialidades.map((esp) => (
+                        <li key={esp.id} className="flex items-center justify-between gap-3 p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-gray-200 group/item">
+                          <div className="flex items-center gap-3 truncate">
+                            <div className="bg-blue-100 p-1.5 rounded-md text-ufv-azul">
+                              <Tag className="w-4 h-4" />
+                            </div>
+                            <span className="font-bold text-gray-700 text-sm truncate">{esp.nombre}</span>
+                          </div>
+                          
+                          <button 
+                            onClick={() => handleEliminarEspecialidad(esp.id, esp.nombre)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            title="Eliminar especialidad"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
 
           {/* MÓDULO 2: GESTIÓN DE USUARIOS */}
-          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative overflow-hidden group">
-            {/* (Este módulo se mantiene exactamente igual que el que ya tenías) */}
+          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative overflow-hidden group flex flex-col h-full">
             <div className="absolute -right-6 -top-6 text-gray-50 opacity-50 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
               <Users className="w-40 h-40" />
             </div>
 
-            <div className="relative z-10">
+            <div className="relative z-10 flex-1 flex flex-col">
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-blue-50 p-2.5 rounded-xl text-ufv-azul">
                   <Users className="w-6 h-6" />
@@ -178,7 +270,7 @@ export default function AdminPanel() {
                 Administra las cuentas de acceso al sistema. Da de alta a nuevos docentes y matricula a los estudiantes en sus rotaciones correspondientes.
               </p>
               
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 mt-auto">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button onClick={() => router.push("/admin/profesores/nuevo")} className="flex-1 bg-ufv-azul text-ufv-blanco px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro transition-all font-bold flex items-center justify-center gap-2 active:scale-95 border border-transparent">
                     <UserPlus className="w-4 h-4" /> Nuevo Profesor
