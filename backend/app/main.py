@@ -18,8 +18,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://gestion-practicas-7ont.onrender.com",
-    ],  # Temporalmente "*" para facilitar el despliegue, luego pon la URL de Render
+        "https://gestion-practicas-fronted.onrender.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
