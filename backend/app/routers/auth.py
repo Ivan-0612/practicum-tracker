@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticación"])
-
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 # Configuración de Gmail (Fuera de las funciones para que sea global)
 load_dotenv()  # Carga las variables del archivo .env
 
@@ -131,7 +131,7 @@ async def solicitar_recuperacion(
         db.commit()
 
         # Lógica de envío de email
-        enlace = f"http://localhost:3000/restablecer-password?token={token_hex}"
+        enlace = f"{frontend_url}/restablecer-password?token={token_hex}"
         cuerpo = f"""
         <html>
             <body>
