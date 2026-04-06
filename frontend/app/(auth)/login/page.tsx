@@ -106,7 +106,7 @@ export default function LoginPage() {
             {/* Campo Email */}
             <div>
               <label className="block text-sm font-bold text-ufv-azul-oscuro mb-2">
-                Email institucional
+                Email 
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -118,7 +118,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
-                  placeholder="nombre@ufv.es"
+                  placeholder="Tu correo"
                 />
               </div>
             </div>
@@ -138,6 +138,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
+                  placeholder="Tu contraseña"
                 />
                 <button
                   type="button"
