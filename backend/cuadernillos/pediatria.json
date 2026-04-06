@@ -1,0 +1,179 @@
+{
+  "version": "2025-C4-R1",
+  "curso_academico": "2025-2026",
+  "curso": 4,
+  "rotacion": 1,
+  "titulo_rotacion": "Pediatría - 4º Grado Enfermería",
+  "bloque_sinon": {
+    "titulo": "Actividades NIC",
+    "elementos": [
+      { "id": "b0_01", "texto": "2300 - Administración de medicación" },
+      { "id": "b0_02", "texto": "2318 - Administración de medicación: vaginal" },
+      { "id": "b0_03", "texto": "4030 - Administración de hemoderivados" },
+      { "id": "b0_04", "texto": "1052 - Alimentación con biberón" },
+      { "id": "b0_05", "texto": "5244 - Asesoramiento en la lactancia" },
+      { "id": "b0_06", "texto": "7680 - Ayuda en la exploración" },
+      { "id": "b0_07", "texto": "7710 - Colaboración con el médico" },
+      { "id": "b0_08", "texto": "6540 - Control de infecciones" },
+      { "id": "b0_09", "texto": "2395 - Control de la medicación" },
+      { "id": "b0_10", "texto": "3440 - Cuidados del sitio de incisión" },
+      { "id": "b0_11", "texto": "1875 - Cuidados del catéter umbilical" },
+      { "id": "b0_12", "texto": "6820 - Cuidados del lactante" },
+      { "id": "b0_13", "texto": "6824 - Cuidados del lactante: recién nacido" },
+      { "id": "b0_14", "texto": "6830 - Cuidados intraparto" },
+      { "id": "b0_15", "texto": "6834 - Cuidados intraparto: parto de alto riesgo" },
+      { "id": "b0_16", "texto": "6950 - Cuidados por interrupción del embarazo" },
+      { "id": "b0_17", "texto": "6930 - Cuidados postparto" },
+      { "id": "b0_18", "texto": "4021 - Disminución de la hemorragia: útero anteparto" },
+      { "id": "b0_19", "texto": "4026 - Disminución de la hemorragia: útero postparto" },
+      { "id": "b0_20", "texto": "560 - Ejercicios del suelo pélvico" },
+      { "id": "b0_21", "texto": "5640 - Enseñanza: nutrición del lactante (0-3 meses)" },
+      { "id": "b0_22", "texto": "5643 - Enseñanza: nutrición del lactante (10-12 meses)" },
+      { "id": "b0_23", "texto": "5641 - Enseñanza: nutrición del lactante (4-6 meses)" },
+      { "id": "b0_24", "texto": "5642 - Enseñanza: nutrición del lactante (7-9 meses)" },
+      { "id": "b0_25", "texto": "5660 - Enseñanza: nutrición del lactante (13-18 meses)" },
+      { "id": "b0_26", "texto": "5661 - Enseñanza: nutrición del lactante (19-24 meses)" },
+      { "id": "b0_27", "texto": "5662 - Enseñanza: nutrición del lactante (25-36 meses)" },
+      { "id": "b0_28", "texto": "5602 - Enseñanza: proceso de enfermedad" },
+      { "id": "b0_29", "texto": "5645 - Enseñanza: seguridad del lactante (0-3 meses)" },
+      { "id": "b0_30", "texto": "5646 - Enseñanza: seguridad del lactante (4-6 meses)" },
+      { "id": "b0_31", "texto": "5647 - Enseñanza: seguridad del lactante (7-9 meses)" },
+      { "id": "b0_32", "texto": "5648 - Enseñanza: seguridad del lactante (10-12 meses)" },
+      { "id": "b0_33", "texto": "5665 - Enseñanza: seguridad del niño (13-18 meses)" },
+      { "id": "b0_34", "texto": "6522 - Exploración mamaria" },
+      { "id": "b0_35", "texto": "8300 - Fomentar el rol parental" },
+      { "id": "b0_36", "texto": "1410 - Manejo del dolor agudo" },
+      { "id": "b0_37", "texto": "1415 - Manejo del dolor crónico" },
+      { "id": "b0_38", "texto": "630 - Manejo del pesario" },
+      { "id": "b0_39", "texto": "1440 - Manejo del síndrome premenstrual (SPM)" },
+      { "id": "b0_40", "texto": "7370 - Planificación para el alta" },
+      { "id": "b0_41", "texto": "6786 - Planificación familiar: infertilidad" },
+      { "id": "b0_42", "texto": "6760 - Preparación al parto" },
+      { "id": "b0_43", "texto": "6972 - Reanimación: feto" },
+      { "id": "b0_44", "texto": "6974 - Reanimación: neonato" },
+      { "id": "b0_45", "texto": "6900 - Succión no nutritiva" },
+      { "id": "b0_46", "texto": "6650 - Vigilancia" }
+    ]
+  },
+  "apartados": [
+    {
+      "numero": 1,
+      "titulo": "Valoración y Diagnóstico",
+      "elementos": [
+        { "id": "a1_01", "texto": "Reconocer los factores que influyen en la salud de la población (Genéticos, demográficos, ambientales, económicos, psicológicos, culturales y de estilo de vida)" },
+        { "id": "a1_02", "texto": "Identificar las características del individuo, familia o grupo social al que se va a atender" },
+        { "id": "a1_03", "texto": "Detectar las Necesidades de salud, así como los problemas reales y potenciales de los individuos, familias o grupos sociales a los que atiende independientemente del contexto en el que se encuentre" },
+        { "id": "a1_04", "texto": "Comprender el comportamiento interactivo de la persona en función del género, grupo o comunidad, dentro de su contexto social y multicultural" },
+        { "id": "a1_05", "texto": "Reconocer la información significativa para la identificación de datos relevantes" },
+        { "id": "a1_06", "texto": "Realizar análisis de prioridad con un criterio lógico y sentido común" },
+        { "id": "a1_07", "texto": "Realizar un diagnóstico de la situación del paciente de manera integral de acuerdo con la metodología enfermera considerando los aspectos físicos, psíquicos y sociales de los pacientes" },
+        { "id": "a1_08", "texto": "Cumplimentar los registros correspondientes con las evidencias del proceso realizado" }
+      ]
+    },
+    {
+      "numero": 2,
+      "titulo": "Planificación",
+      "elementos": [
+        { "id": "a2_01", "texto": "Establecer objetivos que den respuesta a los diagnósticos" },
+        { "id": "a2_02", "texto": "Definir los cuidados de enfermería necesarios para dar respuesta al diagnóstico realizado" },
+        { "id": "a2_03", "texto": "Establecer una secuencia de intervenciones de enfermería por prioridades" },
+        { "id": "a2_04", "texto": "Utilizar los recursos disponibles para realizar las intervenciones programadas" },
+        { "id": "a2_05", "texto": "Prever la disponibilidad de los recursos necesarios para la puesta en marcha de las intervenciones necesarias para dar respuesta a la situación planteada" },
+        { "id": "a2_06", "texto": "Programar los tiempos de realización de cada actividad según las características del paciente y su entorno" },
+        { "id": "a2_07", "texto": "Cumplimentar los registros correspondientes con las evidencias del proceso realizado" }
+      ]
+    },
+    {
+      "numero": 3,
+      "titulo": "Intervención",
+      "elementos": [
+        { "id": "a3_01", "texto": "Aplicar los procedimientos técnicos oportunos para cada situación" },
+        { "id": "a3_02", "texto": "Adaptar la prestación de los cuidados y de la atención a la persona, familia o grupo social siguiendo los fundamentos y principios teóricos y metodológicos de enfermería" },
+        { "id": "a3_03", "texto": "Aplicar los cuidados de enfermería siguiendo las guías de práctica clínica o asistencial para cada problema de salud" },
+        { "id": "a3_04", "texto": "Proporciona los cuidados desde una perspectiva integradora y con una visión holística" },
+        { "id": "a3_05", "texto": "Adecuar los tiempos de realización de cada actividad a la situación del paciente y a los ritmos marcados en cada contexto" },
+        { "id": "a3_06", "texto": "Adaptar las intervenciones al contexto social y cultural de cada paciente y situación" },
+        { "id": "a3_07", "texto": "Promover la participación de los pacientes en cualquier tema relacionado con su proceso salud-enfermedad" },
+        { "id": "a3_08", "texto": "Movilizar Conductas preventivas dirigidas a evitar problemas de salud" },
+        { "id": "a3_09", "texto": "Prestar una atención orientada a la protección de la salud y a conseguir el bienestar de las personas, familia o grupos" },
+        { "id": "a3_10", "texto": "Promover hábitos y conductas saludables" },
+        { "id": "a3_11", "texto": "Fomentar la educación para la salud" },
+        { "id": "a3_12", "texto": "Favorecer la autonomía de los pacientes" },
+        { "id": "a3_13", "texto": "Fomentar el autocuidado" },
+        { "id": "a3_14", "texto": "Respetar y cumple el Código deontológico de enfermería, la legislación general y la legislación sanitaria en todas sus intervenciones" },
+        { "id": "a3_15", "texto": "Respetar la intimidad y confidencialidad en todas y cada una de sus intervenciones" },
+        { "id": "a3_16", "texto": "Aplicar principios de razonamiento moral y ético en el análisis de conflictos y en la toma de decisiones" },
+        { "id": "a3_17", "texto": "Utilizar los recursos disponibles rentabilizándolos al máximo" },
+        { "id": "a3_18", "texto": "Registrar procedimientos, observaciones y cuidados de enfermería" }
+      ]
+    },
+    {
+      "numero": 4,
+      "titulo": "Evaluación y Calidad",
+      "elementos": [
+        { "id": "a4_01", "texto": "Reconocer los indicadores de Calidad definidos para su área de actuación" },
+        { "id": "a4_02", "texto": "Realizar el seguimiento de las intervenciones de enfermería realizadas de acuerdo al plan establecido" },
+        { "id": "a4_03", "texto": "Evaluar críticamente el impacto de la atención y los cuidados de enfermería mediante el análisis de indicadores establecidos" },
+        { "id": "a4_04", "texto": "Utilizar evidencia científica actualizada en la aplicación de los cuidados a los pacientes y en la toma de decisiones" },
+        { "id": "a4_05", "texto": "Detectar necesidades de mejora durante el proceso para futuras intervenciones" },
+        { "id": "a4_06", "texto": "Establecer propuestas de mejora de ante las debilidades detectadas" },
+        { "id": "a4_07", "texto": "Elaborar informes con los resultados de la evaluación realizada" },
+        { "id": "a4_08", "texto": "Implementar las acciones encaminadas a mejorar los resultados de las intervenciones de enfermería" }
+      ]
+    },
+    {
+      "numero": 5,
+      "titulo": "Gestión",
+      "elementos": [
+        { "id": "a5_01", "texto": "Conocer los principios de financiación sanitaria y sociosanitaria" },
+        { "id": "a5_02", "texto": "Utilizar adecuadamente los recursos del sistema nacional del salud y de la comunidad autónoma disponibles con la mayor eficacia y efectividad" },
+        { "id": "a5_03", "texto": "Identificar las características de la función directiva de los servicios de enfermería y la gestión de cuidados" },
+        { "id": "a5_04", "texto": "Utilizar adecuadamente los sistemas de información sanitaria" }
+      ]
+    },
+    {
+      "numero": 6,
+      "titulo": "Comunicación y Relación Interpersonal",
+      "elementos": [
+        { "id": "a6_01", "texto": "Asegurar una comunicación clara y precisa tanto verbal como escrita" },
+        { "id": "a6_02", "texto": "Expresarse con claridad y precisión con los individuos, familia y grupos sociales adaptando el código al nivel de comprensión de los receptores" },
+        { "id": "a6_03", "texto": "Expresarse con claridad y precisión con los otros miembros del equipo de salud para explicitar las dificultades que se le presentan en el desarrollo de las actividades" },
+        { "id": "a6_04", "texto": "Realizar la acogida del paciente y familia al ingreso siguiendo los protocolos establecidos" },
+        { "id": "a6_05", "texto": "Brindar apoyo emocional y espiritual al individuo, familia o grupo social" },
+        { "id": "a6_06", "texto": "Acompañar a la familia del paciente durante el proceso de enfermedad" },
+        { "id": "a6_07", "texto": "Asegurarse de que el paciente y/o familia ha entendido la información" },
+        { "id": "a6_08", "texto": "Relacionarse con el paciente aplicando correctamente las técnicas de comunicación verbal y no verbal y relación interpersonal adaptándose a cada situación" },
+        { "id": "a6_09", "texto": "Animar al individuo, familia o grupo social a que compartan la información que pueda ser relevante para resolver la situación o evitar riesgos" },
+        { "id": "a6_10", "texto": "Orientar a los pacientes hacia la toma de decisiones más adecuadas" },
+        { "id": "a6_11", "texto": "Demostrar la capacidad de escucha activa tanto con los pacientes como con los miembros del equipo y dar respuestas consecuentes" },
+        { "id": "a6_12", "texto": "Utilizar adecuadamente el lenguaje específico de ciencias de la salud en las situaciones que lo requieran" },
+        { "id": "a6_13", "texto": "Establecer actuaciones dirigidas a superar los factores que interfieren en la comunicación cuando suponen una limitación" }
+      ]
+    },
+    {
+      "numero": 7,
+      "titulo": "Actitudes, Valores y Transferencia",
+      "elementos": [
+        { "id": "a7_01", "texto": "Actuar con cautela, sentido común y Solicitar ayuda cuando lo cree necesario" },
+        { "id": "a7_02", "texto": "Modificar la conducta personal para conseguir el objetivo cuando surgen dificultades, nuevos datos o cambios en el contexto" },
+        { "id": "a7_03", "texto": "Adaptar su atención y cuidados a los diferentes escenarios, situaciones, medios y persona" },
+        { "id": "a7_04", "texto": "Contextualizar cada actuación a la situación que se presenta" },
+        { "id": "a7_05", "texto": "Demostrar respeto por el paciente, familia, comunidad y por el equipo multi e interdisciplinar, independientemente de sus diferencias" },
+        { "id": "a7_06", "texto": "Demostrar interés por actualizarse en aquello que se relaciona con su actividad" },
+        { "id": "a7_07", "texto": "Poseer Iniciativa: Actuar proactivamente" },
+        { "id": "a7_08", "texto": "Comprometerse por el adecuado cumplimiento de sus obligaciones en pro de la excelencia" },
+        { "id": "a7_09", "texto": "Demostrar interés en todas y cada una de sus actuaciones manteniendo ese interés hasta la consecución del objetivo" },
+        { "id": "a7_10", "texto": "Identificarse mental y afectivamente con el estado de ánimo del individuo, familia o grupo social" },
+        { "id": "a7_11", "texto": "Controlar las emociones personales y evitar reacciones negativas ante provocaciones, oposición u hostilidad de los demás o cuando se está sometido a situaciones de estrés" },
+        { "id": "a7_12", "texto": "Actuar con eficacia en situaciones de presión y de mucha exigencia" },
+        { "id": "a7_13", "texto": "Confiar en sí mismo: Convencerse de la capacidad de realizar con éxito una tarea o elegir el enfoque adecuado para resolver un problema, en sus áreas de incumbencia" },
+        { "id": "a7_14", "texto": "Aprender a aprender" }
+      ]
+    }
+  ],
+  "niveles": {
+    "1": "Básico — autonomía entre el 51-99% de las ocasiones; momento adecuado y recursos hasta el 50%",
+    "2": "Intermedio — autonomía siempre; momento adecuado y recursos entre el 51-99% de las ocasiones",
+    "3": "Avanzado — autonomía siempre; momento adecuado siempre; recursos entre el 51-99% de las ocasiones"
+  }
+}

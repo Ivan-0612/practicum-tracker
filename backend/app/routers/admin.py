@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models, schemas, security
@@ -91,6 +91,53 @@ def listar_especialidades(
 
     return db.query(models.Especialidad).all()
 
+@router.get("/especialidades/{especialidad_id}")
+def obtener_especialidad(
+    especialidad_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+
+    # Devolvemos el nombre y el contenido_json
+    return {
+        "id": str(especialidad.id),
+        "nombre": especialidad.nombre,
+        "contenido_json": especialidad.contenido_json
+    }
+
+@router.put("/especialidades/{especialidad_id}")
+def actualizar_especialidad_json(
+    especialidad_id: str,
+    datos_json: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+
+    # Actualizamos la columna JSON
+    especialidad.contenido_json = datos_json
+    db.commit()
+    
+    return {"mensaje": "JSON actualizado correctamente"}
 
 @router.delete("/especialidades/{especialidad_id}")
 def eliminar_especialidad(
