@@ -91,6 +91,7 @@ def listar_especialidades(
 
     return db.query(models.Especialidad).all()
 
+
 @router.get("/especialidades/{especialidad_id}")
 def obtener_especialidad(
     especialidad_id: str,
@@ -112,8 +113,9 @@ def obtener_especialidad(
     return {
         "id": str(especialidad.id),
         "nombre": especialidad.nombre,
-        "contenido_json": especialidad.contenido_json
+        "contenido_json": especialidad.contenido_json,
     }
+
 
 @router.put("/especialidades/{especialidad_id}")
 def actualizar_especialidad_json(
@@ -136,8 +138,9 @@ def actualizar_especialidad_json(
     # Actualizamos la columna JSON
     especialidad.contenido_json = datos_json
     db.commit()
-    
+
     return {"mensaje": "JSON actualizado correctamente"}
+
 
 @router.delete("/especialidades/{especialidad_id}")
 def eliminar_especialidad(
@@ -171,3 +174,71 @@ def eliminar_especialidad(
     db.delete(especialidad)
     db.commit()
     return {"mensaje": "Especialidad eliminada correctamente"}
+
+
+@router.get("/usuarios/stats")
+def obtener_estadisticas_usuarios(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    # Verificamos que sea el administrador
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    # Contamos los profesores
+    total_profesores = (
+        db.query(models.Usuario).filter(models.Usuario.rol == "profesor").count()
+    )
+
+    # Contamos los alumnos (estudiantes)
+    total_alumnos = (
+        db.query(models.Usuario).filter(models.Usuario.rol == "estudiante").count()
+    )
+
+    # Contamos el total de cuentas activas en todo el sistema
+    total_activos = (
+        db.query(models.Usuario).filter(models.Usuario.activo == True).count()
+    )
+
+    return {
+        "alumnos": total_alumnos,
+        "profesores": total_profesores,
+        "total": total_activos,
+    }
+
+
+@router.get("/profesores")
+def listar_profesores(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    profesores = db.query(models.Usuario).filter(models.Usuario.rol == "profesor").all()
+
+    # Devolvemos una lista limpia con los datos necesarios
+    return [{"id": str(p.id), "email": p.email, "activo": p.activo} for p in profesores]
+
+
+@router.delete("/profesores/{profesor_id}")
+def eliminar_profesor(
+    profesor_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    profesor = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.id == profesor_id, models.Usuario.rol == "profesor")
+        .first()
+    )
+
+    if not profesor:
+        raise HTTPException(status_code=404, detail="Profesor no encontrado")
+
+    db.delete(profesor)
+    db.commit()
+    return {"mensaje": "Profesor eliminado correctamente"}

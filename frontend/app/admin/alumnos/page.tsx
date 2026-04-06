@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import ModalNuevaRotacion from "@/components/ModalNuevaRotacion";
-import { Trash2, Mail, GraduationCap, ChevronLeft, Filter, Briefcase } from "lucide-react";
+import { Trash2, Mail, GraduationCap, ChevronLeft, Filter, Briefcase, UserPlus } from "lucide-react";
 
 interface RotacionInfo {
   id: string;
@@ -132,11 +132,11 @@ export default function ListaAlumnosAdmin() {
             </div>
             
             <button 
-              onClick={() => router.push("/admin/alumnos/nuevo")} 
-              className="bg-ufv-azul text-ufv-blanco px-6 py-3 rounded-2xl font-bold hover:bg-ufv-azul-oscuro transition-all shadow-md active:scale-95 border border-transparent"
-            >
-              + Registrar Alumno
-            </button>
+                onClick={() => router.push("/admin/alumnos/nuevo")} 
+                className="bg-ufv-azul text-white px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro active:scale-95 transition-all shadow-sm shrink-0"
+              >
+                <UserPlus className="w-5 h-5" /> Nuevo Alumno
+              </button>
           </div>
 
           {/* BARRA DE BÚSQUEDA Y FILTROS */}

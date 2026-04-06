@@ -141,7 +141,7 @@ export default function NuevoAlumno() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-                  <input type="email" required className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50 focus:bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_personal: e.target.value, email_acceso: e.target.value})} />
+                  <input type="email" placeholder="ejemplo@gmail.com" required className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50 focus:bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_personal: e.target.value, email_acceso: e.target.value})} />
                 </div>
               </div>
             </section>
@@ -204,7 +204,7 @@ export default function NuevoAlumno() {
 
                 <div className="md:col-span-3 lg:col-span-1">
                   <label className="block text-sm font-bold text-gray-700 mb-2">Email del Tutor/a</label>
-                  <input type="email" placeholder="Email del profesor..." required className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_tutor: e.target.value})} />
+                  <input type="email" placeholder="ejemplo@gmail.com" required className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_tutor: e.target.value})} />
                 </div>
               </div>
             </section>
