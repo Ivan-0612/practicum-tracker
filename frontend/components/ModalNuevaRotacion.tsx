@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Cookies from "js-cookie";
-import { X, Save, Loader2, Briefcase, GraduationCap, Mail } from "lucide-react";
+import { X, Briefcase, GraduationCap, Loader2, Save, AlertCircle } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -14,21 +14,28 @@ interface ModalProps {
 
 export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlumno, onSuccess }: ModalProps) {
   const [especialidades, setEspecialidades] = useState<any[]>([]);
-  const [formData, setFormData] = useState({
-    curso: 3,
-    numero_rotacion: 2,
-    email_tutor: "",
-    especialidad_id: "" // <-- NUEVO CAMPO
-  });
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const [formData, setFormData] = useState({
+    curso: 2,
+    numero_rotacion: 1,
+    especialidad_id: "",
+    email_tutor_hospital: "",
+    email_tutor_universidad: "",
+  });
 
-  // Cargar las especialidades al abrir el modal
   useEffect(() => {
     if (isOpen) {
       cargarEspecialidades();
-      setFormData({ curso: 3, numero_rotacion: 2, email_tutor: "", especialidad_id: "" });
+      // Reset form on open
+      setFormData({
+        curso: 2,
+        numero_rotacion: 1,
+        especialidad_id: "",
+        email_tutor_hospital: "",
+        email_tutor_universidad: "",
+      });
       setError("");
     }
   }, [isOpen]);
@@ -53,14 +60,14 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.especialidad_id) {
-        setError("Debes seleccionar una especialidad.");
-        return;
-    }
-
     setLoading(true);
     setError("");
+
+    if (!formData.especialidad_id) {
+      setError("Debes seleccionar una especialidad.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const token = Cookies.get("practicum_token");
@@ -72,22 +79,22 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
         },
         body: JSON.stringify({
           alumno_id: alumnoId,
-          especialidad_id: formData.especialidad_id, // <-- SE ENVÍA LA ESPECIALIDAD
+          ...formData,
           curso: Number(formData.curso),
           numero_rotacion: Number(formData.numero_rotacion),
-          email_tutor: formData.email_tutor
         })
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Error al asignar la rotación");
+      if (res.ok) {
+        onSuccess();
+        onClose();
+        alert("✅ Nueva rotación asignada con éxito.");
+      } else {
+        const errData = await res.json();
+        setError(errData.detail || "Error al asignar rotación");
       }
-
-      onSuccess();
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError("Error de conexión con el servidor.");
     } finally {
       setLoading(false);
     }
@@ -96,115 +103,124 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl border-t-4 border-ufv-azul animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border-t-4 border-ufv-azul animate-in fade-in zoom-in duration-200">
         
-        <div className="flex justify-between items-start mb-6 border-b border-gray-100 pb-4">
+        {/* CABECERA */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
           <div>
-            <h2 className="text-2xl font-black text-ufv-azul-oscuro">Asignar Rotación</h2>
-            <p className="text-sm font-bold text-gray-500 mt-1">
-              Alumno: <span className="text-ufv-rosa-oscuro">{emailAlumno}</span>
+            <h3 className="text-xl font-black text-ufv-azul-oscuro">Asignar Nueva Rotación</h3>
+            <p className="text-sm text-gray-500 font-bold mt-1 flex items-center gap-1.5">
+              Alumno: <span className="text-ufv-azul">{emailAlumno}</span>
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {/* FORMULARIO */}
+        <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
           
-          <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 space-y-4">
-            
-            {/* NUEVO DESPLEGABLE: ESPECIALIDAD */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* CURSO */}
             <div>
-              <label className="flex items-center gap-2 text-xs font-black text-ufv-azul uppercase tracking-widest mb-2">
-                <Briefcase className="w-4 h-4" /> Especialidad
-              </label>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><GraduationCap className="w-4 h-4" /> Curso Académico</label>
               <select 
-                required
-                className="w-full p-3.5 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none text-gray-900 font-medium"
-                value={formData.especialidad_id}
-                onChange={(e) => setFormData({...formData, especialidad_id: e.target.value})}
+                value={formData.curso} 
+                onChange={e => setFormData({...formData, curso: parseInt(e.target.value)})} 
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900 font-bold"
               >
-                {especialidades.length === 0 && <option value="">Cargando especialidades...</option>}
-                {especialidades.map(esp => (
-                    <option key={esp.id} value={esp.id}>{esp.nombre}</option>
-                ))}
+                <option value={2}>2º Grado Enfermería</option>
+                <option value={3}>3º Grado Enfermería</option>
+                <option value={4}>4º Grado Enfermería</option>
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="flex items-center gap-2 text-xs font-black text-ufv-azul uppercase tracking-widest mb-2">
-                  <GraduationCap className="w-4 h-4" /> Curso
-                </label>
-                <select 
-                  className="w-full p-3.5 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none text-gray-900 font-medium"
-                  value={formData.curso}
-                  onChange={(e) => setFormData({...formData, curso: parseInt(e.target.value)})}
-                >
-                  <option value={2}>2º Curso</option>
-                  <option value={3}>3º Curso</option>
-                  <option value={4}>4º Curso</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="flex items-center gap-2 text-xs font-black text-ufv-azul uppercase tracking-widest mb-2">
-                  Nº Rotación
-                </label>
-                <select 
-                  className="w-full p-3.5 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none text-gray-900 font-medium"
-                  value={formData.numero_rotacion}
-                  onChange={(e) => setFormData({...formData, numero_rotacion: parseInt(e.target.value)})}
-                >
-                  <option value={1}>Rotación 1</option>
-                  <option value={2}>Rotación 2</option>
-                  <option value={3}>Rotación 3</option>
-                </select>
-              </div>
-            </div>
-
+            {/* NÚMERO ROTACIÓN */}
             <div>
-              <label className="flex items-center gap-2 text-xs font-black text-ufv-azul uppercase tracking-widest mb-2">
-                <Mail className="w-4 h-4" /> Email del Tutor
-              </label>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Número de Rotación</label>
+              <select 
+                value={formData.numero_rotacion} 
+                onChange={e => setFormData({...formData, numero_rotacion: parseInt(e.target.value)})} 
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900 font-bold"
+              >
+                <option value={1}>Rotación 1</option>
+                <option value={2}>Rotación 2</option>
+                <option value={3}>Rotación 3</option>
+              </select>
+            </div>
+          </div>
+
+          {/* ESPECIALIDAD */}
+          <div>
+            <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Briefcase className="w-4 h-4" /> Especialidad (Unidad)</label>
+            <select 
+              required
+              value={formData.especialidad_id}
+              onChange={e => setFormData({...formData, especialidad_id: e.target.value})}
+              className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900 font-medium"
+            >
+              {especialidades.length === 0 && <option value="">No hay especialidades disponibles</option>}
+              {especialidades.map(esp => (
+                  <option key={esp.id} value={esp.id}>{esp.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 space-y-5">
+             {/* TUTOR HOSPITAL */}
+             <div>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Email Tutor Clínico (Hospital)</label>
               <input 
                 type="email" 
-                required
-                placeholder="tutor@ufv.es"
-                className="w-full p-3.5 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none text-gray-900 font-medium"
-                value={formData.email_tutor}
-                onChange={(e) => setFormData({...formData, email_tutor: e.target.value})}
+                required 
+                placeholder="Ej: hospital@gmail.com"
+                className="w-full p-3.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" 
+                value={formData.email_tutor_hospital} 
+                onChange={(e) => setFormData({...formData, email_tutor_hospital: e.target.value})} 
+              />
+            </div>
+
+            {/* TUTOR UNIVERSIDAD */}
+            <div>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Email Tutor Académico (Universidad)</label>
+              <input 
+                type="email" 
+                required 
+                placeholder="Ej: universidad@ufv.es"
+                className="w-full p-3.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" 
+                value={formData.email_tutor_universidad} 
+                onChange={(e) => setFormData({...formData, email_tutor_universidad: e.target.value})} 
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-center text-xs font-bold p-3.5 rounded-xl bg-red-50 text-red-700 border border-red-100">
-              {error}
-            </p>
+            <div className="p-4 bg-red-50 text-red-700 rounded-xl font-bold border border-red-100 flex items-center gap-2 text-sm">
+              <AlertCircle className="w-5 h-5 shrink-0" /> {error}
+            </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4">
             <button 
-              type="button" 
-              onClick={onClose} 
-              className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors border border-transparent"
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
             >
               Cancelar
             </button>
             <button 
-              type="submit" 
+              type="submit"
               disabled={loading}
-              className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all border border-transparent flex items-center justify-center gap-2"
+              className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
               {loading ? "Asignando..." : "Asignar Rotación"}
             </button>
           </div>
-        </form>
 
+        </form>
       </div>
     </div>
   );

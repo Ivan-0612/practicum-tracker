@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import or_  # <-- IMPORTANTE: Lo usamos para el filtro
+from sqlalchemy import or_  
 from ..database import get_db
 from .. import models, security
 from fastapi.responses import StreamingResponse
@@ -46,7 +46,6 @@ def obtener_molde_cuadernillo(
             status_code=400, detail="Esta rotación no tiene especialidad asignada"
         )
 
-    # Extraemos el molde (rúbrica) directamente de la especialidad
     molde_json = rotacion.especialidad.contenido_json
 
     if not molde_json:
@@ -59,7 +58,6 @@ def obtener_molde_cuadernillo(
     apellidos_real = security.descifrar_dato(alumno.apellidos_cifrado)
     email_real = security.descifrar_dato(alumno.email_cifrado)
 
-    # --- CAMBIO CLAVE: Consultamos la fila única de respuestas ---
     db_resp = (
         db.query(models.CuadernilloRespuesta)
         .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
@@ -67,19 +65,25 @@ def obtener_molde_cuadernillo(
     )
 
     borrador = {}
-    # Solo mostramos respuestas si el usuario es profesor o si la rotación está terminada
     if db_resp and (current_user.rol == "profesor" or rotacion.completada):
-        # Simplemente asignamos el objeto JSON que ya tenemos en la BD
         borrador = db_resp.respuestas_json
 
-    # -------------------------------------------------------------
-
+    # Obtenemos las asignaciones y comprobamos si es tutor de universidad
+    es_tutor_universidad = False
     asignaciones = (
         db.query(models.AsignacionTutor)
         .filter(models.AsignacionTutor.rotacion_id == rotacion.id)
         .all()
     )
-    tutores = [asig.tutor.email for asig in asignaciones]
+    
+    tutores = []
+    for asig in asignaciones:
+        tutores.append(asig.tutor.email)
+        if current_user.rol == "profesor" and asig.tutor_id == current_user.id:
+            # Nos curamos en salud por si pusiste el campo en Usuario o AsignacionTutor
+            tipo = getattr(asig, "tipo_tutor", None) or getattr(asig.tutor, "tipo_tutor", None)
+            if tipo == "universidad":
+                es_tutor_universidad = True
 
     return {
         "alumno": {
@@ -97,6 +101,7 @@ def obtener_molde_cuadernillo(
         "molde": molde_json,
         "borrador": borrador,
         "rotacion_completada": rotacion.completada,
+        "es_tutor_universidad": es_tutor_universidad,
         "tutores": tutores,
     }
 
@@ -119,12 +124,10 @@ def guardar_respuestas_cuadernillo(
             status_code=400, detail="La rotación no existe o ya está cerrada"
         )
 
-    # 1. Convertimos la lista que envía el frontend en un diccionario indexado por elemento_id
     nuevas_respuestas_dict = {}
     for r in respuestas:
         nuevas_respuestas_dict[r.elemento_id] = r.dict()
 
-    # 2. Buscamos si ya existe un registro de respuestas para esta rotación
     db_resp = (
         db.query(models.CuadernilloRespuesta)
         .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
@@ -132,16 +135,11 @@ def guardar_respuestas_cuadernillo(
     )
 
     if db_resp:
-        # Si existe, fusionamos el JSON antiguo con el nuevo
-        # (Esto permite guardar partes del cuadernillo sin borrar lo anterior)
         respuestas_actuales = dict(db_resp.respuestas_json)
         respuestas_actuales.update(nuevas_respuestas_dict)
-
-        # IMPORTANTE: Notificar a SQLAlchemy que el JSON ha cambiado
         db_resp.respuestas_json = respuestas_actuales
         db_resp.rellenado_por = current_user.id
     else:
-        # Si no existe, creamos la fila única
         nueva_resp = models.CuadernilloRespuesta(
             rotacion_id=rotacion.id,
             respuestas_json=nuevas_respuestas_dict,
@@ -176,7 +174,6 @@ def finalizar_rotacion(
         )
 
     try:
-        # 1. Cargamos el molde (rúbrica) desde la especialidad
         molde = rotacion.especialidad.contenido_json
         if not molde:
             raise HTTPException(
@@ -184,12 +181,10 @@ def finalizar_rotacion(
                 detail="No se pudo cargar el molde desde la base de datos",
             )
 
-        # 2. Calculamos cuántas respuestas debería haber en total
         total_esperado = len(molde["bloque_sinon"]["elementos"])
         for apartado in molde["apartados"]:
             total_esperado += len(apartado["elementos"])
 
-        # 3. Buscamos la fila única de respuestas en la base de datos
         db_resp = (
             db.query(models.CuadernilloRespuesta)
             .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
@@ -198,25 +193,20 @@ def finalizar_rotacion(
 
         respuestas_dict = db_resp.respuestas_json if db_resp else {}
 
-        # 4. Contamos cuántos indicadores tienen una nota real en el JSON
-        # Filtramos para asegurar que el valor no sea None
         total_real = 0
         for elemento_id, data in respuestas_dict.items():
-            # Verificamos si es una respuesta de SÍ/NO o de Niveles 1-3
             if (
                 data.get("valor_sinon") is not None
                 or data.get("valor_nivel") is not None
             ):
                 total_real += 1
 
-        # 5. Validación de integridad
         if total_real < total_esperado:
             raise HTTPException(
                 status_code=400,
                 detail=f"Incompleto: faltan {total_esperado - total_real} campos de nota por rellenar.",
             )
 
-        # 6. Marcamos como completada y cerramos el acta
         rotacion.completada = True
         db.commit()
         return {"mensaje": "Evaluación finalizada con éxito"}
@@ -243,14 +233,24 @@ def descargar_pdf_evaluacion_desde_cero(
     nombre_real = security.descifrar_dato(alumno.nombre_cifrado)
     apellidos_real = security.descifrar_dato(alumno.apellidos_cifrado)
 
-    tutor_nombre = "Tutor no asignado"
-    asignacion = (
+    # --- CAMBIO: EXTRAEMOS LOS DOS TUTORES PARA EL PDF ---
+    tutor_hospital = "Sin asignar"
+    tutor_universidad = "Sin asignar"
+    
+    asignaciones = (
         db.query(models.AsignacionTutor)
         .filter(models.AsignacionTutor.rotacion_id == rotacion.id)
-        .first()
+        .all()
     )
-    if asignacion:
-        tutor_nombre = asignacion.tutor.email
+    for asig in asignaciones:
+        tipo = getattr(asig, "tipo_tutor", None) or getattr(asig.tutor, "tipo_tutor", None)
+        if tipo == "universidad":
+            tutor_universidad = asig.tutor.email
+        elif tipo == "hospital":
+            tutor_hospital = asig.tutor.email
+        else:
+            tutor_hospital = asig.tutor.email # Fallback por si acaso
+    # -----------------------------------------------------
 
     nombre_especialidad = (
         rotacion.especialidad.nombre if rotacion.especialidad else "Sin especialidad"
@@ -260,7 +260,6 @@ def descargar_pdf_evaluacion_desde_cero(
             status_code=400, detail="Esta rotación no tiene especialidad asignada"
         )
 
-    # Extraemos el molde directamente de la columna JSON de la base de datos
     molde = rotacion.especialidad.contenido_json
 
     if not molde:
@@ -269,17 +268,13 @@ def descargar_pdf_evaluacion_desde_cero(
             detail="El contenido del molde no está disponible en la base de datos",
         )
 
-    # Buscamos la fila única de respuestas para esta rotación
     db_resp = (
         db.query(models.CuadernilloRespuesta)
         .filter(models.CuadernilloRespuesta.rotacion_id == rotacion.id)
         .first()
     )
-
-    # Extraemos el JSON. Si no hay respuestas aún, devolvemos un diccionario vacío
     resp_tutor = db_resp.respuestas_json if db_resp else {}
 
-    # 2. CONFIGURACIÓN DEL PDF
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -327,6 +322,7 @@ def descargar_pdf_evaluacion_desde_cero(
     )
     story.append(Spacer(1, 20))
 
+    # --- CAMBIO: AÑADIMOS AMBOS TUTORES A LA PORTADA ---
     datos_portada = [
         ["Nombre:", nombre_real],
         ["Apellidos:", apellidos_real],
@@ -335,13 +331,14 @@ def descargar_pdf_evaluacion_desde_cero(
             Paragraph("<b>Unidad de prácticas:</b>", normal_style),
             f"{nombre_especialidad}",
         ],
-        ["Tutor/a de prácticas:", tutor_nombre],
+        ["Tutor/a hospital:", tutor_hospital],
+        ["Tutor/a universidad:", tutor_universidad],
         [
             "Curso y Grupo:",
             f"{rotacion.curso}º Grado Enfermería - Grupo {alumno.grupo}",
         ],
     ]
-    t_portada = Table(datos_portada, colWidths=[130, 370])
+    t_portada = Table(datos_portada, colWidths=[160, 340])
     t_portada.setStyle(
         TableStyle(
             [
@@ -526,15 +523,12 @@ def descargar_pdf_evaluacion_desde_cero(
             texto_uc = Paragraph(item["texto"], table_text_style)
             datos_uc.append([texto_uc, n1, n2, n3])
 
-            # (HEMOS QUITADO EL COMENTARIO INDIVIDUAL AQUÍ)
-
-        # CAMBIO CLAVE: Buscamos si hay un comentario general para este apartado y lo añadimos al final de la tabla
         comentario_obj = resp_tutor.get(f"comentario_apartado_{apartado['numero']}")
-        if comentario_obj and comentario_obj.comentario:
+        if comentario_obj and comentario_obj.get("comentario"):
             datos_uc.append(
                 [
                     Paragraph(
-                        f"<i>Obs: {comentario_obj.comentario}</i>", table_text_style
+                        f"<i>Obs: {comentario_obj['comentario']}</i>", table_text_style
                     ),
                     "",
                     "",
@@ -552,7 +546,6 @@ def descargar_pdf_evaluacion_desde_cero(
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ]
 
-        # Combinamos las celdas para el comentario general
         for idx, row in enumerate(datos_uc):
             if isinstance(row[0], Paragraph) and row[0].text.startswith("<i>Obs:"):
                 estilos_uc.append(("SPAN", (0, idx), (3, idx)))
@@ -571,7 +564,13 @@ def descargar_pdf_evaluacion_desde_cero(
     )
     story.append(Spacer(1, 40))
 
-    story.append(Paragraph(f"<b>Tutor/a Clínico:</b> {tutor_nombre}", normal_style))
+    # --- CAMBIO: AÑADIMOS LAS DOS FIRMAS AL FINAL DEL DOCUMENTO ---
+    story.append(Paragraph(f"<b>Tutor/a Clínico (Hospital):</b> {tutor_hospital}", normal_style))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph(f"<b>Tutor/a Académico (Universidad):</b> {tutor_universidad}", normal_style))
+    story.append(Spacer(1, 10))
+    # --------------------------------------------------------------
+
     story.append(
         Paragraph(
             "<b>Fecha de Evaluación:</b> Firmado digitalmente en el sistema",

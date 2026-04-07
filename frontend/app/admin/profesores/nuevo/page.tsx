@@ -71,7 +71,7 @@ export default function NuevoProfesor() {
               className="object-contain" 
             />
             <div>
-              <h1 className="text-3xl font-black text-ufv-azul-oscuro">Alta de Nuevo Docente</h1>
+              <h1 className="text-3xl font-black text-ufv-azul-oscuro">Alta de Nuevo Tutor</h1>
               <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">
                 Universidad Francisco de Vitoria
               </p>
@@ -86,7 +86,7 @@ export default function NuevoProfesor() {
                 <div className="bg-blue-50 p-2 rounded-lg text-ufv-azul">
                   <UserPlus className="w-5 h-5" />
                 </div>
-                <h3 className="text-xl font-black text-ufv-azul-oscuro">Credenciales del Profesor</h3>
+                <h3 className="text-xl font-black text-ufv-azul-oscuro">Credenciales del Tutor</h3>
               </div>
               
               <div className="space-y-5">
@@ -99,7 +99,7 @@ export default function NuevoProfesor() {
                     <input 
                       type="email" 
                       required 
-                      placeholder="nombre.apellido@ufv.es"
+                      placeholder="ejemplo@gmail.com"
                       className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all" 
                       onChange={e => setEmail(e.target.value)} 
                     />
@@ -144,10 +144,10 @@ export default function NuevoProfesor() {
                     : "bg-ufv-azul hover:bg-ufv-azul-oscuro active:scale-95"
                 }`}
               >
-                {isLoading ? "Registrando Docente..." : (
+                {isLoading ? "Registrando Tutor..." : (
                   <>
                     <Save className="w-5 h-5" />
-                    Dar de Alta al Profesor
+                    Finalizar y Guardar 
                   </>
                 )}
               </button>

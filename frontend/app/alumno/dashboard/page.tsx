@@ -143,32 +143,18 @@ export default function AlumnoDashboard() {
         {/* CABECERA CORPORATIVA Y ACCIONES */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
-            <Image 
-              src="/logo-ufv.png" 
-              alt="Logo UFV" 
-              width={56} 
-              height={56} 
-              className="object-contain" 
-            />
+            <Image src="/logo-ufv.png" alt="Logo UFV" width={56} height={56} className="object-contain" />
             <div>
               <h1 className="text-3xl font-black text-ufv-azul-oscuro">Portal del Alumno</h1>
-              <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">
-                Universidad Francisco de Vitoria
-              </p>
+              <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">Universidad Francisco de Vitoria</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button 
-              onClick={() => setShowPassModal(true)}
-              className="flex items-center gap-2 bg-white text-ufv-azul px-4 py-2.5 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm active:scale-95"
-            >
+            <button onClick={() => setShowPassModal(true)} className="flex items-center gap-2 bg-white text-ufv-azul px-4 py-2.5 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm active:scale-95">
               <Lock className="w-4 h-4"/> Cambiar Contraseña
             </button>
-            <button 
-              onClick={() => { Cookies.remove("practicum_token"); router.push("/login"); }} 
-              className="flex items-center gap-2 bg-white text-red-600 px-4 py-2.5 rounded-xl font-bold border border-red-200 hover:bg-red-50 transition-all shadow-sm active:scale-95"
-            >
+            <button onClick={() => { Cookies.remove("practicum_token"); router.push("/login"); }} className="flex items-center gap-2 bg-white text-red-600 px-4 py-2.5 rounded-xl font-bold border border-red-200 hover:bg-red-50 transition-all shadow-sm active:scale-95">
               <LogOut className="w-4 h-4"/> Salir
             </button>
           </div>
@@ -194,9 +180,7 @@ export default function AlumnoDashboard() {
                 {/* ZONA SUPERIOR (Evaluación) */}
                 <div onClick={() => router.push(`/alumno/evaluar/${rot.id}`)} className="cursor-pointer group mb-5">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="bg-blue-50 p-3 rounded-xl text-ufv-azul group-hover:bg-ufv-azul group-hover:text-white transition-colors">
-                      <Folder className="w-6 h-6" />
-                    </div>
+                    <div className="bg-blue-50 p-3 rounded-xl text-ufv-azul group-hover:bg-ufv-azul group-hover:text-white transition-colors"><Folder className="w-6 h-6" /></div>
                     <div>
                       <h3 className="text-lg font-black text-ufv-azul-oscuro group-hover:text-ufv-azul transition-colors leading-tight">
                         {rot.especialidad} (Rotación {rot.numero})
@@ -206,17 +190,34 @@ export default function AlumnoDashboard() {
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">
                       <Users className="w-3 h-3" /> Tutores Asignados
                     </div>
-                    {rot.tutores?.length > 0 ? (
-                      <div className="flex flex-col gap-1.5">
-                        {rot.tutores.map((t: string, idx: number) => (
-                          <span key={idx} className="text-sm font-bold text-ufv-azul-oscuro truncate block flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-ufv-rosa-claro"></span> {t}
+                    {rot.tutores ? (
+                      Array.isArray(rot.tutores) ? (
+                        /* Fallback por si el backend sigue mandando array */
+                        <div className="flex flex-col gap-1.5">
+                          {rot.tutores.map((t: string, idx: number) => (
+                            <span key={idx} className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-ufv-rosa-claro shrink-0"></span> {t}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        /* NUEVO: Distribución por Diccionario */
+                        <div className="flex flex-col gap-2">
+                          <span className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-ufv-rosa-claro shrink-0"></span> 
+                            <span className="text-gray-500 font-medium text-xs w-16">Hospital:</span> 
+                            {rot.tutores.hospital || <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>}
                           </span>
-                        ))}
-                      </div>
+                          <span className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-ufv-azul shrink-0"></span> 
+                            <span className="text-gray-500 font-medium text-xs w-16">Académico:</span> 
+                            {rot.tutores.universidad || <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>}
+                          </span>
+                        </div>
+                      )
                     ) : (
                       <span className="text-sm text-gray-400 italic">Sin asignar</span>
                     )}
@@ -231,33 +232,9 @@ export default function AlumnoDashboard() {
                      </div>
                   ) : (
                     <>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 text-center">Fichaje Diario</p>
-                      
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <button
-                          onClick={() => handleFichar(rot.id, "entrada")}
-                          disabled={yaFichoEntrada || fichando?.id === rot.id}
-                          className={`py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all ${yaFichoEntrada ? 'bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 hover:shadow-sm'}`}
-                        >
-                          {fichando?.id === rot.id && fichando?.tipo === "entrada" ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
-                          <span className="text-[11px] uppercase tracking-wider">{yaFichoEntrada ? "Entrada Ok" : "Entrada"}</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleFichar(rot.id, "salida")}
-                          disabled={!yaFichoEntrada || yaFichoSalida || fichando?.id === rot.id}
-                          className={`py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all ${(!yaFichoEntrada || yaFichoSalida) ? 'bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed' : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 hover:shadow-sm'}`}
-                        >
-                           {fichando?.id === rot.id && fichando?.tipo === "salida" ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogOut className="w-5 h-5" />}
-                          <span className="text-[11px] uppercase tracking-wider">{yaFichoSalida ? "Salida Ok" : "Salida"}</span>
-                        </button>
-                      </div>
-
-                      <button 
-                        onClick={() => router.push(`/alumno/asistencia/${rot.id}`)}
-                        className="w-full mt-2 py-3 bg-white text-ufv-azul text-xs font-bold rounded-xl border border-gray-200 hover:border-ufv-azul-claro hover:bg-blue-50 flex items-center justify-center gap-2 transition-colors"
-                      >
-                        <CalendarDays className="w-4 h-4" /> Ver mi calendario
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 text-center">Registro de Prácticas</p>
+                      <button onClick={() => router.push(`/alumno/asistencia/${rot.id}`)} className="w-full py-3.5 bg-blue-50 text-ufv-azul text-sm font-bold rounded-xl border border-blue-100 hover:border-ufv-azul hover:bg-blue-100 flex items-center justify-center gap-2 transition-colors">
+                        <CalendarDays className="w-5 h-5" /> Ver calendario de firmas
                       </button>
                     </>
                   )}
@@ -268,71 +245,38 @@ export default function AlumnoDashboard() {
         </div>
       </div>
 
-      {/* MODAL DE CAMBIO DE CONTRASEÑA (ESTILO CORPORATIVO) */}
+      {/* MODAL DE CAMBIO DE CONTRASEÑA */}
       {showPassModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border-t-4 border-ufv-azul animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-ufv-azul-oscuro">Cambiar contraseña</h2>
-              <button onClick={() => setShowPassModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setShowPassModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleCambiarPassword} className="space-y-5">
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Contraseña Actual</label>
-                <input 
-                  type="password" required
-                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900"
-                  value={passFormData.actual}
-                  onChange={(e) => setPassFormData({...passFormData, actual: e.target.value})}
-                />
+                <input type="password" required className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" value={passFormData.actual} onChange={(e) => setPassFormData({...passFormData, actual: e.target.value})} />
               </div>
-
               <div className="pt-2 border-t border-gray-100">
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Nueva Contraseña (mín. 8)</label>
-                <input 
-                  type="password" required minLength={8}
-                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900"
-                  value={passFormData.nueva}
-                  onChange={(e) => setPassFormData({...passFormData, nueva: e.target.value})}
-                />
+                <input type="password" required minLength={8} className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" value={passFormData.nueva} onChange={(e) => setPassFormData({...passFormData, nueva: e.target.value})} />
               </div>
-
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Confirmar Nueva</label>
-                <input 
-                  type="password" required
-                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900"
-                  value={passFormData.confirmar}
-                  onChange={(e) => setPassFormData({...passFormData, confirmar: e.target.value})}
-                />
+                <input type="password" required className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" value={passFormData.confirmar} onChange={(e) => setPassFormData({...passFormData, confirmar: e.target.value})} />
               </div>
 
               {passStatus.msg && (
-                <p className={`text-center text-xs font-bold p-3.5 rounded-xl ${
-                  passStatus.type === 'error' ? 'bg-red-50 text-red-700 border border-red-100' : 
-                  passStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-blue-50 text-ufv-azul border border-blue-100'
-                }`}>
+                <p className={`text-center text-xs font-bold p-3.5 rounded-xl ${passStatus.type === 'error' ? 'bg-red-50 text-red-700 border border-red-100' : passStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-blue-50 text-ufv-azul border border-blue-100'}`}>
                   {passStatus.msg}
                 </p>
               )}
 
               <div className="flex gap-3 pt-4">
-                <button 
-                  type="button"
-                  onClick={() => setShowPassModal(false)}
-                  className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors border border-transparent"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all border border-transparent"
-                >
-                  Guardar
-                </button>
+                <button type="button" onClick={() => setShowPassModal(false)} className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors border border-transparent">Cancelar</button>
+                <button type="submit" className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all border border-transparent">Guardar</button>
               </div>
             </form>
           </div>

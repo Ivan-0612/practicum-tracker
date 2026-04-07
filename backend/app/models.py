@@ -23,16 +23,21 @@ class Usuario(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     rol = Column(String, nullable=False)  # 'admin', 'profesor', 'estudiante'
+    
+    # Campo nuevo que añadimos antes
+    tipo_tutor = Column(String, nullable=True) 
+    
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
+    # --- CAMBIO AQUÍ: Quitamos el foreign_keys ---
     alumno_perfil = relationship(
         "Alumno",
-        foreign_keys="[Alumno.usuario_id]",
         back_populates="usuario_login",
         uselist=False,
         cascade="all, delete-orphan",
     )
+    
     asignaciones_rotaciones = relationship(
         "AsignacionTutor", back_populates="tutor", cascade="all, delete-orphan"
     )
@@ -57,9 +62,11 @@ class Alumno(Base):
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
+    # --- CAMBIO AQUÍ: Quitamos el foreign_keys ---
     usuario_login = relationship(
-        "Usuario", foreign_keys=[usuario_id], back_populates="alumno_perfil"
+        "Usuario", back_populates="alumno_perfil"
     )
+    
     rotaciones = relationship(
         "Rotacion", back_populates="alumno", cascade="all, delete-orphan"
     )
@@ -116,11 +123,13 @@ class AsignacionTutor(Base):
     rotacion_id = Column(
         UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False
     )
+    
+    tipo_tutor = Column(String, nullable=False, default="hospital") # 'hospital' o 'universidad'
+    
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     tutor = relationship("Usuario", back_populates="asignaciones_rotaciones")
     rotacion = relationship("Rotacion", back_populates="asignaciones_tutores")
-
 
 class CuadernilloRespuesta(Base):
     __tablename__ = "cuadernillo_respuestas"
@@ -142,32 +151,22 @@ class CuadernilloRespuesta(Base):
 
     rotacion = relationship("Rotacion")
 
-
 class RegistroAsistencia(Base):
     __tablename__ = "registro_asistencia"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    rotacion_id = Column(
-        UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False
-    )
+    rotacion_id = Column(UUID(as_uuid=True), ForeignKey("rotaciones.id"), nullable=False)
     alumno_id = Column(UUID(as_uuid=True), ForeignKey("alumnos.id"), nullable=False)
-    fecha = Column(Date, server_default=func.current_date())
-
-    hora_entrada = Column(DateTime(timezone=True), nullable=True)
-    ubicacion_entrada_permitida = Column(Boolean, default=False)
-    latitud_entrada = Column(String, nullable=True)
-    longitud_entrada = Column(String, nullable=True)
-
-    hora_salida = Column(DateTime(timezone=True), nullable=True)
-    ubicacion_salida_permitida = Column(Boolean, default=False)
-    latitud_salida = Column(String, nullable=True)
-    longitud_salida = Column(String, nullable=True)
+    fecha = Column(Date, nullable=False) # El día del calendario
+    firmado_en = Column(DateTime(timezone=True), server_default=func.now())
+    firmado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False)
 
     rotacion = relationship("Rotacion")
     alumno = relationship("Alumno")
+    tutor = relationship("Usuario")
+    
     __table_args__ = (
         UniqueConstraint("rotacion_id", "alumno_id", "fecha", name="_rot_alu_fecha_uc"),
     )
-
 
 class IntentoLogin(Base):
     __tablename__ = "intentos_login"

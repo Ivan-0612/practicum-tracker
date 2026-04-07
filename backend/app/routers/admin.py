@@ -12,11 +12,7 @@ UPLOAD_DIR = "cuadernillos"
 
 @router.post("/profesores", response_model=schemas.UsuarioResponse)
 def crear_profesor(profesor_in: schemas.UsuarioCreate, db: Session = Depends(get_db)):
-    existe = (
-        db.query(models.Usuario)
-        .filter(models.Usuario.email == profesor_in.email)
-        .first()
-    )
+    existe = db.query(models.Usuario).filter(models.Usuario.email == profesor_in.email).first()
     if existe:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
 
@@ -24,6 +20,7 @@ def crear_profesor(profesor_in: schemas.UsuarioCreate, db: Session = Depends(get
         email=profesor_in.email,
         password_hash=security.get_password_hash(profesor_in.password),
         rol="profesor",
+        tipo_tutor=profesor_in.tipo_tutor # <-- GUARDAMOS EL TIPO
     )
     db.add(nuevo_profesor)
     db.commit()

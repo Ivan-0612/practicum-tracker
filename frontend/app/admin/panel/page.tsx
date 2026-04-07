@@ -378,7 +378,7 @@ export default function AdminPanel() {
             
             {/* --- PANEL DE ESTADÍSTICAS (AHORA DINÁMICO) --- */}
             <div className="grid grid-cols-2 gap-3 mb-auto">
-              <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-blue-50 hover:border-blue-100">
+              <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
                 <GraduationCap className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
                 <span className="text-3xl font-black text-gray-800">
                   {isLoadingStats ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /> : statsUsuarios.alumnos}
@@ -386,7 +386,7 @@ export default function AdminPanel() {
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Alumnos</span>
               </div>
               
-              <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-blue-50 hover:border-blue-100">
+              <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
                 <UserPlus className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
                 <span className="text-3xl font-black text-gray-800">
                   {isLoadingStats ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /> : statsUsuarios.profesores}
@@ -408,17 +408,38 @@ export default function AdminPanel() {
 
             {/* --- BOTONES DE GESTIÓN DE USUARIOS --- */}
             <div className="flex flex-col gap-3 mt-8">
-              {/* Fila 1: Botones de CREAR */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={() => router.push("/admin/profesores/nuevo")} className="flex-1 bg-ufv-azul text-ufv-blanco px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
-                  <UserPlus className="w-4 h-4" /> Nuevo Profesor
+              {/* Fila 1: Botones de CREAR TUTORES */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button 
+                  onClick={() => router.push("/admin/profesores/nuevo?tipo=hospital")} 
+                  className="bg-ufv-azul text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" /> Nuevo Tutor
+                  </div>
+                  <span className="opacity-80 text-[10px] uppercase">Hospital (Clínico)</span>
                 </button>
-                <button onClick={() => router.push("/admin/alumnos/nuevo")} className="flex-1 bg-ufv-azul-oscuro text-ufv-blanco px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
-                  <GraduationCap className="w-4 h-4" /> Nuevo Alumno
+
+                <button 
+                  onClick={() => router.push("/admin/profesores/nuevo?tipo=universidad")} 
+                  className="bg-ufv-azul text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" /> Nuevo Tutor
+                  </div>
+                  <span className="opacity-80 text-[10px] uppercase">Universidad (Académico)</span>
                 </button>
               </div>
+
+              {/* Fila 2: Alumnos */}
+              <button 
+                onClick={() => router.push("/admin/alumnos/nuevo")} 
+                className="w-full bg-ufv-azul-oscuro text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <GraduationCap className="w-5 h-5" /> Nuevo Alumno
+              </button>
               
-              {/* Fila 2: Botones de VER LISTAS */}
+              {/* Fila 3: Ver Listas */}
               <div className="flex flex-col sm:flex-row gap-3 mt-1">
                 <button onClick={() => router.push("/admin/profesores")} className="flex-1 bg-blue-50 text-ufv-azul border border-blue-100 px-4 py-3.5 rounded-xl hover:bg-blue-100 font-bold flex items-center justify-center gap-2 transition-all">
                   <Users className="w-4 h-4" /> Ver Profesores

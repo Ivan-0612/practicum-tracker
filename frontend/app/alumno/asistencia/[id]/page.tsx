@@ -8,26 +8,15 @@ import {
   ChevronLeft, 
   ChevronRight,
   CalendarDays, 
-  MapPin, 
-  MapPinOff, 
-  AlertCircle,
-  ExternalLink,
-  LogOut,
-  LogIn
+  CheckCircle2, 
+  AlertCircle
 } from "lucide-react";
 
+// NUEVA INTERFAZ ADAPTADA AL SISTEMA DE FIRMAS
 interface Fichaje {
   id: string;
   fecha: string;
-  hora_entrada: string | null;
-  ubicacion_entrada_permitida: boolean;
-  latitud_entrada: string | null;
-  longitud_entrada: string | null;
-  
-  hora_salida: string | null;
-  ubicacion_salida_permitida: boolean;
-  latitud_salida: string | null;
-  longitud_salida: string | null;
+  firmado_en: string;
 }
 
 export default function CalendarioAsistenciaAlumno() {
@@ -56,13 +45,8 @@ export default function CalendarioAsistenciaAlumno() {
       
       if (!res.ok) throw new Error("Error al cargar tu registro de asistencia.");
       
-      const data: Fichaje[] = await res.json();
+      const data = await res.json();
       setFichajes(data);
-
-      if (data.length > 0) {
-        setDiaSeleccionado(data[0].fecha);
-        setFechaBase(new Date(data[0].fecha));
-      }
 
     } catch (err: any) {
       setError(err.message);
@@ -77,16 +61,18 @@ export default function CalendarioAsistenciaAlumno() {
 
   const diasEnMes = new Date(añoActual, mesActual + 1, 0).getDate();
   const primerDiaMes = new Date(añoActual, mesActual, 1).getDay();
-  
-  // Ajuste para que la semana empiece en Lunes
   const offsetDias = primerDiaMes === 0 ? 6 : primerDiaMes - 1; 
 
   const cambiarMes = (direccion: number) => {
     setFechaBase(new Date(añoActual, mesActual + direccion, 1));
   };
 
-  const fichajesDict = fichajes.reduce((acc, fichaje) => {
-    acc[fichaje.fecha] = fichaje;
+  // LIMPIAMOS LA FECHA IGUAL QUE EN EL PROFESOR PARA EVITAR ERRORES DE FORMATO
+  const fichajesDict = fichajes.reduce((acc, f) => {
+    if (f.fecha) {
+        const fechaLimpia = String(f.fecha).split('T')[0].split(' ')[0];
+        acc[fechaLimpia] = f;
+    }
     return acc;
   }, {} as Record<string, Fichaje>);
 
@@ -95,39 +81,7 @@ export default function CalendarioAsistenciaAlumno() {
   };
 
   const formatoMes = fechaBase.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
-  
-  const formatearFechaLarga = (fechaStr: string) => {
-    return new Date(fechaStr).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
-  };
-
-  const formatearHora = (horaStr: string | null | undefined) => {
-    if (!horaStr) return "--:--";
-    try {
-      return horaStr.split('T')[1].substring(0, 5);
-    } catch (e) {
-      return "--:--";
-    }
-  };
-
-  const BotonMapa = ({ permitida, lat, lng }: { permitida: boolean, lat: string | null, lng: string | null }) => {
-    if (permitida && lat && lng) {
-      return (
-        <a 
-          href={`http://googleusercontent.com/maps.google.com/?q=${lat},${lng}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 bg-blue-50 text-ufv-azul px-3 py-2 rounded-xl font-bold border border-blue-100 hover:bg-blue-100 transition-colors shadow-sm text-xs mt-2"
-        >
-          <MapPin className="w-4 h-4" /> Ver Mapa <ExternalLink className="w-3 h-3 opacity-50" />
-        </a>
-      );
-    }
-    return (
-      <div className="flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 px-3 py-2 rounded-xl font-bold border border-gray-200 text-xs cursor-not-allowed mt-2">
-        <MapPinOff className="w-4 h-4" /> Sin GPS
-      </div>
-    );
-  };
+  const hoyStr = new Date().toLocaleDateString('en-CA');
 
   const fichajeActivo = diaSeleccionado ? fichajesDict[diaSeleccionado] : null;
 
@@ -168,11 +122,6 @@ export default function CalendarioAsistenciaAlumno() {
             <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-bold flex items-center gap-2">
               <AlertCircle className="w-6 h-6" /> {error}
             </div>
-          ) : fichajes.length === 0 ? (
-            <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-16 text-center">
-              <h2 className="text-xl font-bold text-ufv-azul-oscuro">Aún no has fichado</h2>
-              <p className="text-gray-500 mt-2 font-medium">Tus registros diarios aparecerán aquí cuando comiences tu rotación.</p>
-            </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
@@ -201,27 +150,26 @@ export default function CalendarioAsistenciaAlumno() {
                   {Array.from({ length: diasEnMes }).map((_, i) => {
                     const diaNum = i + 1;
                     const fechaString = getFormatFecha(diaNum);
-                    const tieneFichaje = !!fichajesDict[fechaString];
-                    const esSeleccionado = diaSeleccionado === fechaString;
+                    const isSigned = !!fichajesDict[fechaString];
+                    const isSelected = diaSeleccionado === fechaString;
+                    const esFuturo = fechaString > hoyStr;
 
                     return (
                       <button 
                         key={diaNum}
-                        onClick={() => tieneFichaje && setDiaSeleccionado(fechaString)}
-                        disabled={!tieneFichaje}
+                        onClick={() => { if (!esFuturo) setDiaSeleccionado(fechaString); }}
+                        disabled={esFuturo}
                         className={`
                           relative h-12 md:h-16 rounded-xl md:rounded-2xl border flex flex-col items-center justify-center transition-all
-                          ${tieneFichaje ? 'cursor-pointer hover:border-ufv-azul-claro' : 'cursor-default bg-gray-100 border-gray-200 text-gray-400'}
-                          ${esSeleccionado ? 'bg-ufv-azul border-ufv-azul text-ufv-blanco shadow-md transform scale-105 z-10' : tieneFichaje ? 'bg-white border-gray-200 text-gray-700 font-bold' : ''}
+                          ${esFuturo ? 'opacity-40 cursor-not-allowed bg-gray-50 border-transparent' : 'cursor-pointer hover:bg-gray-50'}
+                          ${isSelected && !esFuturo ? 'bg-blue-50 border-ufv-azul ring-2 ring-ufv-azul/20 shadow-sm z-10' : ''}
+                          ${isSigned ? 'border-green-200 bg-green-50/30 text-green-700' : (!esFuturo && !isSelected ? 'border-gray-200 bg-white text-gray-700' : '')}
                         `}
                       >
-                        <span className="text-sm md:text-base">{diaNum}</span>
+                        <span className={`text-sm md:text-base font-bold ${esFuturo ? 'text-gray-400' : ''}`}>{diaNum}</span>
                         
-                        {tieneFichaje && !esSeleccionado && (
-                          <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-                        )}
-                        {tieneFichaje && esSeleccionado && (
-                          <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-white opacity-80"></div>
+                        {isSigned && (
+                          <div className={`absolute bottom-2 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-ufv-azul' : 'bg-green-500'}`}></div>
                         )}
                       </button>
                     );
@@ -231,51 +179,39 @@ export default function CalendarioAsistenciaAlumno() {
 
               {/* ZONA DETALLES FICHAJE ACTIVO */}
               <div className="lg:col-span-1">
-                {fichajeActivo ? (
+                {diaSeleccionado ? (
                   <div className="bg-white rounded-[2rem] p-6 border border-gray-200 shadow-sm sticky top-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="border-b border-gray-100 pb-4 mb-6">
                       <p className="text-xs font-black text-ufv-azul uppercase tracking-widest mb-1">Detalles de la jornada</p>
-                      <h3 className="font-extrabold text-ufv-azul-oscuro text-lg leading-tight">
-                        {formatearFechaLarga(fichajeActivo.fecha)}
+                      <h3 className="font-extrabold text-ufv-azul-oscuro text-lg leading-tight capitalize">
+                        {new Date(diaSeleccionado).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </h3>
                     </div>
 
                     <div className="space-y-4">
-                      {/* ENTRADA */}
-                      <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100">
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Entrada Registrada</p>
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><LogIn className="w-5 h-5" /></div>
-                          <span className="text-2xl font-black text-gray-800">
-                            {formatearHora(fichajeActivo.hora_entrada)}
-                          </span>
+                      {fichajeActivo ? (
+                        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+                            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                            <p className="font-black text-green-800 text-xl">Jornada Validada</p>
+                            <p className="text-xs font-bold text-green-600 mt-3 uppercase tracking-wider">
+                                Sellado el: <br/> {new Date(fichajeActivo.firmado_en).toLocaleString('es-ES')}
+                            </p>
                         </div>
-                        <BotonMapa permitida={fichajeActivo.ubicacion_entrada_permitida} lat={fichajeActivo.latitud_entrada} lng={fichajeActivo.longitud_entrada} />
-                      </div>
-
-                      {/* SALIDA */}
-                      <div className={`rounded-2xl p-4 border ${fichajeActivo.hora_salida ? 'bg-rose-50/50 border-rose-100' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
-                        <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${fichajeActivo.hora_salida ? 'text-rose-600' : 'text-gray-400'}`}>Salida Registrada</p>
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className={`p-2 rounded-lg ${fichajeActivo.hora_salida ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-400'}`}><LogOut className="w-5 h-5" /></div>
-                          <span className={`text-2xl font-black ${fichajeActivo.hora_salida ? 'text-gray-800' : 'text-gray-400'}`}>
-                            {formatearHora(fichajeActivo.hora_salida)}
-                          </span>
+                      ) : (
+                        <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-6 text-center">
+                            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="font-bold text-gray-600 text-lg">Sin firma</p>
+                            <p className="text-sm font-medium text-gray-500 mt-2 leading-relaxed">
+                                Tu tutor de prácticas clínicas aún no ha validado tu asistencia para este día.
+                            </p>
                         </div>
-                        {fichajeActivo.hora_salida ? (
-                          <BotonMapa permitida={fichajeActivo.ubicacion_salida_permitida} lat={fichajeActivo.latitud_salida} lng={fichajeActivo.longitud_salida} />
-                        ) : (
-                           <div className="text-center bg-gray-100 text-gray-500 py-2 rounded-xl text-xs font-bold border border-gray-200 mt-2">
-                             Fichaje pendiente
-                           </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-[2rem] p-10 flex flex-col items-center justify-center h-full text-center sticky top-8">
+                  <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-[2rem] p-10 flex flex-col items-center justify-center h-full text-center sticky top-8 min-h-[300px]">
                     <CalendarDays className="w-12 h-12 text-gray-300 mb-3" />
-                    <p className="text-gray-500 font-medium">Haz clic en un día del calendario que tenga un puntito para ver a qué hora fichaste.</p>
+                    <p className="text-gray-500 font-medium">Haz clic en un día del calendario para comprobar si ha sido validado por tu tutor del hospital.</p>
                   </div>
                 )}
               </div>

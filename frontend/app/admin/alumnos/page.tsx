@@ -12,7 +12,10 @@ interface RotacionInfo {
   curso: number;
   numero_rotacion: number;
   especialidad: string; // <-- AÑADIMOS EL CAMPO DE ESPECIALIDAD AQUÍ
-  tutores: string[];
+  tutores: {
+    hospital: string;
+    universidad: string;
+  };
 }
 
 interface Alumno {
@@ -206,7 +209,14 @@ export default function ListaAlumnosAdmin() {
                                       {rot.curso}º Curso - Rotación {rot.numero_rotacion}
                                     </span>
                                     
-                                    <span className="text-xs text-gray-400 italic">Tutor: {rot.tutores.join(", ") || "No asignado"}</span>
+                                    <div className="flex flex-col gap-0.5 mt-1">
+                                      <span className="text-xs text-gray-500 font-medium">
+                                        <b className="text-gray-700">Hospital:</b> {rot.tutores.hospital || "No asignado"}
+                                      </span>
+                                      <span className="text-xs text-gray-500 font-medium">
+                                        <b className="text-gray-700">Universidad:</b> {rot.tutores.universidad || "No asignado"}
+                                      </span>
+                                    </div>
                                   </div>
                                   <button onClick={() => handleEliminarRotacion(rot.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">
                                     <Trash2 className="w-4 h-4" />

@@ -9,7 +9,6 @@ import { ChevronLeft, User, GraduationCap, Briefcase, KeyRound, Save, AlertCircl
 export default function NuevoAlumno() {
   const router = useRouter();
   
-  // NUEVO: Estado para guardar la lista de especialidades que vienen de la base de datos
   const [especialidadesLista, setEspecialidadesLista] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
@@ -20,26 +19,27 @@ export default function NuevoAlumno() {
     grupo: "",
     email_acceso: "",
     password_acceso: "",
-    email_tutor: "",
+    // --- CAMBIO: AHORA PEDIMOS LOS DOS TUTORES ---
+    email_tutor_hospital: "", 
+    email_tutor_universidad: "",
+    // ---------------------------------------------
     numero_rotacion: 1,
-    especialidad_id: "", // <-- NUEVO CAMPO REQUERIDO
+    especialidad_id: "", 
   });
   
   const [mensaje, setMensaje] = useState({ tipo: "", texto: "" });
   const [isLoading, setIsLoading] = useState(false);
 
-  // NUEVO: Cargar las especialidades al inicio
   useEffect(() => {
     const fetchEspecialidades = async () => {
         const token = Cookies.get("practicum_token");
         try {
-            const res = await fetch("http://127.0.0.1:8000/api/v1/admin/especialidades", {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/admin/especialidades`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
                 setEspecialidadesLista(data);
-                // Si hay datos, preseleccionamos el primero por defecto
                 if (data.length > 0) {
                     setFormData(prev => ({ ...prev, especialidad_id: data[0].id }));
                 }
@@ -56,7 +56,6 @@ export default function NuevoAlumno() {
     setIsLoading(true);
     setMensaje({ tipo: "", texto: "" });
 
-    // Verificación de seguridad
     if (!formData.especialidad_id) {
         setMensaje({ tipo: "error", texto: "Debes crear al menos una Especialidad en el Panel de Admin antes de matricular alumnos." });
         setIsLoading(false);
@@ -65,7 +64,7 @@ export default function NuevoAlumno() {
 
     try {
       const token = Cookies.get("practicum_token");
-      const response = await fetch("http://127.0.0.1:8000/api/v1/alumnos/", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/alumnos/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,7 +89,7 @@ export default function NuevoAlumno() {
         throw new Error(errorMsg);
       }
 
-      setMensaje({ tipo: "success", texto: "✅ Alumno, Tutor y Especialidad vinculados con éxito" });
+      setMensaje({ tipo: "success", texto: "✅ Alumno, Tutores y Especialidad vinculados con éxito" });
       setTimeout(() => router.push("/admin/panel"), 2000);
     } catch (err: any) {
       setMensaje({ tipo: "error", texto: err.message });
@@ -163,23 +162,22 @@ export default function NuevoAlumno() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Grupo / Turno</label>
-                  <input type="text" placeholder="Ej: Mañana A" required className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50 focus:bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, grupo: e.target.value})} />
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Grupo</label>
+                  <input type="text" placeholder="Ej: A" required className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50 focus:bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, grupo: e.target.value})} />
                 </div>
               </div>
             </section>
 
-            {/* SECCIÓN 3: ASIGNACIÓN DE PRÁCTICAS Y TUTOR */}
+            {/* SECCIÓN 3: ASIGNACIÓN DE PRÁCTICAS Y TUTORES (ACTUALIZADA) */}
             <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-white p-2 rounded-lg text-ufv-rosa-oscuro shadow-sm border border-gray-100"><Briefcase className="w-5 h-5" /></div>
-                <h3 className="text-xl font-black text-ufv-azul-oscuro">Asignación de Prácticas y Tutor</h3>
+                <h3 className="text-xl font-black text-ufv-azul-oscuro">Asignación de Prácticas y Tutores</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* NUEVO DESPLEGABLE DE ESPECIALIDAD */}
-                <div className="md:col-span-3 lg:col-span-1">
+                <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Especialidad (Unidad)</label>
                   <select 
                     required
@@ -195,17 +193,25 @@ export default function NuevoAlumno() {
                   <p className="text-xs text-gray-500 mt-2 font-medium">Asigna el JSON correcto a este alumno.</p>
                 </div>
 
-                <div className="md:col-span-3 lg:col-span-1">
+                <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Número de Rotación</label>
                   <select value={formData.numero_rotacion} onChange={e => setFormData({...formData, numero_rotacion: parseInt(e.target.value)})} className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none">
                     <option value={1}>Rotación 1</option><option value={2}>Rotación 2</option><option value={3}>Rotación 3</option>
                   </select>
                 </div>
 
-                <div className="md:col-span-3 lg:col-span-1">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Email del Tutor/a</label>
-                  <input type="email" placeholder="ejemplo@gmail.com" required className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_tutor: e.target.value})} />
+                {/* --- NUEVO: CAMPO TUTOR HOSPITAL --- */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Email Tutor Clínico (Hospital)</label>
+                  <input type="email" placeholder="hospital@gmail.com" required className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_tutor_hospital: e.target.value})} />
                 </div>
+
+                {/* --- NUEVO: CAMPO TUTOR UNIVERSIDAD --- */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Email Tutor Académico (Universidad)</label>
+                  <input type="email" placeholder="universidad@ufv.es" required className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_tutor_universidad: e.target.value})} />
+                </div>
+
               </div>
             </section>
 
