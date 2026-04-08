@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
@@ -8,6 +8,11 @@ import secrets
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 import os
 from dotenv import load_dotenv
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticación"])
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -28,8 +33,11 @@ conf = ConnectionConfig(
 
 
 @router.post("/login")
+@limiter.limit("5/minute")  # <--- EL ESCUDO ANTI-ATAQUES POR IP ESTÁ ACTIVO
 def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    request: Request,  # <--- SlowAPI necesita esto obligatoriamente
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
 ):
     usuario = (
         db.query(models.Usuario)
@@ -83,14 +91,18 @@ def login(
     if not usuario.activo:
         raise HTTPException(status_code=400, detail="Esta cuenta está desactivada")
 
+    # Si el login es correcto, reseteamos los intentos fallidos
     if registro_intentos:
         registro_intentos.intentos = 0
         registro_intentos.bloqueado_hasta = None
         db.commit()
 
+    # Generamos el token de sesión
     access_token = security.create_access_token(
         data={"sub": str(usuario.id), "rol": usuario.rol}
     )
+
+    # VOLVEMOS AL MÉTODO CLÁSICO: Devolvemos el token directamente en el JSON
     return {"access_token": access_token, "token_type": "bearer", "rol": usuario.rol}
 
 

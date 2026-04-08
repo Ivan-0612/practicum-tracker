@@ -1,7 +1,8 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import date, datetime
+import re
 
 
 # ==========================================
@@ -13,8 +14,23 @@ class UsuarioBase(BaseModel):
 
 
 class UsuarioCreate(UsuarioBase):
-    password: str = Field(..., min_length=8)
+    password: str = Field(
+        ...,
+        min_length=8,
+        description="La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.",
+    )
     tipo_tutor: Optional[str] = None  # 'hospital' o 'universidad'
+
+    @field_validator("password")
+    @classmethod
+    def validar_password_fuerte(cls, v: str) -> str:
+        # Usamos el motor nativo de Python que sí soporta look-arounds
+        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+        if not re.match(patron, v):
+            raise ValueError(
+                "La contraseña debe tener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*?&)"
+            )
+        return v
 
 
 class UsuarioResponse(UsuarioBase):

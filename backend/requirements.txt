@@ -27,3 +27,4 @@ openpyxl
 
 # --- OTROS ---
 fastapi_mail
+slowapi
