@@ -17,7 +17,7 @@ interface AlumnoAsignado {
   especialidad: string;
   estado_evaluacion: string;
   mi_rol: string; 
-  periodo_academico: string; // <-- NUEVO: Recibimos el año académico
+  periodo_academico: string;
 }
 
 export default function ProfesorDashboard() {
@@ -25,9 +25,11 @@ export default function ProfesorDashboard() {
   const [alumnos, setAlumnos] = useState<AlumnoAsignado[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // --- NUEVO: FILTRO DE AÑO ACADÉMICO ---
-  const [filtroPeriodo, setFiltroPeriodo] = useState<string>("Todos");
+  // --- EL SEMÁFORO DE LA MEMORIA ---
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // ESTADOS DE FILTROS Y NAVEGACIÓN
+  const [filtroPeriodo, setFiltroPeriodo] = useState<string>("Todos");
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
   
@@ -39,7 +41,44 @@ export default function ProfesorDashboard() {
   const [passFormData, setPassFormData] = useState({ actual: "", nueva: "", confirmar: "" });
   const [passStatus, setPassStatus] = useState({ type: "", msg: "" });
 
-  useEffect(() => { cargarAlumnos(); }, []);
+  // 1. PRIMERO LEEMOS LA MEMORIA (Solo se ejecuta al entrar a la página)
+  useEffect(() => {
+    const memoria = sessionStorage.getItem("profesor_memoria_navegacion");
+    if (memoria) {
+      try {
+        const estadoGuardado = JSON.parse(memoria);
+        if (estadoGuardado.filtroPeriodo) setFiltroPeriodo(estadoGuardado.filtroPeriodo);
+        if (estadoGuardado.filtroEstado) setFiltroEstado(estadoGuardado.filtroEstado);
+        if (estadoGuardado.busqueda !== undefined) setBusqueda(estadoGuardado.busqueda);
+        if (estadoGuardado.cursoActivo !== undefined) setCursoActivo(estadoGuardado.cursoActivo);
+        if (estadoGuardado.rotacionActiva !== undefined) setRotacionActiva(estadoGuardado.rotacionActiva);
+        if (estadoGuardado.especialidadActiva !== undefined) setEspecialidadActiva(estadoGuardado.especialidadActiva);
+      } catch (e) {
+        console.error("Error leyendo memoria", e);
+      }
+    }
+    // Damos luz verde: ya hemos leído dónde estaba el profe
+    setIsInitialized(true); 
+  }, []);
+
+  // 2. DESPUÉS GUARDAMOS LOS CAMBIOS (Solo si ya pasamos el paso 1)
+  useEffect(() => {
+    if (isInitialized) {
+      sessionStorage.setItem("profesor_memoria_navegacion", JSON.stringify({
+        filtroPeriodo,
+        filtroEstado,
+        busqueda,
+        cursoActivo,
+        rotacionActiva,
+        especialidadActiva
+      }));
+    }
+  }, [isInitialized, filtroPeriodo, filtroEstado, busqueda, cursoActivo, rotacionActiva, especialidadActiva]);
+
+  // 3. CARGAMOS LOS ALUMNOS
+  useEffect(() => { 
+    cargarAlumnos(); 
+  }, []);
 
   const cargarAlumnos = async () => {
     try {
@@ -51,17 +90,28 @@ export default function ProfesorDashboard() {
         const data = await res.json();
         setAlumnos(data);
         
-        // Autoseleccionamos el periodo más reciente si hay datos
-        const periodosUnicos = Array.from(new Set(data.map((a: any) => a.periodo_academico))).sort().reverse();
-        if (periodosUnicos.length > 0) {
-            setFiltroPeriodo(periodosUnicos[0] as string);
+        // Autoseleccionar el periodo SOLO si el profesor no tenía ya uno guardado en memoria
+        const memoria = sessionStorage.getItem("profesor_memoria_navegacion");
+        if (!memoria) {
+          const periodosUnicos = Array.from(new Set(data.map((a: any) => a.periodo_academico))).sort().reverse();
+          if (periodosUnicos.length > 0) {
+              setFiltroPeriodo(periodosUnicos[0] as string);
+          }
         }
       }
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
-  // ... (Funciones de Logout y Password idénticas al código anterior) ...
-  const handleLogout = () => { Cookies.remove("practicum_token"); Cookies.remove("practicum_rol"); router.push("/login"); };
+
+  // Funciones de Logout y Password  ...
+  const handleLogout = () => { 
+    Cookies.remove("practicum_token"); 
+    Cookies.remove("practicum_rol"); 
+    
+    sessionStorage.removeItem("profesor_memoria_navegacion"); 
+    
+    router.push("/login"); 
+  };
 
   const handleCambiarPassword = async (e: React.FormEvent) => {
       // ... Lógica de contraseña intacta ...
