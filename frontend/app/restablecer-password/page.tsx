@@ -17,31 +17,45 @@ function RestablecerForm() {
     const [mensaje, setMensaje] = useState({ tipo: "", texto: "" });
 
     const handleReset = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setMensaje({ tipo: "", texto: "" });
+    e.preventDefault();
+    setIsLoading(true);
+    setMensaje({ tipo: "", texto: "" });
 
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/recuperar-password/confirmar`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token, nueva_password: pass })
-            });
-            
-            if (res.ok) {
-                setMensaje({ tipo: "success", texto: "¡Contraseña actualizada con éxito! Redirigiendo..." });
-                setTimeout(() => {
-                    router.push("/login");
-                }, 2000);
-            } else {
-                setMensaje({ tipo: "error", texto: "El enlace ha caducado, es incorrecto o ya ha sido utilizado." });
+    try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/recuperar-password/confirmar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, nueva_password: pass })
+        });
+        
+        // --- LEEMOS LA RESPUESTA DEL SERVIDOR ---
+        const data = await res.json();
+
+        if (res.ok) {
+            setMensaje({ tipo: "success", texto: "¡Contraseña actualizada con éxito! Redirigiendo..." });
+            setTimeout(() => {
+                router.push("/login");
+            }, 2000);
+        } else {
+            // --- CAPTURAMOS EL ERROR ESPECÍFICO ---
+            let textoError = "El enlace ha caducado o es incorrecto.";
+
+            if (Array.isArray(data.detail)) {
+                // Si es un error de validación (mayúsculas, números, etc.)
+                textoError = data.detail[0].msg;
+            } else if (typeof data.detail === "string") {
+                // Si es un error manual (Token expirado)
+                textoError = data.detail;
             }
-        } catch (error) {
-            setMensaje({ tipo: "error", texto: "Error de conexión con el servidor." });
-        } finally {
-            setIsLoading(false);
+
+            setMensaje({ tipo: "error", texto: textoError });
         }
-    };
+    } catch (error) {
+        setMensaje({ tipo: "error", texto: "Error de conexión con el servidor." });
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">

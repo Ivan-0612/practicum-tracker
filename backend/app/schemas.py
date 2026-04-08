@@ -14,23 +14,8 @@ class UsuarioBase(BaseModel):
 
 
 class UsuarioCreate(UsuarioBase):
-    password: str = Field(
-        ...,
-        min_length=8,
-        description="La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.",
-    )
-    tipo_tutor: Optional[str] = None  # 'hospital' o 'universidad'
-
-    @field_validator("password")
-    @classmethod
-    def validar_password_fuerte(cls, v: str) -> str:
-        # Usamos el motor nativo de Python que sí soporta look-arounds
-        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
-        if not re.match(patron, v):
-            raise ValueError(
-                "La contraseña debe tener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*?&)"
-            )
-        return v
+    password: str = Field(..., min_length=8)  # Contraseña provisional sencilla
+    tipo_tutor: Optional[str] = None
 
 
 class UsuarioResponse(UsuarioBase):
@@ -178,6 +163,18 @@ class CambioPassword(BaseModel):
     nueva_password: str = Field(..., min_length=8)
     confirmar_password: str
 
+    @field_validator("nueva_password")
+    @classmethod
+    def validar_password_fuerte(cls, v: str) -> str:
+        # Esta validación SOLO se ejecutará aquí
+        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+        if not re.match(patron, v):
+            raise ValueError(
+                "La nueva contraseña debe tener al menos una mayúscula, "
+                "una minúscula, un número y un carácter especial (@$!%*?&)"
+            )
+        return v
+
 
 class SolicitarRecuperacion(BaseModel):
     email: EmailStr
@@ -186,3 +183,15 @@ class SolicitarRecuperacion(BaseModel):
 class RestablecerPassword(BaseModel):
     token: str
     nueva_password: str = Field(..., min_length=8)
+
+    @field_validator("nueva_password")
+    @classmethod
+    def validar_password_fuerte(cls, v: str) -> str:
+        # 1 mayúscula, 1 minúscula, 1 número, 1 carácter especial
+        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+        if not re.match(patron, v):
+            raise ValueError(
+                "La nueva contraseña debe tener al menos una mayúscula, "
+                "una minúscula, un número y un carácter especial (@$!%*?&)"
+            )
+        return v

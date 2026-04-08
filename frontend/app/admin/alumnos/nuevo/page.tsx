@@ -103,18 +103,16 @@ export default function NuevoAlumno() {
       const data = await response.json();
 
       if (!response.ok) {
-        let errorMsg = "Error desconocido al crear el alumno";
-        if (data.detail && typeof data.detail === "string") {
-            errorMsg = data.detail;
-        } else if (data.detail && Array.isArray(data.detail)) {
-             errorMsg = "Revisa los campos del formulario. Falta información.";
-        }
-        throw new Error(errorMsg);
+        // --- MEJORA AQUÍ: Capturamos el mensaje específico del backend ---
+        const errorMsg = data.detail || "Error al crear el alumno";
+        throw new Error(typeof errorMsg === 'string' ? errorMsg : "Error en los datos enviados");
       }
 
       setMensaje({ tipo: "success", texto: "✅ Alumno, Tutores y Especialidad vinculados con éxito" });
       setTimeout(() => router.push("/admin/panel"), 2000);
     } catch (err: any) {
+      // Si el servidor está caído o hay un error de red, err.message será "Failed to fetch"
+      // Pero si el backend responde con 400, mostrará "Ya existe un estudiante..."
       setMensaje({ tipo: "error", texto: err.message });
     } finally {
       setIsLoading(false);

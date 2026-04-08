@@ -114,9 +114,56 @@ export default function ProfesorDashboard() {
   };
 
   const handleCambiarPassword = async (e: React.FormEvent) => {
-      // ... Lógica de contraseña intacta ...
-      e.preventDefault();
-  }
+    e.preventDefault();
+    setPassStatus({ type: "info", msg: "Actualizando..." });
+
+    if (passFormData.nueva !== passFormData.confirmar) {
+      setPassStatus({ type: "error", msg: "Las contraseñas nuevas no coinciden." });
+      return;
+    }
+
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/cambiar-password`, {
+        method: "POST",
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({
+          password_actual: passFormData.actual,
+          nueva_password: passFormData.nueva,
+          confirmar_password: passFormData.confirmar
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setPassStatus({ type: "success", msg: "¡Contraseña actualizada con éxito!" });
+        setTimeout(() => {
+          setShowPassModal(false);
+          setPassFormData({ actual: "", nueva: "", confirmar: "" });
+          setPassStatus({ type: "", msg: "" });
+        }, 2000);
+      } else {
+        // --- CAMBIO AQUÍ: Manejo inteligente del error de validación ---
+        let errorFinal = "Error al cambiar la contraseña.";
+
+        if (Array.isArray(data.detail)) {
+          // Si es un error de validación de Pydantic, extraemos el mensaje del validador
+          errorFinal = data.detail[0].msg;
+        } else if (typeof data.detail === "string") {
+          // Si es un error manual (HTTPException)
+          errorFinal = data.detail;
+        }
+
+        setPassStatus({ type: "error", msg: errorFinal });
+      }
+    } catch (error) {
+      setPassStatus({ type: "error", msg: "Error de conexión con el servidor." });
+    }
+  };
 
   // --- LÓGICA DE FILTRADO (AHORA INCLUYE EL PERIODO) ---
   const periodosDisponibles = Array.from(new Set(alumnos.map(a => a.periodo_academico))).sort().reverse();

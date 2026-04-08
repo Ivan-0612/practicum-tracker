@@ -10,27 +10,58 @@ router = APIRouter(prefix="/api/v1/alumnos", tags=["Alumnos"])
 
 @router.post("/", response_model=schemas.AlumnoResponse)
 def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db)):
-    
+
+    # Verificar si el email de acceso ya está en la tabla de Usuarios
+    existe_usuario = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.email == alumno_in.email_acceso)
+        .first()
+    )
+    if existe_usuario:
+        raise HTTPException(
+            status_code=400,
+            detail="Ya existe un estudiante registrado con este email.",
+        )
     # 1. Validar Tutor Hospital
-    tutor_hospital = db.query(models.Usuario).filter(
-        models.Usuario.email == alumno_in.email_tutor_hospital,
-        models.Usuario.rol == "profesor",
-    ).first()
+    tutor_hospital = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.email == alumno_in.email_tutor_hospital,
+            models.Usuario.rol == "profesor",
+        )
+        .first()
+    )
     if not tutor_hospital:
-        raise HTTPException(status_code=404, detail=f"No existe el Tutor de Hospital: {alumno_in.email_tutor_hospital}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No existe el Tutor de Hospital: {alumno_in.email_tutor_hospital}",
+        )
 
     # 2. Validar Tutor Universidad
-    tutor_universidad = db.query(models.Usuario).filter(
-        models.Usuario.email == alumno_in.email_tutor_universidad,
-        models.Usuario.rol == "profesor",
-    ).first()
+    tutor_universidad = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.email == alumno_in.email_tutor_universidad,
+            models.Usuario.rol == "profesor",
+        )
+        .first()
+    )
     if not tutor_universidad:
-        raise HTTPException(status_code=404, detail=f"No existe el Tutor de Universidad: {alumno_in.email_tutor_universidad}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No existe el Tutor de Universidad: {alumno_in.email_tutor_universidad}",
+        )
 
     # 3. Validar Especialidad
-    especialidad = db.query(models.Especialidad).filter(models.Especialidad.id == alumno_in.especialidad_id).first()
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == alumno_in.especialidad_id)
+        .first()
+    )
     if not especialidad:
-        raise HTTPException(status_code=404, detail="La especialidad seleccionada no existe")
+        raise HTTPException(
+            status_code=404, detail="La especialidad seleccionada no existe"
+        )
 
     # 4. Crear Usuario Alumno
     nuevo_usuario = models.Usuario(
@@ -68,14 +99,12 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
 
     # 7. Crear las DOS Asignaciones de Tutores
     asignacion_hosp = models.AsignacionTutor(
-        tutor_id=tutor_hospital.id, 
-        rotacion_id=nueva_rotacion.id,
-        tipo_tutor="hospital"
+        tutor_id=tutor_hospital.id, rotacion_id=nueva_rotacion.id, tipo_tutor="hospital"
     )
     asignacion_uni = models.AsignacionTutor(
-        tutor_id=tutor_universidad.id, 
+        tutor_id=tutor_universidad.id,
         rotacion_id=nueva_rotacion.id,
-        tipo_tutor="universidad"
+        tipo_tutor="universidad",
     )
     db.add(asignacion_hosp)
     db.add(asignacion_uni)
@@ -93,7 +122,11 @@ def obtener_mi_evaluacion(
     if current_user.rol != "estudiante":
         raise HTTPException(status_code=403, detail="Solo para alumnos")
 
-    alumno = db.query(models.Alumno).filter(models.Alumno.usuario_id == current_user.id).first()
+    alumno = (
+        db.query(models.Alumno)
+        .filter(models.Alumno.usuario_id == current_user.id)
+        .first()
+    )
     rotaciones = (
         db.query(models.Rotacion)
         .filter(models.Rotacion.alumno_id == alumno.id)
@@ -105,8 +138,12 @@ def obtener_mi_evaluacion(
     rotaciones_data = []
 
     for r in rotaciones:
-        asignaciones = db.query(models.AsignacionTutor).filter(models.AsignacionTutor.rotacion_id == r.id).all()
-        
+        asignaciones = (
+            db.query(models.AsignacionTutor)
+            .filter(models.AsignacionTutor.rotacion_id == r.id)
+            .all()
+        )
+
         # Mapeamos los tutores
         tutores_dict = {"hospital": "", "universidad": ""}
         for asig in asignaciones:
@@ -115,22 +152,32 @@ def obtener_mi_evaluacion(
             elif asig.tipo_tutor == "universidad":
                 tutores_dict["universidad"] = asig.tutor.email
 
-        fichaje_hoy = db.query(models.RegistroAsistencia).filter(
-            models.RegistroAsistencia.rotacion_id == r.id,
-            models.RegistroAsistencia.fecha == hoy,
-        ).first()
+        fichaje_hoy = (
+            db.query(models.RegistroAsistencia)
+            .filter(
+                models.RegistroAsistencia.rotacion_id == r.id,
+                models.RegistroAsistencia.fecha == hoy,
+            )
+            .first()
+        )
 
-        nombre_especialidad = r.especialidad.nombre if r.especialidad else "Sin especialidad"
+        nombre_especialidad = (
+            r.especialidad.nombre if r.especialidad else "Sin especialidad"
+        )
 
-        rotaciones_data.append({
-            "id": str(r.id),
-            "curso": r.curso if r.curso else alumno.curso,
-            "numero": r.numero_rotacion if r.numero_rotacion else alumno.numero_rotacion,
-            "especialidad": nombre_especialidad,
-            "completada": r.completada,
-            "tutores": tutores_dict, # <-- AHORA ES UN DICCIONARIO
-            "periodo_academico": r.periodo_academico,
-        })
+        rotaciones_data.append(
+            {
+                "id": str(r.id),
+                "curso": r.curso if r.curso else alumno.curso,
+                "numero": (
+                    r.numero_rotacion if r.numero_rotacion else alumno.numero_rotacion
+                ),
+                "especialidad": nombre_especialidad,
+                "completada": r.completada,
+                "tutores": tutores_dict,  # <-- AHORA ES UN DICCIONARIO
+                "periodo_academico": r.periodo_academico,
+            }
+        )
 
     return {
         "alumno": {
@@ -167,8 +214,12 @@ def listar_alumnos_por_email(
 
         lista_rotaciones = []
         for rot in rotaciones_db:
-            asignaciones = db.query(models.AsignacionTutor).filter(models.AsignacionTutor.rotacion_id == rot.id).all()
-            
+            asignaciones = (
+                db.query(models.AsignacionTutor)
+                .filter(models.AsignacionTutor.rotacion_id == rot.id)
+                .all()
+            )
+
             tutores_dict = {"hospital": "", "universidad": ""}
             for asig in asignaciones:
                 if asig.tipo_tutor == "hospital":
@@ -176,24 +227,33 @@ def listar_alumnos_por_email(
                 elif asig.tipo_tutor == "universidad":
                     tutores_dict["universidad"] = asig.tutor.email
 
-            lista_rotaciones.append({
-                "id": str(rot.id),
-                "curso": rot.curso or alumno.curso,
-                "numero_rotacion": rot.numero_rotacion or alumno.numero_rotacion,
-                "especialidad": rot.especialidad.nombre if rot.especialidad else "Sin especialidad",
-                "tutores": tutores_dict, # <-- AHORA ES UN DICCIONARIO
-                "periodo_academico": rot.periodo_academico,
-            })
+            lista_rotaciones.append(
+                {
+                    "id": str(rot.id),
+                    "curso": rot.curso or alumno.curso,
+                    "numero_rotacion": rot.numero_rotacion or alumno.numero_rotacion,
+                    "especialidad": (
+                        rot.especialidad.nombre
+                        if rot.especialidad
+                        else "Sin especialidad"
+                    ),
+                    "tutores": tutores_dict,  # <-- AHORA ES UN DICCIONARIO
+                    "periodo_academico": rot.periodo_academico,
+                }
+            )
 
-        resultado.append({
-            "id": str(alumno.id),
-            "email": usuario.email,
-            "curso_actual": alumno.curso,
-            "grupo": alumno.grupo,
-            "rotaciones": lista_rotaciones,
-        })
+        resultado.append(
+            {
+                "id": str(alumno.id),
+                "email": usuario.email,
+                "curso_actual": alumno.curso,
+                "grupo": alumno.grupo,
+                "rotaciones": lista_rotaciones,
+            }
+        )
 
     return resultado
+
 
 @router.post("/asignar-rotacion")
 def asignar_rotacion_adicional(
@@ -204,32 +264,57 @@ def asignar_rotacion_adicional(
     if not alumno:
         raise HTTPException(status_code=404, detail="Alumno no encontrado")
 
-    especialidad = db.query(models.Especialidad).filter(models.Especialidad.id == datos.especialidad_id).first()
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == datos.especialidad_id)
+        .first()
+    )
     if not especialidad:
         raise HTTPException(status_code=404, detail="Especialidad no encontrada")
 
-    existe = db.query(models.Rotacion).filter(
-        models.Rotacion.alumno_id == alumno.id,
-        models.Rotacion.curso == datos.curso,
-        models.Rotacion.numero_rotacion == datos.numero_rotacion,
-    ).first()
+    existe = (
+        db.query(models.Rotacion)
+        .filter(
+            models.Rotacion.alumno_id == alumno.id,
+            models.Rotacion.curso == datos.curso,
+            models.Rotacion.numero_rotacion == datos.numero_rotacion,
+        )
+        .first()
+    )
 
     if existe:
-        raise HTTPException(status_code=400, detail=f"Error: El alumno ya tiene asignada la Rotación {datos.numero_rotacion} de {datos.curso}º curso.")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error: El alumno ya tiene asignada la Rotación {datos.numero_rotacion} de {datos.curso}º curso.",
+        )
 
     # 1. Validar Tutor Hospital
-    tutor_hospital = db.query(models.Usuario).filter(
-        models.Usuario.email == datos.email_tutor_hospital, models.Usuario.rol == "profesor"
-    ).first()
+    tutor_hospital = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.email == datos.email_tutor_hospital,
+            models.Usuario.rol == "profesor",
+        )
+        .first()
+    )
     if not tutor_hospital:
-        raise HTTPException(status_code=404, detail="Tutor de Hospital no válido o no existe")
+        raise HTTPException(
+            status_code=404, detail="Tutor de Hospital no válido o no existe"
+        )
 
     # 2. Validar Tutor Universidad
-    tutor_universidad = db.query(models.Usuario).filter(
-        models.Usuario.email == datos.email_tutor_universidad, models.Usuario.rol == "profesor"
-    ).first()
+    tutor_universidad = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.email == datos.email_tutor_universidad,
+            models.Usuario.rol == "profesor",
+        )
+        .first()
+    )
     if not tutor_universidad:
-        raise HTTPException(status_code=404, detail="Tutor de Universidad no válido o no existe")
+        raise HTTPException(
+            status_code=404, detail="Tutor de Universidad no válido o no existe"
+        )
 
     # 3. Crear Rotación
     nueva_rotacion = models.Rotacion(
@@ -247,13 +332,16 @@ def asignar_rotacion_adicional(
         tutor_id=tutor_hospital.id, rotacion_id=nueva_rotacion.id, tipo_tutor="hospital"
     )
     asignacion_uni = models.AsignacionTutor(
-        tutor_id=tutor_universidad.id, rotacion_id=nueva_rotacion.id, tipo_tutor="universidad"
+        tutor_id=tutor_universidad.id,
+        rotacion_id=nueva_rotacion.id,
+        tipo_tutor="universidad",
     )
     db.add(asignacion_hosp)
     db.add(asignacion_uni)
     db.commit()
 
     return {"mensaje": "Rotación asignada correctamente"}
+
 
 @router.delete("/rotacion/{rotacion_id}")
 def eliminar_rotacion(
@@ -335,7 +423,7 @@ def obtener_historial_asistencia_alumno(
         .filter(models.Alumno.usuario_id == current_user.id)
         .first()
     )
-    
+
     fichajes = (
         db.query(models.RegistroAsistencia)
         .filter(
@@ -345,18 +433,20 @@ def obtener_historial_asistencia_alumno(
         .order_by(models.RegistroAsistencia.fecha.desc())
         .all()
     )
-    
+
     # --- ADAPTAMOS PARA DEVOLVER EL MISMO FORMATO QUE EL PROFESOR ---
     registros_limpios = []
     for f in fichajes:
         fecha_str = str(f.fecha).split(" ")[0].split("T")[0] if f.fecha else ""
         email_firmante = f.tutor.email if f.tutor else "Tutor Desconocido"
-        
-        registros_limpios.append({
-            "id": str(f.id),
-            "fecha": fecha_str,
-            "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
-            "firmado_por": email_firmante # <-- NUEVO CAMPO
-        })
+
+        registros_limpios.append(
+            {
+                "id": str(f.id),
+                "fecha": fecha_str,
+                "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
+                "firmado_por": email_firmante,  # <-- NUEVO CAMPO
+            }
+        )
 
     return registros_limpios

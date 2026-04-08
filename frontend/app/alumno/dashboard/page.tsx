@@ -35,7 +35,7 @@ export default function AlumnoDashboard() {
     }
   };
 
-  const handleCambiarPassword = async (e: React.FormEvent) => {
+const handleCambiarPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPassStatus({ type: "info", msg: "Actualizando..." });
 
@@ -69,7 +69,18 @@ export default function AlumnoDashboard() {
           setPassStatus({ type: "", msg: "" });
         }, 2000);
       } else {
-        setPassStatus({ type: "error", msg: data.detail || "Error al cambiar la contraseña." });
+        // --- CAMBIO AQUÍ: Manejo inteligente del error de validación ---
+        let errorFinal = "Error al cambiar la contraseña.";
+
+        if (Array.isArray(data.detail)) {
+          // Si es un error de validación de Pydantic, extraemos el mensaje del validador
+          errorFinal = data.detail[0].msg;
+        } else if (typeof data.detail === "string") {
+          // Si es un error manual (HTTPException)
+          errorFinal = data.detail;
+        }
+
+        setPassStatus({ type: "error", msg: errorFinal });
       }
     } catch (error) {
       setPassStatus({ type: "error", msg: "Error de conexión con el servidor." });
