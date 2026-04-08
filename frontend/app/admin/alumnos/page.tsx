@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import ModalNuevaRotacion from "@/components/ModalNuevaRotacion";
-import { Trash2, Mail, GraduationCap, ChevronLeft, Filter, Briefcase, UserPlus } from "lucide-react";
+import { 
+  Trash2, Mail, GraduationCap, ChevronLeft, Filter, 
+  Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp 
+} from "lucide-react";
 
 interface RotacionInfo {
   id: string;
   curso: number;
   numero_rotacion: number;
-  especialidad: string; // <-- AÑADIMOS EL CAMPO DE ESPECIALIDAD AQUÍ
+  especialidad: string; 
+  periodo_academico?: string;
   tutores: {
     hospital: string;
     universidad: string;
@@ -32,7 +36,11 @@ export default function ListaAlumnosAdmin() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroCurso, setFiltroCurso] = useState("todos");
+  const [filtroAño, setFiltroAño] = useState("todos");
   const [loading, setLoading] = useState(true);
+
+  // --- ESTADO PARA LOS DESPLEGABLES DE ROTACIONES ---
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState({ id: "", email: "" });
@@ -93,20 +101,33 @@ export default function ListaAlumnosAdmin() {
     setModalAbierto(true);
   };
 
+  // Función para alternar el desplegable de un alumno
+  const toggleExpandido = (alumnoId: string) => {
+    setExpandidos(prev => ({
+      ...prev,
+      [alumnoId]: !prev[alumnoId]
+    }));
+  };
+
+  const periodosBrutos = alumnos.flatMap(a => a.rotaciones.map(r => r.periodo_academico)).filter(Boolean) as string[];
+  const periodosDisponibles = Array.from(new Set(periodosBrutos)).sort().reverse();
+
   const alumnosFiltrados = alumnos.filter(a => {
     const coincideEmail = a.email?.toLowerCase().includes(busqueda.toLowerCase());
+    
     const tieneRotacionEnCurso = a.rotaciones.some(r => r.curso.toString() === filtroCurso);
     const esCursoBase = a.curso_actual.toString() === filtroCurso;
     const coincideCurso = filtroCurso === "todos" || tieneRotacionEnCurso || esCursoBase;
 
-    return coincideEmail && coincideCurso;
+    const coincideAño = filtroAño === "todos" || a.rotaciones.some(r => r.periodo_academico === filtroAño);
+
+    return coincideEmail && coincideCurso && coincideAño;
   });
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         
-        {/* Botón Volver */}
         <button 
           onClick={() => router.push("/admin/panel")} 
           className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
@@ -116,33 +137,23 @@ export default function ListaAlumnosAdmin() {
 
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
           
-          {/* CABECERA CORPORATIVA */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6 border-b border-gray-100 pb-8">
             <div className="flex items-center gap-4">
-              <Image 
-                src="/logo-ufv.png" 
-                alt="Logo UFV" 
-                width={56} 
-                height={56} 
-                className="object-contain" 
-              />
+              <Image src="/logo-ufv.png" alt="Logo UFV" width={56} height={56} className="object-contain" />
               <div>
                 <h1 className="text-3xl font-black text-ufv-azul-oscuro">Gestión de Alumnos</h1>
-                <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">
-                  Universidad Francisco de Vitoria
-                </p>
+                <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">Universidad Francisco de Vitoria</p>
               </div>
             </div>
             
             <button 
-                onClick={() => router.push("/admin/alumnos/nuevo")} 
-                className="bg-ufv-azul text-white px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro active:scale-95 transition-all shadow-sm shrink-0"
-              >
-                <UserPlus className="w-5 h-5" /> Nuevo Alumno
-              </button>
+              onClick={() => router.push("/admin/alumnos/nuevo")} 
+              className="bg-ufv-azul text-white px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro active:scale-95 transition-all shadow-sm shrink-0"
+            >
+              <UserPlus className="w-5 h-5" /> Nuevo Alumno
+            </button>
           </div>
 
-          {/* BARRA DE BÚSQUEDA Y FILTROS */}
           <div className="mb-8 flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -153,6 +164,20 @@ export default function ListaAlumnosAdmin() {
                 onChange={(e) => setBusqueda(e.target.value)} 
                 className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul focus:bg-white outline-none transition-all text-gray-900 font-medium" 
               />
+            </div>
+
+            <div className="relative w-full md:w-64">
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <select 
+                value={filtroAño} 
+                onChange={(e) => setFiltroAño(e.target.value)} 
+                className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none appearance-none transition-all text-gray-900 font-bold"
+              >
+                <option value="todos">Todos los años</option>
+                {periodosDisponibles.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </div>
             
             <div className="relative w-full md:w-64">
@@ -170,7 +195,6 @@ export default function ListaAlumnosAdmin() {
             </div>
           </div>
 
-          {/* TABLA DE RESULTADOS */}
           {loading ? (
             <div className="text-center py-20 text-ufv-azul font-bold animate-pulse">
               Cargando alumnos...
@@ -191,40 +215,76 @@ export default function ListaAlumnosAdmin() {
                       
                       <td className="p-5 align-top max-w-md">
                         <div className="font-bold text-lg text-ufv-azul-oscuro mb-3">{alumno.email}</div>
+                        
+                        {/* --- LÓGICA DE ROTACIONES CON DESPLEGABLE --- */}
                         <div className="space-y-2">
                           {alumno.rotaciones.length > 0 ? (
-                            alumno.rotaciones
-                              .sort((a, b) => b.curso - a.curso)
-                              .map((rot, i) => (
-                                <div key={i} className="group text-sm bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between hover:border-ufv-azul-claro transition-all">
-                                  <div className="flex flex-col gap-1">
-                                    
-                                    {/* NUEVO: Mostramos la Especialidad en la tabla */}
-                                    <span className={`font-bold flex items-center gap-1.5 ${rot.curso.toString() === filtroCurso ? 'text-ufv-rosa-oscuro' : 'text-ufv-azul-oscuro'}`}>
-                                      <Briefcase className="w-3.5 h-3.5" />
-                                      {rot.especialidad}
-                                    </span>
-                                    
-                                    <span className="text-xs font-bold text-gray-500">
-                                      {rot.curso}º Curso - Rotación {rot.numero_rotacion}
-                                    </span>
-                                    
-                                    <div className="flex flex-col gap-0.5 mt-1">
-                                      <span className="text-xs text-gray-500 font-medium">
-                                        <b className="text-gray-700">Hospital:</b> {rot.tutores.hospital || "No asignado"}
-                                      </span>
-                                      <span className="text-xs text-gray-500 font-medium">
-                                        <b className="text-gray-700">Universidad:</b> {rot.tutores.universidad || "No asignado"}
-                                      </span>
-                                    </div>
+                            <div className="flex flex-col gap-3">
+                              
+                              {/* Botón Trigger del Acordeón */}
+                              <button 
+                                onClick={() => toggleExpandido(alumno.id)}
+                                className="flex items-center justify-between w-full bg-white border border-gray-200 hover:border-ufv-azul hover:bg-blue-50/50 p-3 rounded-xl transition-all group shadow-sm"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="bg-blue-50 text-ufv-azul p-2 rounded-lg group-hover:bg-ufv-azul group-hover:text-white transition-colors">
+                                    <Briefcase className="w-4 h-4" />
                                   </div>
-                                  <button onClick={() => handleEliminarRotacion(rot.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  <span className="font-bold text-sm text-gray-700 group-hover:text-ufv-azul-oscuro transition-colors">
+                                    Ver rotaciones del alumno ({alumno.rotaciones.length})
+                                  </span>
                                 </div>
-                              ))
+                                {expandidos[alumno.id] ? (
+                                  <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-ufv-azul transition-colors" />
+                                ) : (
+                                  <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-ufv-azul transition-colors" />
+                                )}
+                              </button>
+
+                              {/* Contenido Desplegable */}
+                              {expandidos[alumno.id] && (
+                                <div className="space-y-2 pl-3 border-l-2 border-blue-100 ml-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                  {alumno.rotaciones
+                                    .sort((a, b) => b.curso - a.curso)
+                                    .map((rot, i) => (
+                                      <div key={i} className="group text-sm bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between hover:border-ufv-azul-claro transition-all shadow-sm">
+                                        <div className="flex flex-col gap-1">
+                                          
+                                          <div className="flex items-center gap-2">
+                                            <span className={`font-bold flex items-center gap-1.5 ${rot.curso.toString() === filtroCurso ? 'text-ufv-rosa-oscuro' : 'text-ufv-azul-oscuro'}`}>
+                                              <Briefcase className="w-3.5 h-3.5" />
+                                              {rot.especialidad}
+                                            </span>
+                                            {rot.periodo_academico && (
+                                              <span className="text-[10px] font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md border border-gray-200">
+                                                {rot.periodo_academico}
+                                              </span>
+                                            )}
+                                          </div>
+                                          
+                                          <span className="text-xs font-bold text-gray-500 mt-1">
+                                            {rot.curso}º Curso - Rotación {rot.numero_rotacion}
+                                          </span>
+                                          
+                                          <div className="flex flex-col gap-0.5 mt-1">
+                                            <span className="text-xs text-gray-500 font-medium">
+                                              <b className="text-gray-700">Hospital:</b> {rot.tutores.hospital || "No asignado"}
+                                            </span>
+                                            <span className="text-xs text-gray-500 font-medium">
+                                              <b className="text-gray-700">Universidad:</b> {rot.tutores.universidad || "No asignado"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <button onClick={() => handleEliminarRotacion(rot.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
                           ) : (
-                            <div className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-lg font-bold border border-orange-100 italic w-fit">
+                            <div className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-lg font-bold border border-orange-100 italic w-fit mt-1">
                               Sin historial de prácticas
                             </div>
                           )}

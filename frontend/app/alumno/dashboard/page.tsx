@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, MapPin, Loader2, CalendarDays, X } from "lucide-react";
+import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -10,7 +10,6 @@ export default function AlumnoDashboard() {
   const router = useRouter();
   const [datos, setDatos] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [fichando, setFichando] = useState<{ id: string, tipo: string } | null>(null);
 
   // ESTADOS PARA CAMBIO DE CONTRASEÑA
   const [showPassModal, setShowPassModal] = useState(false);
@@ -77,63 +76,6 @@ export default function AlumnoDashboard() {
     }
   };
 
-  const handleFichar = async (rotacionId: string, tipo: "entrada" | "salida") => {
-    const quiereUbicacion = window.confirm(
-      `Vas a registrar tu ${tipo.toUpperCase()}.\n\nPara validar tu asistencia correctamente, se recomienda adjuntar tu ubicación GPS actual. Esta ubicación solo será visible para tus tutores asignados y el administrador.\n\n¿Deseas incluir tu ubicación en este fichaje?`
-    );
-
-    setFichando({ id: rotacionId, tipo });
-
-    const enviarFichaje = async (ubicacionPermitida: boolean, lat?: string, lng?: string) => {
-      try {
-        const token = Cookies.get("practicum_token");
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/fichar`, {
-          method: "POST",
-          headers: { 
-            "Authorization": `Bearer ${token}`, 
-            "Content-Type": "application/json" 
-          },
-          body: JSON.stringify({ 
-            rotacion_id: rotacionId, 
-            tipo, 
-            ubicacion_permitida: ubicacionPermitida, 
-            latitud: lat || null, 
-            longitud: lng || null 
-          })
-        });
-
-        if (res.ok) {
-          alert(`✅ Fichaje de ${tipo.toUpperCase()} registrado ${ubicacionPermitida ? 'CON' : 'SIN'} ubicación.`);
-          cargarDatos();
-        } else {
-          const err = await res.json();
-          alert("Error: " + err.detail);
-        }
-      } catch (error) {
-        alert("Error de conexión al intentar fichar.");
-      } finally { 
-        setFichando(null); 
-      }
-    };
-
-    if (quiereUbicacion) {
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => enviarFichaje(true, pos.coords.latitude.toString(), pos.coords.longitude.toString()),
-          (error) => {
-            alert("⚠️ Tienes la ubicación bloqueada en tu navegador. Tu fichaje se guardará SIN ubicación.");
-            enviarFichaje(false);
-          },
-          { timeout: 10000 }
-        );
-      } else {
-        enviarFichaje(false);
-      }
-    } else {
-      enviarFichaje(false);
-    }
-  };
-
   if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse">Cargando tu expediente...</div>;
 
   return (
@@ -165,14 +107,12 @@ export default function AlumnoDashboard() {
             <h2 className="text-2xl font-black text-ufv-azul-oscuro flex items-center gap-2">
                 Hola, {datos?.alumno.nombre} <span className="text-3xl">👋</span>
             </h2>
-            <p className="text-gray-500 font-medium mt-1">Selecciona una rotación para evaluarte o gestionar tu asistencia.</p>
+            <p className="text-gray-500 font-medium mt-1">Selecciona una rotación para evaluar tus competencias o revisar tu asistencia.</p>
         </div>
 
         {/* TARJETAS DE ROTACIÓN */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {datos?.rotaciones.map((rot: any) => {
-            const yaFichoEntrada = rot.estado_fichaje_hoy?.entrada;
-            const yaFichoSalida = rot.estado_fichaje_hoy?.salida;
 
             return (
               <div key={rot.id} className="relative bg-white p-6 rounded-3xl border border-gray-200 border-t-4 border-t-ufv-azul shadow-sm flex flex-col hover:shadow-xl transition-all duration-300">
@@ -185,7 +125,16 @@ export default function AlumnoDashboard() {
                       <h3 className="text-lg font-black text-ufv-azul-oscuro group-hover:text-ufv-azul transition-colors leading-tight">
                         {rot.especialidad} (Rotación {rot.numero})
                       </h3>
-                      <p className="text-xs text-gray-500 font-bold mt-1 uppercase tracking-widest">{rot.curso}º Curso</p>
+                      
+                      {/* --- AÑADIDO: PERIODO ACADÉMICO JUNTO AL CURSO --- */}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">{rot.curso}º Curso</span>
+                        <span className="text-[10px] font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md border border-gray-200">
+                          {rot.periodo_academico || "2024/2025"}
+                        </span>
+                      </div>
+                      {/* ------------------------------------------------ */}
+
                     </div>
                   </div>
 
@@ -194,30 +143,18 @@ export default function AlumnoDashboard() {
                       <Users className="w-3 h-3" /> Tutores Asignados
                     </div>
                     {rot.tutores ? (
-                      Array.isArray(rot.tutores) ? (
-                        /* Fallback por si el backend sigue mandando array */
-                        <div className="flex flex-col gap-1.5">
-                          {rot.tutores.map((t: string, idx: number) => (
-                            <span key={idx} className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-ufv-rosa-claro shrink-0"></span> {t}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        /* NUEVO: Distribución por Diccionario */
-                        <div className="flex flex-col gap-2">
-                          <span className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-ufv-rosa-claro shrink-0"></span> 
-                            <span className="text-gray-500 font-medium text-xs w-16">Hospital:</span> 
-                            {rot.tutores.hospital || <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>}
-                          </span>
-                          <span className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-ufv-azul shrink-0"></span> 
-                            <span className="text-gray-500 font-medium text-xs w-16">Académico:</span> 
-                            {rot.tutores.universidad || <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>}
-                          </span>
-                        </div>
-                      )
+                      <div className="flex flex-col gap-2">
+                        <span className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-ufv-rosa-claro shrink-0"></span> 
+                          <span className="text-gray-500 font-medium text-xs w-16">Hospital:</span> 
+                          {rot.tutores.hospital || <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>}
+                        </span>
+                        <span className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-ufv-azul shrink-0"></span> 
+                          <span className="text-gray-500 font-medium text-xs w-16">Académico:</span> 
+                          {rot.tutores.universidad || <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>}
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-sm text-gray-400 italic">Sin asignar</span>
                     )}

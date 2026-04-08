@@ -5,7 +5,6 @@ from .. import models, security, schemas
 
 router = APIRouter(prefix="/api/v1/profesores", tags=["Profesores"])
 
-
 @router.get("/mis-alumnos")
 def obtener_mis_alumnos(
     db: Session = Depends(get_db),
@@ -59,7 +58,7 @@ def obtener_mis_alumnos(
         else:
             estado = "Pendiente"
 
-        # --- NUEVO: Extraemos el nombre de la especialidad ---
+        # Extraemos el nombre de la especialidad
         nombre_especialidad = (
             rotacion.especialidad.nombre
             if rotacion.especialidad
@@ -76,16 +75,18 @@ def obtener_mis_alumnos(
                 "nombre_completo": f"{nombre} {apellidos}",
                 "curso": rotacion.curso,
                 "numero_rotacion": rotacion.numero_rotacion,
-                "especialidad": nombre_especialidad,  # <--- AÑADIMOS ESTO AQUÍ
+                "especialidad": nombre_especialidad, 
                 "grupo": alumno.grupo,
                 "completada": rotacion.completada,
                 "codigo_anonimo": alumno.codigo_anonimo,
                 "estado_evaluacion": estado,
+                "periodo_academico": rotacion.periodo_academico,
+                # --- NUEVO: ENVIAMOS EL ROL ESPECÍFICO PARA ESTA ROTACIÓN ---
+                "mi_rol": asig.tipo_tutor 
             }
         )
 
     return resultado
-
 
 @router.get("/asistencia/{rotacion_id}")
 def obtener_asistencia_alumno(
@@ -96,6 +97,7 @@ def obtener_asistencia_alumno(
     if current_user.rol != "profesor":
         raise HTTPException(status_code=403, detail="Acceso denegado")
 
+    # Verificamos que el profesor está asignado a esta rotación
     asignacion = db.query(models.AsignacionTutor).filter(
         models.AsignacionTutor.tutor_id == current_user.id,
         models.AsignacionTutor.rotacion_id == rotacion_id,
@@ -104,19 +106,26 @@ def obtener_asistencia_alumno(
     if not asignacion:
         raise HTTPException(status_code=403, detail="No eres tutor de esta rotación")
 
+    # Obtenemos los registros de asistencia
     fichajes = db.query(models.RegistroAsistencia).filter(
         models.RegistroAsistencia.rotacion_id == rotacion_id
     ).all()
     
-    # --- SOLUCIÓN: LIMPIEZA MANUAL DEL FORMATO DE FECHA ---
+    # --- PROCESAMOS LOS DATOS PARA INCLUIR EL EMAIL DEL FIRMANTE ---
     registros_limpios = []
     for f in fichajes:
-        # Convertimos a string y cortamos por la 'T' o el espacio vacío para quedarnos solo con YYYY-MM-DD
+        # Limpiamos la fecha para evitar problemas de formato (YYYY-MM-DD)
         fecha_str = str(f.fecha).split(" ")[0].split("T")[0] if f.fecha else ""
+        
+        # Obtenemos el email del tutor que realizó la firma
+        # Usamos la relación 'tutor' definida en el modelo RegistroAsistencia
+        email_firmante = f.tutor.email if f.tutor else "Tutor Desconocido"
+        
         registros_limpios.append({
             "id": str(f.id),
             "fecha": fecha_str,
-            "firmado_en": f.firmado_en.isoformat() if f.firmado_en else ""
+            "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
+            "firmado_por": email_firmante  # <--- Este es el campo clave
         })
 
     return {
@@ -171,7 +180,6 @@ def firmar_asistencia(
     db.add(nueva_firma)
     db.commit() # Asegura el guardado físico en disco
     return {"mensaje": "Asistencia firmada correctamente"}
-
 @router.get("/asistencia/{rotacion_id}")
 def obtener_asistencia_alumno(
     rotacion_id: str,
@@ -193,9 +201,23 @@ def obtener_asistencia_alumno(
         models.RegistroAsistencia.rotacion_id == rotacion_id
     ).all()
     
-    # CORRECCIÓN: Devolvemos si la rotación está completada
+    # --- AÑADIMOS EL EMAIL DEL FIRMANTE AL RESULTADO ---
+    registros_limpios = []
+    for f in fichajes:
+        fecha_str = str(f.fecha).split(" ")[0].split("T")[0] if f.fecha else ""
+        
+        # Obtenemos el email del usuario que firmó (si existe)
+        email_firmante = f.tutor.email if f.tutor else "Tutor Desconocido"
+        
+        registros_limpios.append({
+            "id": str(f.id),
+            "fecha": fecha_str,
+            "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
+            "firmado_por": email_firmante # <-- NUEVO CAMPO
+        })
+
     return {
         "es_tutor_universidad": asignacion.tipo_tutor == "universidad",
         "rotacion_completada": asignacion.rotacion.completada, 
-        "registros": fichajes
+        "registros": registros_limpios
     }

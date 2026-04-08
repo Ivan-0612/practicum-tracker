@@ -6,7 +6,7 @@ import Cookies from "js-cookie";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, PenTool, Lock, Eye } from "lucide-react";
 
-interface Fichaje { id: string; fecha: string; firmado_en: string; }
+interface Fichaje { id: string; fecha: string; firmado_en: string; firmado_por: string;}
 
 export default function CalendarioProfesor() {
   const params = useParams();
@@ -169,7 +169,17 @@ export default function CalendarioProfesor() {
                     <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
                       <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-2" />
                       <p className="font-black text-green-800 text-lg">Jornada Validada</p>
-                      <p className="text-[10px] font-bold text-green-600 mt-2 uppercase tracking-wide">Sello digital: {new Date(fichajeActivo.firmado_en).toLocaleString('es-ES')}</p>
+                      
+                      {/* SELLO DE FIRMA DIGITAL (Visible para Hospital y Universidad) */}
+                      <div className="mt-4 bg-white/60 p-3 rounded-xl border border-green-100/50">
+                         <p className="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-1">Validado por:</p>
+                         <p className="text-sm font-bold text-green-900 truncate" title={fichajeActivo.firmado_por}>
+                            {fichajeActivo.firmado_por}
+                         </p>
+                         <p className="text-[10px] font-bold text-green-600 mt-1 uppercase tracking-wide">
+                            El {new Date(fichajeActivo.firmado_en).toLocaleString('es-ES')}
+                         </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="bg-gray-50 rounded-2xl p-5 text-center border border-dashed border-gray-200">

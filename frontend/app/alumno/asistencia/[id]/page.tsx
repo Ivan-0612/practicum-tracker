@@ -17,6 +17,7 @@ interface Fichaje {
   id: string;
   fecha: string;
   firmado_en: string;
+  firmado_por: string;
 }
 
 export default function CalendarioAsistenciaAlumno() {
@@ -193,9 +194,14 @@ export default function CalendarioAsistenciaAlumno() {
                         <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
                             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
                             <p className="font-black text-green-800 text-xl">Jornada Validada</p>
-                            <p className="text-xs font-bold text-green-600 mt-3 uppercase tracking-wider">
-                                Sellado el: <br/> {new Date(fichajeActivo.firmado_en).toLocaleString('es-ES')}
-                            </p>
+                            
+                            <div className="mt-4 bg-white/60 p-3 rounded-xl border border-green-100/50">
+                              <p className="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-1">Firmado digitalmente por:</p>
+                              <p className="text-sm font-bold text-green-900 truncate">{fichajeActivo.firmado_por}</p>
+                              <p className="text-xs font-bold text-green-600 mt-2 uppercase tracking-wider">
+                                  Sellado el: <br/> {new Date(fichajeActivo.firmado_en).toLocaleString('es-ES')}
+                              </p>
+                            </div>
                         </div>
                       ) : (
                         <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-6 text-center">

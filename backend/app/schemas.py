@@ -64,6 +64,7 @@ class AlumnoBase(BaseModel):
     # ----------------------------------------
     
     numero_rotacion: int = 1
+    periodo_academico: str = "2025/2026"
     especialidad_id: UUID
 
 class AlumnoCreate(AlumnoBase):
@@ -92,6 +93,7 @@ class RotacionCreate(RotacionBase):
     especialidad_id: UUID
     curso: int
     numero_rotacion: int
+    periodo_academico: str 
     
     # --- CAMBIOS: PEDIMOS LOS DOS TUTORES ---
     email_tutor_hospital: EmailStr

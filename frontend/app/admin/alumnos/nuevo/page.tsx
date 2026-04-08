@@ -4,10 +4,34 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { ChevronLeft, User, GraduationCap, Briefcase, KeyRound, Save, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, User, GraduationCap, Briefcase, KeyRound, Save, AlertCircle, CheckCircle2, Calendar } from "lucide-react";
+
+// --- LÓGICA DINÁMICA DE AÑOS ACADÉMICOS ---
+const obtenerPeriodoActual = () => {
+  const hoy = new Date();
+  const año = hoy.getFullYear();
+  return hoy.getMonth() < 8 ? `${año - 1}/${año}` : `${año}/${año + 1}`;
+};
+
+const generarPeriodos = () => {
+  const hoy = new Date();
+  
+  // Calculamos en qué año empezó realmente el curso actual
+  const añoBase = hoy.getMonth() < 8 ? hoy.getFullYear() - 1 : hoy.getFullYear();
+  
+  const periodos = [];
+  // Rango: 4 años en el pasado (-4), el actual (0), y 2 en el futuro (2)
+  for (let i = -4; i <= 2; i++) {
+    periodos.push(`${añoBase + i}/${añoBase + i + 1}`);
+  }
+  
+  // Opcional: Le damos la vuelta para que los años más recientes salgan arriba del todo en la lista
+  return periodos.reverse(); 
+};
 
 export default function NuevoAlumno() {
   const router = useRouter();
+  const periodosDinamicos = generarPeriodos();
   
   const [especialidadesLista, setEspecialidadesLista] = useState<any[]>([]);
 
@@ -19,12 +43,11 @@ export default function NuevoAlumno() {
     grupo: "",
     email_acceso: "",
     password_acceso: "",
-    // --- CAMBIO: AHORA PEDIMOS LOS DOS TUTORES ---
     email_tutor_hospital: "", 
     email_tutor_universidad: "",
-    // ---------------------------------------------
     numero_rotacion: 1,
     especialidad_id: "", 
+    periodo_academico: obtenerPeriodoActual() // <-- Automático para este año
   });
   
   const [mensaje, setMensaje] = useState({ tipo: "", texto: "" });
@@ -175,7 +198,7 @@ export default function NuevoAlumno() {
                 <h3 className="text-xl font-black text-ufv-azul-oscuro">Asignación de Prácticas y Tutores</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Especialidad (Unidad)</label>
@@ -190,29 +213,43 @@ export default function NuevoAlumno() {
                         <option key={esp.id} value={esp.id}>{esp.nombre}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-2 font-medium">Asigna el JSON correcto a este alumno.</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Número de Rotación</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Núm. de Rotación</label>
                   <select value={formData.numero_rotacion} onChange={e => setFormData({...formData, numero_rotacion: parseInt(e.target.value)})} className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none">
                     <option value={1}>Rotación 1</option><option value={2}>Rotación 2</option><option value={3}>Rotación 3</option>
                   </select>
                 </div>
 
-                {/* --- NUEVO: CAMPO TUTOR HOSPITAL --- */}
+                {/* --- NUEVO DESPLEGABLE DINÁMICO: AÑO ACADÉMICO --- */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-gray-500" /> Año Académico</label>
+                  <select 
+                    value={formData.periodo_academico} 
+                    onChange={e => setFormData({...formData, periodo_academico: e.target.value})} 
+                    className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none font-bold text-ufv-azul-oscuro"
+                  >
+                    {periodosDinamicos.map(periodo => (
+                      <option key={periodo} value={periodo}>{periodo}</option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Email Tutor Clínico (Hospital)</label>
                   <input type="email" placeholder="hospital@gmail.com" required className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_tutor_hospital: e.target.value})} />
                 </div>
 
-                {/* --- NUEVO: CAMPO TUTOR UNIVERSIDAD --- */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Email Tutor Académico (Universidad)</label>
                   <input type="email" placeholder="universidad@ufv.es" required className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" onChange={e => setFormData({...formData, email_tutor_universidad: e.target.value})} />
                 </div>
-
               </div>
+
             </section>
 
             {/* SECCIÓN 4: LOGIN */}

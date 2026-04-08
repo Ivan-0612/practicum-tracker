@@ -61,6 +61,7 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
         especialidad_id=especialidad.id,
         curso=alumno_in.curso,
         numero_rotacion=alumno_in.numero_rotacion,
+        periodo_academico=alumno_in.periodo_academico,
     )
     db.add(nueva_rotacion)
     db.flush()
@@ -128,6 +129,7 @@ def obtener_mi_evaluacion(
             "especialidad": nombre_especialidad,
             "completada": r.completada,
             "tutores": tutores_dict, # <-- AHORA ES UN DICCIONARIO
+            "periodo_academico": r.periodo_academico,
         })
 
     return {
@@ -180,6 +182,7 @@ def listar_alumnos_por_email(
                 "numero_rotacion": rot.numero_rotacion or alumno.numero_rotacion,
                 "especialidad": rot.especialidad.nombre if rot.especialidad else "Sin especialidad",
                 "tutores": tutores_dict, # <-- AHORA ES UN DICCIONARIO
+                "periodo_academico": rot.periodo_academico,
             })
 
         resultado.append({
@@ -234,6 +237,7 @@ def asignar_rotacion_adicional(
         especialidad_id=especialidad.id,
         curso=datos.curso,
         numero_rotacion=datos.numero_rotacion,
+        periodo_academico=datos.periodo_academico,
     )
     db.add(nueva_rotacion)
     db.flush()
@@ -317,19 +321,22 @@ def eliminar_alumno_completo(
     return {"mensaje": "Alumno eliminado correctamente"}
 
 
-
 @router.get("/asistencia/{rotacion_id}")
 def obtener_historial_asistencia_alumno(
     rotacion_id: str,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
+    if current_user.rol != "estudiante":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
     alumno = (
         db.query(models.Alumno)
         .filter(models.Alumno.usuario_id == current_user.id)
         .first()
     )
-    return (
+    
+    fichajes = (
         db.query(models.RegistroAsistencia)
         .filter(
             models.RegistroAsistencia.rotacion_id == rotacion_id,
@@ -338,3 +345,18 @@ def obtener_historial_asistencia_alumno(
         .order_by(models.RegistroAsistencia.fecha.desc())
         .all()
     )
+    
+    # --- ADAPTAMOS PARA DEVOLVER EL MISMO FORMATO QUE EL PROFESOR ---
+    registros_limpios = []
+    for f in fichajes:
+        fecha_str = str(f.fecha).split(" ")[0].split("T")[0] if f.fecha else ""
+        email_firmante = f.tutor.email if f.tutor else "Tutor Desconocido"
+        
+        registros_limpios.append({
+            "id": str(f.id),
+            "fecha": fecha_str,
+            "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
+            "firmado_por": email_firmante # <-- NUEVO CAMPO
+        })
+
+    return registros_limpios

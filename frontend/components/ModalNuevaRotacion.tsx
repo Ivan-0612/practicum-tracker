@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Cookies from "js-cookie";
-import { X, Briefcase, GraduationCap, Loader2, Save, AlertCircle } from "lucide-react";
+import { X, Briefcase, GraduationCap, Loader2, Save, AlertCircle, Calendar } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -11,6 +11,30 @@ interface ModalProps {
   emailAlumno: string;
   onSuccess: () => void;
 }
+
+// --- LÓGICA DINÁMICA DE AÑOS ACADÉMICOS ---
+const obtenerPeriodoActual = () => {
+  const hoy = new Date();
+  const año = hoy.getFullYear();
+  // Si estamos antes de Septiembre (mes 8), el curso empezó el año pasado
+  return hoy.getMonth() < 8 ? `${año - 1}/${año}` : `${año}/${año + 1}`;
+};
+
+const generarPeriodos = () => {
+  const hoy = new Date();
+  
+  // Calculamos en qué año empezó realmente el curso actual
+  const añoBase = hoy.getMonth() < 8 ? hoy.getFullYear() - 1 : hoy.getFullYear();
+  
+  const periodos = [];
+  // Rango: 4 años en el pasado (-4), el actual (0), y 2 en el futuro (2)
+  for (let i = -4; i <= 2; i++) {
+    periodos.push(`${añoBase + i}/${añoBase + i + 1}`);
+  }
+  
+  // Opcional: Le damos la vuelta para que los años más recientes salgan arriba del todo en la lista
+  return periodos.reverse(); 
+};
 
 export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlumno, onSuccess }: ModalProps) {
   const [especialidades, setEspecialidades] = useState<any[]>([]);
@@ -23,18 +47,21 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
     especialidad_id: "",
     email_tutor_hospital: "",
     email_tutor_universidad: "",
+    periodo_academico: obtenerPeriodoActual(), // <-- Valor automático
   });
+
+  const periodosDinamicos = generarPeriodos();
 
   useEffect(() => {
     if (isOpen) {
       cargarEspecialidades();
-      // Reset form on open
       setFormData({
         curso: 2,
         numero_rotacion: 1,
         especialidad_id: "",
         email_tutor_hospital: "",
         email_tutor_universidad: "",
+        periodo_academico: obtenerPeriodoActual(),
       });
       setError("");
     }
@@ -104,122 +131,74 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border-t-4 border-ufv-azul animate-in fade-in zoom-in duration-200">
-        
-        {/* CABECERA */}
+      <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border-t-4 border-ufv-azul">
         <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
           <div>
             <h3 className="text-xl font-black text-ufv-azul-oscuro">Asignar Nueva Rotación</h3>
-            <p className="text-sm text-gray-500 font-bold mt-1 flex items-center gap-1.5">
-              Alumno: <span className="text-ufv-azul">{emailAlumno}</span>
-            </p>
+            <p className="text-sm text-gray-500 font-bold mt-1">Alumno: <span className="text-ufv-azul">{emailAlumno}</span></p>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
-        {/* FORMULARIO */}
         <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* CURSO */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><GraduationCap className="w-4 h-4" /> Curso Académico</label>
-              <select 
-                value={formData.curso} 
-                onChange={e => setFormData({...formData, curso: parseInt(e.target.value)})} 
-                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900 font-bold"
-              >
-                <option value={2}>2º Grado Enfermería</option>
-                <option value={3}>3º Grado Enfermería</option>
-                <option value={4}>4º Grado Enfermería</option>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><GraduationCap className="w-4 h-4" /> Curso</label>
+              <select value={formData.curso} onChange={e => setFormData({...formData, curso: parseInt(e.target.value)})} className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul outline-none font-bold">
+                <option value={2}>2º Grado</option>
+                <option value={3}>3º Grado</option>
+                <option value={4}>4º Grado</option>
               </select>
             </div>
 
-            {/* NÚMERO ROTACIÓN */}
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Número de Rotación</label>
-              <select 
-                value={formData.numero_rotacion} 
-                onChange={e => setFormData({...formData, numero_rotacion: parseInt(e.target.value)})} 
-                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900 font-bold"
-              >
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Núm. Rotación</label>
+              <select value={formData.numero_rotacion} onChange={e => setFormData({...formData, numero_rotacion: parseInt(e.target.value)})} className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul outline-none font-bold">
                 <option value={1}>Rotación 1</option>
                 <option value={2}>Rotación 2</option>
                 <option value={3}>Rotación 3</option>
               </select>
             </div>
+
+            {/* --- DESPLEGABLE DINÁMICO --- */}
+            <div>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Año Académico</label>
+              <select 
+                value={formData.periodo_academico} 
+                onChange={e => setFormData({...formData, periodo_academico: e.target.value})} 
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul outline-none font-bold"
+              >
+                {periodosDinamicos.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
           </div>
 
-          {/* ESPECIALIDAD */}
           <div>
             <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Briefcase className="w-4 h-4" /> Especialidad (Unidad)</label>
-            <select 
-              required
-              value={formData.especialidad_id}
-              onChange={e => setFormData({...formData, especialidad_id: e.target.value})}
-              className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900 font-medium"
-            >
-              {especialidades.length === 0 && <option value="">No hay especialidades disponibles</option>}
-              {especialidades.map(esp => (
-                  <option key={esp.id} value={esp.id}>{esp.nombre}</option>
-              ))}
+            <select required value={formData.especialidad_id} onChange={e => setFormData({...formData, especialidad_id: e.target.value})} className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul outline-none">
+              {especialidades.map(esp => <option key={esp.id} value={esp.id}>{esp.nombre}</option>)}
             </select>
           </div>
 
           <div className="pt-4 border-t border-gray-100 space-y-5">
-             {/* TUTOR HOSPITAL */}
-             <div>
+            <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Email Tutor Clínico (Hospital)</label>
-              <input 
-                type="email" 
-                required 
-                placeholder="Ej: hospital@gmail.com"
-                className="w-full p-3.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" 
-                value={formData.email_tutor_hospital} 
-                onChange={(e) => setFormData({...formData, email_tutor_hospital: e.target.value})} 
-              />
+              <input type="email" required placeholder="hospital@gmail.com" className="w-full p-3.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-ufv-azul outline-none" value={formData.email_tutor_hospital} onChange={(e) => setFormData({...formData, email_tutor_hospital: e.target.value})} />
             </div>
-
-            {/* TUTOR UNIVERSIDAD */}
             <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Email Tutor Académico (Universidad)</label>
-              <input 
-                type="email" 
-                required 
-                placeholder="Ej: universidad@ufv.es"
-                className="w-full p-3.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" 
-                value={formData.email_tutor_universidad} 
-                onChange={(e) => setFormData({...formData, email_tutor_universidad: e.target.value})} 
-              />
+              <input type="email" required placeholder="universidad@ufv.es" className="w-full p-3.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-ufv-azul outline-none" value={formData.email_tutor_universidad} onChange={(e) => setFormData({...formData, email_tutor_universidad: e.target.value})} />
             </div>
           </div>
 
-          {error && (
-            <div className="p-4 bg-red-50 text-red-700 rounded-xl font-bold border border-red-100 flex items-center gap-2 text-sm">
-              <AlertCircle className="w-5 h-5 shrink-0" /> {error}
-            </div>
-          )}
+          {error && <div className="p-4 bg-red-50 text-red-700 rounded-xl font-bold border border-red-100 flex items-center gap-2 text-sm"><AlertCircle className="w-5 h-5 shrink-0" /> {error}</div>}
 
           <div className="flex gap-3 pt-4">
-            <button 
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-              {loading ? "Asignando..." : "Asignar Rotación"}
+            <button type="button" onClick={onClose} className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button>
+            <button type="submit" disabled={loading} className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} Asignar Rotación
             </button>
           </div>
-
         </form>
       </div>
     </div>
