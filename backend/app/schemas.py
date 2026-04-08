@@ -14,7 +14,7 @@ class UsuarioBase(BaseModel):
 
 class UsuarioCreate(UsuarioBase):
     password: str = Field(..., min_length=8)
-    tipo_tutor: Optional[str] = None # 'hospital' o 'universidad'
+    tipo_tutor: Optional[str] = None  # 'hospital' o 'universidad'
 
 
 class UsuarioResponse(UsuarioBase):
@@ -57,18 +57,20 @@ class AlumnoBase(BaseModel):
     grupo: str
     email_acceso: EmailStr
     password_acceso: str
-    
+
     # --- CAMBIOS: PEDIMOS LOS DOS TUTORES ---
     email_tutor_hospital: EmailStr
     email_tutor_universidad: EmailStr
     # ----------------------------------------
-    
+
     numero_rotacion: int = 1
     periodo_academico: str = "2025/2026"
     especialidad_id: UUID
 
+
 class AlumnoCreate(AlumnoBase):
     pass
+
 
 class AlumnoResponse(BaseModel):
     id: UUID
@@ -82,19 +84,21 @@ class AlumnoResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 # ==========================================
 # ESQUEMAS DE ROTACIÓN
 # ==========================================
 class RotacionBase(BaseModel):
     fecha_inicio: Optional[date] = None
 
+
 class RotacionCreate(RotacionBase):
     alumno_id: UUID
     especialidad_id: UUID
     curso: int
     numero_rotacion: int
-    periodo_academico: str 
-    
+    periodo_academico: str
+
     # --- CAMBIOS: PEDIMOS LOS DOS TUTORES ---
     email_tutor_hospital: EmailStr
     email_tutor_universidad: EmailStr
@@ -142,6 +146,7 @@ class RespuestaResponse(RespuestaBase):
 class AsistenciaCreate(BaseModel):
     rotacion_id: UUID
     fecha: date
+
 
 class AsistenciaResponse(BaseModel):
     id: UUID

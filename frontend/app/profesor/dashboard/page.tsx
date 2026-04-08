@@ -164,7 +164,7 @@ export default function ProfesorDashboard() {
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               
               {/* --- NUEVO: FILTRO DE AÑO ACADÉMICO --- */}
-              <div className="relative w-full sm:w-48">
+              <div className="relative w-full sm:w-52">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Calendar className="h-4 w-4 text-gray-400" />
                 </div>

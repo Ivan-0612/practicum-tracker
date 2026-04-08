@@ -417,7 +417,7 @@ export default function AdminPanel() {
                   <div className="flex items-center gap-2">
                     <UserPlus className="w-4 h-4" /> Nuevo Tutor
                   </div>
-                  <span className="opacity-80 text-[10px] uppercase">Hospital (Clínico)</span>
+                  <span className="opacity-80 text-[10px] uppercase">Hospital</span>
                 </button>
 
                 <button 
@@ -427,7 +427,7 @@ export default function AdminPanel() {
                   <div className="flex items-center gap-2">
                     <UserPlus className="w-4 h-4" /> Nuevo Tutor
                   </div>
-                  <span className="opacity-80 text-[10px] uppercase">Universidad (Académico)</span>
+                  <span className="opacity-80 text-[10px] uppercase">Universidad</span>
                 </button>
               </div>
 

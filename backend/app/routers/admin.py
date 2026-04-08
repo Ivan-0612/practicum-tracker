@@ -12,7 +12,11 @@ UPLOAD_DIR = "cuadernillos"
 
 @router.post("/profesores", response_model=schemas.UsuarioResponse)
 def crear_profesor(profesor_in: schemas.UsuarioCreate, db: Session = Depends(get_db)):
-    existe = db.query(models.Usuario).filter(models.Usuario.email == profesor_in.email).first()
+    existe = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.email == profesor_in.email)
+        .first()
+    )
     if existe:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
 
@@ -20,7 +24,7 @@ def crear_profesor(profesor_in: schemas.UsuarioCreate, db: Session = Depends(get
         email=profesor_in.email,
         password_hash=security.get_password_hash(profesor_in.password),
         rol="profesor",
-        tipo_tutor=profesor_in.tipo_tutor # <-- GUARDAMOS EL TIPO
+        tipo_tutor=profesor_in.tipo_tutor,  # <-- GUARDAMOS EL TIPO
     )
     db.add(nuevo_profesor)
     db.commit()
@@ -214,8 +218,22 @@ def listar_profesores(
 
     profesores = db.query(models.Usuario).filter(models.Usuario.rol == "profesor").all()
 
-    # Devolvemos una lista limpia con los datos necesarios
-    return [{"id": str(p.id), "email": p.email, "activo": p.activo} for p in profesores]
+    resultado = []
+    for p in profesores:
+        tipo_real = p.tipo_tutor
+        if not tipo_real and p.asignaciones_rotaciones:
+            tipo_real = p.asignaciones_rotaciones[0].tipo_tutor
+
+        resultado.append(
+            {
+                "id": str(p.id),
+                "email": p.email,
+                "activo": p.activo,
+                "tipo_tutor": tipo_real,
+            }
+        )
+
+    return resultado
 
 
 @router.delete("/profesores/{profesor_id}")

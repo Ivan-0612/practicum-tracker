@@ -4,20 +4,34 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { ChevronLeft, Trash2, Users, Search, Loader2, UserPlus } from "lucide-react";
+import { 
+  ChevronLeft, Trash2, Users, Search, Loader2, 
+  UserPlus, Filter, GraduationCap, Briefcase 
+} from "lucide-react";
+
+// Definimos la interfaz para saber qué datos esperamos
+interface Profesor {
+  id: string;
+  email: string;
+  tipo_tutor?: string;
+}
 
 export default function ListaProfesores() {
   const router = useRouter();
-  const [profesores, setProfesores] = useState<any[]>([]);
+  const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Estados para filtros
   const [busqueda, setBusqueda] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("todos"); // <-- NUEVO ESTADO PARA EL FILTRO
 
   const fetchProfesores = async () => {
     setIsLoading(true);
     const token = Cookies.get("practicum_token");
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
@@ -46,7 +60,7 @@ export default function ListaProfesores() {
 
       if (res.ok) {
         alert("✅ Profesor eliminado correctamente.");
-        fetchProfesores(); // Recarga la lista
+        fetchProfesores(); 
       } else {
         const errorData = await res.json();
         alert(`❌ Error: ${errorData.detail || "No se pudo eliminar al profesor"}`);
@@ -56,13 +70,21 @@ export default function ListaProfesores() {
     }
   };
 
-  const profesoresFiltrados = profesores.filter(prof => 
-    prof.email.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  // --- LÓGICA DE FILTRADO COMBINADO ---
+  const profesoresFiltrados = profesores.filter(prof => {
+    const coincideBusqueda = prof.email.toLowerCase().includes(busqueda.toLowerCase());
+    
+    // Si el filtro es "todos", pasa. Si no, debe coincidir con el tipo_tutor del profesor.
+    // Manejamos el caso en que tipo_tutor sea null/undefined para profesores antiguos.
+    const tipoReal = prof.tipo_tutor || "no_especificado"; 
+    const coincideTipo = filtroTipo === "todos" || tipoReal === filtroTipo;
+
+    return coincideBusqueda && coincideTipo;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         
         {/* BOTÓN VOLVER */}
         <button 
@@ -87,25 +109,63 @@ export default function ListaProfesores() {
 
           <div className="space-y-8">
             
-            {/* BARRA DE ACCIONES (Buscador + Botón Nuevo) */}
-            <section className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-200 flex items-center gap-3 focus-within:border-ufv-azul focus-within:ring-2 focus-within:ring-blue-50 transition-all">
-                <Search className="w-5 h-5 text-gray-400 ml-2" />
-                <input 
-                  type="text" 
-                  placeholder="Buscar tutor por correo electrónico..." 
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="flex-1 bg-transparent outline-none border-none text-gray-700 placeholder:text-gray-400"
-                />
-              </div>
+            {/* BARRA DE ACCIONES Y FILTROS */}
+            <section className="flex flex-col xl:flex-row gap-4 w-full">
               
-              <button 
-                onClick={() => router.push("/admin/profesores/nuevo")} 
-                className="bg-ufv-azul text-white px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro active:scale-95 transition-all shadow-sm shrink-0"
-              >
-                <UserPlus className="w-5 h-5" /> Nuevo Tutor
-              </button>
+              {/* GRUPO 1: BÚSQUEDA Y FILTRO */}
+              <div className="flex flex-col md:flex-row gap-4 flex-1">
+                
+                {/* Buscador */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar tutor por correo electrónico..." 
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="w-full pl-12 pr-4 h-14 bg-gray-50 border border-gray-200 rounded-2xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul focus:bg-white outline-none transition-all text-gray-700 font-medium shadow-sm"
+                  />
+                </div>
+
+                {/* Filtro Desplegable */}
+                <div className="relative w-full md:w-64 shrink-0">
+                  <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <select 
+                    value={filtroTipo} 
+                    onChange={(e) => setFiltroTipo(e.target.value)} 
+                    className="w-full pl-12 pr-10 h-14 bg-gray-50 border border-gray-200 rounded-2xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none appearance-none transition-all text-gray-700 font-bold cursor-pointer shadow-sm"
+                  >
+                    <option value="todos">Todos los roles</option>
+                    <option value="hospital">Tutor Hospital</option>
+                    <option value="universidad">Tutor Universidad</option>
+                  </select>
+                  {/* Flechita personalizada para el select */}
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
+                
+              </div>
+
+              {/* GRUPO 2: BOTONES DE ACCIÓN */}
+              <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+                <button 
+                  onClick={() => router.push("/admin/profesores/nuevo?tipo=hospital")} 
+                  className="h-14 px-6 bg-ufv-azul text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm"
+                >
+                  <Briefcase className="w-5 h-5 shrink-0" />
+                  <span className="whitespace-nowrap">+ Tutor Hospital</span>
+                </button>
+
+                <button 
+                  onClick={() => router.push("/admin/profesores/nuevo?tipo=universidad")} 
+                  className="h-14 px-6 bg-ufv-azul text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm"
+                >
+                  <GraduationCap className="w-5 h-5 shrink-0" />
+                  <span className="whitespace-nowrap">+ Tutor UFV</span>
+                </button>
+              </div>
+
             </section>
 
             {/* LISTA DE USUARIOS */}
@@ -122,8 +182,10 @@ export default function ListaProfesores() {
                     <p className="font-medium text-sm">Cargando profesores...</p>
                   </div>
                 ) : profesoresFiltrados.length === 0 ? (
-                  <div className="text-center p-12 text-gray-500 font-medium">
-                    {busqueda ? "No hay profesores que coincidan con la búsqueda." : "No hay profesores registrados."}
+                  <div className="text-center p-12 text-gray-500 font-medium bg-gray-50/50">
+                    {busqueda || filtroTipo !== "todos" 
+                      ? "No hay tutores que coincidan con los filtros actuales." 
+                      : "No hay profesores registrados."}
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
@@ -135,9 +197,23 @@ export default function ListaProfesores() {
                             {profesor.email.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-gray-800 text-lg">{profesor.email}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
+                            <p className="font-bold text-gray-800 text-lg leading-tight">{profesor.email}</p>
+                            
+                            {/* --- NUEVO: ETIQUETA VISUAL DEL ROL --- */}
+                            <div className="flex items-center gap-2 mt-1.5">
+                              {profesor.tipo_tutor === "universidad" ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-blue-100 text-ufv-azul border border-blue-200">
+                                  <GraduationCap className="w-3.5 h-3.5" /> Tutor Universidad 
+                                </span>
+                              ) : profesor.tipo_tutor === "hospital" && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-pink-100 text-ufv-rosa-oscuro border border-pink-200">
+                                  <Briefcase className="w-3.5 h-3.5" /> Tutor Hospital 
+                                </span>
+                              )}
                             </div>
+                            {/* -------------------------------------- */}
+
+
                           </div>
                         </div>
                         
