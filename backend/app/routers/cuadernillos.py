@@ -321,12 +321,13 @@ def descargar_pdf_evaluacion_desde_cero(
         )
     )
     story.append(Spacer(1, 20))
+    centro_real = rotacion.centro_practicas if rotacion.centro_practicas else "No especificado"
 
     # --- CAMBIO: AÑADIMOS AMBOS TUTORES A LA PORTADA ---
     datos_portada = [
         ["Nombre:", nombre_real],
         ["Apellidos:", apellidos_real],
-        ["Centro de prácticas:", ""],
+        ["Centro de prácticas:", centro_real],
         [
             Paragraph("<b>Unidad de prácticas:</b>", normal_style),
             f"{nombre_especialidad}",

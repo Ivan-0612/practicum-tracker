@@ -80,6 +80,7 @@ def obtener_mis_alumnos(
                 "completada": rotacion.completada,
                 "codigo_anonimo": alumno.codigo_anonimo,
                 "estado_evaluacion": estado,
+                "centro_practicas": rotacion.centro_practicas,
                 "periodo_academico": rotacion.periodo_academico,
                 # --- NUEVO: ENVIAMOS EL ROL ESPECÍFICO PARA ESTA ROTACIÓN ---
                 "mi_rol": asig.tipo_tutor 

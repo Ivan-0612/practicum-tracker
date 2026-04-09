@@ -93,6 +93,7 @@ def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db))
         curso=alumno_in.curso,
         numero_rotacion=alumno_in.numero_rotacion,
         periodo_academico=alumno_in.periodo_academico,
+        centro_practicas=alumno_in.centro_practicas,
     )
     db.add(nueva_rotacion)
     db.flush()
@@ -173,6 +174,7 @@ def obtener_mi_evaluacion(
                     r.numero_rotacion if r.numero_rotacion else alumno.numero_rotacion
                 ),
                 "especialidad": nombre_especialidad,
+                "centro_practicas": r.centro_practicas,
                 "completada": r.completada,
                 "tutores": tutores_dict,  # <-- AHORA ES UN DICCIONARIO
                 "periodo_academico": r.periodo_academico,
@@ -237,6 +239,7 @@ def listar_alumnos_por_email(
                         if rot.especialidad
                         else "Sin especialidad"
                     ),
+                    "centro_practicas": rot.centro_practicas,
                     "tutores": tutores_dict,  # <-- AHORA ES UN DICCIONARIO
                     "periodo_academico": rot.periodo_academico,
                 }
@@ -323,6 +326,7 @@ def asignar_rotacion_adicional(
         curso=datos.curso,
         numero_rotacion=datos.numero_rotacion,
         periodo_academico=datos.periodo_academico,
+        centro_practicas=datos.centro_practicas,
     )
     db.add(nueva_rotacion)
     db.flush()

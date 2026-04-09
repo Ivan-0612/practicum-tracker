@@ -7,7 +7,7 @@ import Image from "next/image";
 import ModalNuevaRotacion from "@/components/ModalNuevaRotacion";
 import { 
   Trash2, Mail, GraduationCap, ChevronLeft, Filter, 
-  Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp 
+  Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp, Building
 } from "lucide-react";
 
 interface RotacionInfo {
@@ -16,6 +16,7 @@ interface RotacionInfo {
   numero_rotacion: number;
   especialidad: string; 
   periodo_academico?: string;
+  centro_practicas?: string;
   tutores: {
     hospital: string;
     universidad: string;
@@ -267,6 +268,12 @@ export default function ListaAlumnosAdmin() {
                                           </span>
                                           
                                           <div className="flex flex-col gap-0.5 mt-1">
+                                            {/* --- NUEVO: MOSTRAR CENTRO DE PRÁCTICAS --- */}
+                                            <span className="text-xs text-gray-500 font-medium mb-1 flex items-center gap-1">
+                                              <Building className="w-3.5 h-3.5 text-gray-400" />
+                                              <b className="text-gray-700">Centro:</b> {rot.centro_practicas || "No especificado"}
+                                            </span>
+                                            {/* ------------------------------------------ */}
                                             <span className="text-xs text-gray-500 font-medium">
                                               <b className="text-gray-700">Hospital:</b> {rot.tutores.hospital || "No asignado"}
                                             </span>

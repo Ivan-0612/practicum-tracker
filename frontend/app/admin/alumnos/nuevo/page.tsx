@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { ChevronLeft, User, GraduationCap, Briefcase, KeyRound, Save, AlertCircle, CheckCircle2, Calendar } from "lucide-react";
+import { ChevronLeft, User, GraduationCap, Briefcase, KeyRound, Save, AlertCircle, CheckCircle2, Calendar, Building } from "lucide-react";
 
 // --- LÓGICA DINÁMICA DE AÑOS ACADÉMICOS ---
 const obtenerPeriodoActual = () => {
@@ -47,7 +47,8 @@ export default function NuevoAlumno() {
     email_tutor_universidad: "",
     numero_rotacion: 1,
     especialidad_id: "", 
-    periodo_academico: obtenerPeriodoActual() // <-- Automático para este año
+    periodo_academico: obtenerPeriodoActual(), // <-- Automático para este año
+    centro_practicas: ""
   });
   
   const [mensaje, setMensaje] = useState({ tipo: "", texto: "" });
@@ -220,7 +221,6 @@ export default function NuevoAlumno() {
                   </select>
                 </div>
 
-                {/* --- NUEVO DESPLEGABLE DINÁMICO: AÑO ACADÉMICO --- */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-gray-500" /> Año Académico</label>
                   <select 
@@ -235,6 +235,21 @@ export default function NuevoAlumno() {
                 </div>
 
               </div>
+
+              {/* --- NUEVO CAMPO: CENTRO DE PRÁCTICAS --- */}
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                  <Building className="w-4 h-4 text-gray-500" /> Centro de Prácticas (Hospital/Clínica)
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="Ej: Hospital Universitario La Paz" 
+                  required 
+                  className="w-full border border-gray-300 p-3 rounded-xl bg-white focus:border-ufv-azul outline-none" 
+                  onChange={e => setFormData({...formData, centro_practicas: e.target.value})} 
+                />
+              </div>
+              {/* -------------------------------------- */}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200">
                 <div>

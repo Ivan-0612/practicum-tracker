@@ -18,6 +18,7 @@ interface AlumnoAsignado {
   estado_evaluacion: string;
   mi_rol: string; 
   periodo_academico: string;
+  centro_practicas?: string;
 }
 
 export default function ProfesorDashboard() {
@@ -210,6 +211,12 @@ export default function ProfesorDashboard() {
         <h3 className="text-xl font-black text-ufv-azul-oscuro mb-1 group-hover:text-ufv-azul transition-colors">{item.nombre_completo}</h3>
         <p className="text-xs font-bold text-gray-500 mb-3">{item.especialidad} (Rotación {item.numero_rotacion})</p>
         <div className="mt-4 space-y-3">
+          <div className="flex items-center text-sm text-gray-500 font-medium">
+            <Briefcase className="w-4 h-4 mr-3 text-ufv-rosa-oscuro shrink-0" />
+            <span className="truncate text-gray-700" title={item.centro_practicas || "Centro clínico no especificado"}>
+              {item.centro_practicas || "Centro no especificado"}
+            </span>
+          </div>
           <div className="flex items-center text-sm text-gray-500 font-medium">
             <Mail className="w-4 h-4 mr-3 text-gray-400" />
             <span className="truncate" title={item.email}>{item.email}</span>

@@ -63,6 +63,7 @@ class AlumnoBase(BaseModel):
     email_tutor_hospital: EmailStr
     email_tutor_universidad: EmailStr
     # ----------------------------------------
+    centro_practicas: str
 
     numero_rotacion: int = 1
     periodo_academico: str = "2025/2026"
@@ -104,12 +105,13 @@ class RotacionCreate(RotacionBase):
     email_tutor_hospital: EmailStr
     email_tutor_universidad: EmailStr
     # ----------------------------------------
-
+    centro_practicas: str
 
 class RotacionResponse(RotacionBase):
     id: UUID
     alumno_id: UUID
     especialidad_id: Optional[UUID]
+    centro_practicas: Optional[str]
     fecha_fin: Optional[date]
     completada: bool
 

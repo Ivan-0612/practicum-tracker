@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X } from "lucide-react";
+import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X, Building } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -145,6 +145,13 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                         </span>
                       </div>
                       {/* ------------------------------------------------ */}
+
+                      {/* --- NUEVO: MOSTRAR CENTRO DE PRÁCTICAS --- */}
+                      <div className="flex items-center gap-2 mt-3 text-sm font-bold text-gray-600">
+                        <Building className="w-4 h-4 text-ufv-rosa-oscuro shrink-0" />
+                        <span className="truncate">{rot.centro_practicas || "Centro clínico no especificado"}</span>
+                      </div>
+                      {/* ---------------------------------------- */}
 
                     </div>
                   </div>

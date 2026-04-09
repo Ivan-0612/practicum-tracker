@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Cookies from "js-cookie";
-import { X, Briefcase, GraduationCap, Loader2, Save, AlertCircle, Calendar } from "lucide-react";
+import { X, Briefcase, GraduationCap, Loader2, Save, AlertCircle, Calendar, Building } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -47,6 +47,7 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
     especialidad_id: "",
     email_tutor_hospital: "",
     email_tutor_universidad: "",
+    centro_practicas: "",
     periodo_academico: obtenerPeriodoActual(), // <-- Valor automático
   });
 
@@ -61,6 +62,7 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
         especialidad_id: "",
         email_tutor_hospital: "",
         email_tutor_universidad: "",
+        centro_practicas: "",
         periodo_academico: obtenerPeriodoActual(),
       });
       setError("");
@@ -179,6 +181,19 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
               {especialidades.map(esp => <option key={esp.id} value={esp.id}>{esp.nombre}</option>)}
             </select>
           </div>
+
+          {/* --- NUEVO CAMPO: CENTRO DE PRÁCTICAS --- */}
+            <div>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Building className="w-4 h-4" /> Centro de Prácticas</label>
+              <input 
+                type="text" 
+                required 
+                placeholder="Ej: Hospital Universitario La Paz" 
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul outline-none" 
+                value={formData.centro_practicas} 
+                onChange={(e) => setFormData({...formData, centro_practicas: e.target.value})} 
+              />
+            </div>
 
           <div className="pt-4 border-t border-gray-100 space-y-5">
             <div>
