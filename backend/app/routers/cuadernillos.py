@@ -126,8 +126,21 @@ def obtener_molde_cuadernillo(
     )
     
     tutores = []
+    tutor_hospital_email = None
+    tutor_universidad_email = None
     for asig in asignaciones:
         tutores.append(asig.tutor.email)
+        tipo_tutor = (
+            (asig.tipo_tutor or "")
+            or (getattr(asig.tutor, "tipo_tutor", "") if asig.tutor else "")
+        )
+        tipo_tutor = tipo_tutor.strip().lower()
+
+        if "hosp" in tipo_tutor:
+            tutor_hospital_email = asig.tutor.email if asig.tutor else None
+        elif "uni" in tipo_tutor:
+            tutor_universidad_email = asig.tutor.email if asig.tutor else None
+
         if current_user.rol == "profesor" and asig.tutor_id == current_user.id:
             # Nos curamos en salud por si pusiste el campo en Usuario o AsignacionTutor
             tipo = getattr(asig, "tipo_tutor", None) or getattr(asig.tutor, "tipo_tutor", None)
@@ -151,6 +164,8 @@ def obtener_molde_cuadernillo(
         "borrador": borrador,
         "rotacion_completada": rotacion.completada,
         "es_tutor_universidad": es_tutor_universidad,
+        "tutor_hospital_email": tutor_hospital_email,
+        "tutor_universidad_email": tutor_universidad_email,
         "tutores": tutores,
     }
 

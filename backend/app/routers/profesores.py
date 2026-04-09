@@ -65,6 +65,29 @@ def obtener_mis_alumnos(
             else "Sin especialidad"
         )
 
+        asignaciones_rotacion = (
+            db.query(models.AsignacionTutor)
+            .filter(models.AsignacionTutor.rotacion_id == rotacion.id)
+            .all()
+        )
+        tutor_hospital_email = None
+        tutor_universidad_email = None
+        for asignacion_rot in asignaciones_rotacion:
+            email_tutor = asignacion_rot.tutor.email if asignacion_rot.tutor else None
+
+            # Compatibilidad con datos antiguos: usamos el tipo de la asignacion o, si falta,
+            # el tipo guardado en el perfil del tutor, normalizando formato.
+            tipo_tutor = (
+                (asignacion_rot.tipo_tutor or "")
+                or (getattr(asignacion_rot.tutor, "tipo_tutor", "") if asignacion_rot.tutor else "")
+            )
+            tipo_tutor = tipo_tutor.strip().lower()
+
+            if "hosp" in tipo_tutor:
+                tutor_hospital_email = email_tutor
+            elif "uni" in tipo_tutor:
+                tutor_universidad_email = email_tutor
+
         resultado.append(
             {
                 "rotacion_id": str(rotacion.id),
@@ -82,6 +105,8 @@ def obtener_mis_alumnos(
                 "estado_evaluacion": estado,
                 "centro_practicas": rotacion.centro_practicas,
                 "periodo_academico": rotacion.periodo_academico,
+                "tutor_hospital_email": tutor_hospital_email,
+                "tutor_universidad_email": tutor_universidad_email,
                 # --- NUEVO: ENVIAMOS EL ROL ESPECÍFICO PARA ESTA ROTACIÓN ---
                 "mi_rol": asig.tipo_tutor 
             }

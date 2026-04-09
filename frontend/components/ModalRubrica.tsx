@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { X, BookOpen, FileJson, AlertCircle, Tag, Clapperboard, Loader2 } from "lucide-react";
+import { X, BookOpen, FileJson, AlertCircle, Tag, Clapperboard, Loader2, Download } from "lucide-react";
 
 interface ModalRubricaProps {
   isOpen: boolean;
@@ -39,29 +39,10 @@ const RenderizadorEvaluacionCompacta = ({ data }: { data: any }) => {
       <div className="bg-ufv-azul-oscuro p-5 rounded-2xl text-white shadow-md relative overflow-hidden">
         <div className="absolute -right-10 -top-10 opacity-10"><FileJson className="w-40 h-40" /></div>
         <div className="relative z-10">
-          <div className="flex gap-2 mb-2">
-            <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">Versión {data.version}</span>
-            <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">Curso {data.curso_academico}</span>
-          </div>
           <h2 className="text-xl font-black">{data.titulo_rotacion}</h2>
-          <p className="text-sm text-blue-100 font-medium mt-1">Curso {data.curso}º - Rotación {data.rotacion}</p>
         </div>
       </div>
 
-      {/* Leyenda/Niveles */}
-      {data.niveles && (
-        <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl">
-          <h3 className="text-xs font-black text-ufv-azul uppercase tracking-widest mb-3 flex items-center gap-2"><Tag className="w-4 h-4" /> Leyenda de Evaluación</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {Object.entries(data.niveles).map(([key, descripcion]) => (
-              <div key={key} className="bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm flex items-start gap-3">
-                <div className="bg-ufv-azul text-white font-black w-6 h-6 rounded flex items-center justify-center shrink-0 text-sm">{key}</div>
-                <p className="text-[11px] text-gray-600 font-medium leading-snug">{String(descripcion)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Bloque NIC (Actividades) */}
       {data.bloque_sinon && data.bloque_sinon.elementos && (
@@ -119,6 +100,7 @@ export default function ModalRubrica({
   const [nombreActual, setNombreActual] = useState(especialidadNombre);
   const [isLoadingMolde, setIsLoadingMolde] = useState(false);
   const [errorMolde, setErrorMolde] = useState("");
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -171,6 +153,36 @@ export default function ModalRubrica({
     }
   };
 
+  const descargarManualPdf = async () => {
+    const pdfUrl = process.env.NEXT_PUBLIC_SUPABASE_PDF_URL;
+    if (!pdfUrl) {
+      alert("No hay URL de manual configurada.");
+      return;
+    }
+
+    try {
+      setIsDownloadingPdf(true);
+      const res = await fetch(pdfUrl);
+      if (!res.ok) {
+        throw new Error("No se pudo descargar el PDF");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Manual_ECOEnf.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("No se pudo descargar el PDF del manual.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -188,19 +200,31 @@ export default function ModalRubrica({
         </div>
 
         <div className="flex border-b border-gray-200 bg-white shrink-0 px-6 pt-4">
-          <button onClick={() => setActiveTab("pdf")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "pdf" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}><BookOpen className="w-4 h-4" /> Criterios ECOEnf (PDF)</button>
-          <button onClick={() => setActiveTab("molde")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "molde" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}><Clapperboard className="w-4 h-4" /> Vista Previa Especialidad</button>
+          <button onClick={() => setActiveTab("pdf")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "pdf" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}><BookOpen className="w-4 h-4" /> Introducción</button>
+          <button onClick={() => setActiveTab("molde")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "molde" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}><Clapperboard className="w-4 h-4" /> Especialidades</button>
         </div>
 
         <div className="p-6 md:p-8 overflow-y-auto flex-grow bg-gray-50">
           {activeTab === "pdf" && (
-            <div className="h-full w-full rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-200">
-              {/* SUSTITUYE ESTE SRC CON TU URL DE SUPABASE */}
-              <iframe 
-                src={`${process.env.NEXT_PUBLIC_SUPABASE_PDF_URL}#toolbar=0`}
-                className="w-full h-full min-h-[600px]"
-                title="Manual PDF"
-              />
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <button
+                  onClick={descargarManualPdf}
+                  disabled={isDownloadingPdf}
+                  className="inline-flex items-center gap-2 bg-ufv-azul-oscuro text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-ufv-azul transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDownloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {isDownloadingPdf ? "Descargando..." : "Descargar PDF"}
+                </button>
+              </div>
+
+              <div className="h-full w-full rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-200">
+                <iframe 
+                  src={`${process.env.NEXT_PUBLIC_SUPABASE_PDF_URL}#toolbar=0`}
+                  className="w-full h-full min-h-[600px]"
+                  title="Manual PDF"
+                />
+              </div>
             </div>
           )}
 

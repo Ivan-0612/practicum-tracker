@@ -17,6 +17,8 @@ interface AlumnoAsignado {
   alumno_id: string;
   nombre_completo: string;
   email: string;
+  tutor_hospital_email?: string;
+  tutor_universidad_email?: string;
   curso: number;
   grupo: string;
   numero_rotacion: number; 
@@ -281,6 +283,18 @@ export default function ProfesorDashboard() {
           <div className="flex items-center text-sm text-gray-500 font-medium">
             <Mail className="w-4 h-4 mr-3 text-gray-400" />
             <span className="truncate" title={item.email}>{item.email}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500 font-medium">
+            <Mail className="w-4 h-4 mr-3 text-gray-400" />
+            <span className="truncate" title={item.tutor_hospital_email || "Sin tutor hospital"}>
+              Tutor hospital: {item.tutor_hospital_email || "Sin asignar"}
+            </span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500 font-medium">
+            <Mail className="w-4 h-4 mr-3 text-gray-400" />
+            <span className="truncate" title={item.tutor_universidad_email || "Sin tutor universidad"}>
+              Tutor universidad: {item.tutor_universidad_email || "Sin asignar"}
+            </span>
           </div>
         </div>
       </div>
