@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, Sora } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-main",
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-heading",
+});
 
 export const metadata: Metadata = {
   title: "Portal UFV - Prácticas",
@@ -16,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${inter.className} bg-gray-50 text-gray-900 min-h-screen flex flex-col`}>
+      <body className={`${plusJakartaSans.variable} ${sora.variable} ${plusJakartaSans.className} bg-gray-50 text-gray-900 min-h-screen flex flex-col`}>
         {/* Solo dejamos el main para que renderice tus páginas sin estorbar */}
         <main className="flex-grow flex flex-col w-full">
           {children}

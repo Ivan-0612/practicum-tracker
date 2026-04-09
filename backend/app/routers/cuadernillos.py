@@ -25,6 +25,55 @@ from reportlab.platypus import (
 router = APIRouter(prefix="/api/v1/cuadernillos", tags=["Cuadernillos"])
 
 
+@router.get("/especialidades")
+def listar_especialidades_cuadernillo(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol not in ["profesor", "estudiante", "admin"]:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    especialidades = db.query(models.Especialidad).order_by(models.Especialidad.nombre.asc()).all()
+
+    return [
+        {
+            "id": str(especialidad.id),
+            "nombre": especialidad.nombre,
+        }
+        for especialidad in especialidades
+    ]
+
+
+@router.get("/molde-especialidad/{especialidad_id}")
+def obtener_molde_por_especialidad(
+    especialidad_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol not in ["profesor", "estudiante", "admin"]:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+
+    if not especialidad.contenido_json:
+        raise HTTPException(
+            status_code=404,
+            detail="El contenido del cuadernillo esta vacio en la base de datos",
+        )
+
+    return {
+        "id": str(especialidad.id),
+        "especialidad": especialidad.nombre,
+        "molde": especialidad.contenido_json,
+    }
+
+
 @router.get("/molde/{rotacion_id}")
 def obtener_molde_cuadernillo(
     rotacion_id: str,

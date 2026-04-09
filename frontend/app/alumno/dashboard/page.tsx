@@ -5,6 +5,13 @@ import Cookies from "js-cookie";
 import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X, Building } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import ModalRubrica from "@/components/ModalRubrica";
+
+interface EspecialidadDisponible {
+  nombre: string;
+  especialidadId?: string;
+  rotacionId?: string;
+}
 
 export default function AlumnoDashboard() {
   const router = useRouter();
@@ -15,9 +22,13 @@ export default function AlumnoDashboard() {
   const [showPassModal, setShowPassModal] = useState(false);
   const [passFormData, setPassFormData] = useState({ actual: "", nueva: "", confirmar: "" });
   const [passStatus, setPassStatus] = useState({ type: "", msg: "" });
+  const [isRubricaOpen, setIsRubricaOpen] = useState(false);
+  const [rubricaActual, setRubricaActual] = useState({ nombre: "", molde: null });
+  const [especialidadesSistema, setEspecialidadesSistema] = useState<EspecialidadDisponible[]>([]);
 
   useEffect(() => {
     cargarDatos();
+    cargarEspecialidadesSistema();
   }, []);
 
   const cargarDatos = async () => {
@@ -32,6 +43,46 @@ export default function AlumnoDashboard() {
       console.error("Error al cargar dashboard", error);
     } finally { 
       setLoading(false); 
+    }
+  };
+
+  const cargarEspecialidadesSistema = async () => {
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cuadernillos/especialidades`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setEspecialidadesSistema(data.map((esp: any) => ({
+          nombre: esp.nombre,
+          especialidadId: esp.id,
+        })));
+      }
+    } catch (error) {
+      console.error("Error cargando especialidades", error);
+    }
+  };
+
+  const abrirManualRubrica = async (rotacionId: string, especialidadNombre: string) => {
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cuadernillos/molde/${rotacionId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRubricaActual({ nombre: especialidadNombre, molde: data.molde });
+        setIsRubricaOpen(true);
+      } else {
+        setRubricaActual({ nombre: especialidadNombre, molde: null });
+        setIsRubricaOpen(true);
+      }
+    } catch (error) {
+      console.error("Error al cargar la rúbrica", error);
+      setRubricaActual({ nombre: especialidadNombre, molde: null });
+      setIsRubricaOpen(true);
     }
   };
 
@@ -89,6 +140,21 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
 
   if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse">Cargando tu expediente...</div>;
 
+  const especialidadesDesdeRotaciones = Array.from(
+    new Map<string, EspecialidadDisponible>(
+      (datos?.rotaciones || []).map((rot: any) => [
+        rot.especialidad,
+        {
+          nombre: rot.especialidad,
+          rotacionId: rot.id,
+        },
+      ])
+    ).values()
+  ).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const especialidadesDisponibles = especialidadesSistema.length > 0 ? especialidadesSistema : especialidadesDesdeRotaciones;
+  const puedeAbrirRubrica = especialidadesDisponibles.length > 0;
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto pb-20">
@@ -104,11 +170,29 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                if (!puedeAbrirRubrica) return;
+                const primeraRotacion = (datos?.rotaciones || [])[0];
+                if (primeraRotacion?.id && primeraRotacion?.especialidad) {
+                  void abrirManualRubrica(primeraRotacion.id, primeraRotacion.especialidad);
+                  return;
+                }
+
+                setRubricaActual({ nombre: especialidadesDisponibles[0]?.nombre || "", molde: null });
+                setIsRubricaOpen(true);
+              }}
+              disabled={!puedeAbrirRubrica}
+              title={puedeAbrirRubrica ? "Abrir criterios y rúbrica" : "No hay especialidades disponibles"}
+              className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl font-bold border border-indigo-200 hover:bg-indigo-100 transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <BookOpen className="w-4 h-4"/> Criterios y Rúbrica
+            </button>
             <button onClick={() => setShowPassModal(true)} className="flex items-center gap-2 bg-white text-ufv-azul px-4 py-2.5 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm active:scale-95">
               <Lock className="w-4 h-4"/> Cambiar Contraseña
             </button>
             <button onClick={() => { Cookies.remove("practicum_token"); router.push("/login"); }} className="flex items-center gap-2 bg-white text-red-600 px-4 py-2.5 rounded-xl font-bold border border-red-200 hover:bg-red-50 transition-all shadow-sm active:scale-95">
-              <LogOut className="w-4 h-4"/> Salir
+              <LogOut className="w-4 h-4"/> Cerrar Sesión
             </button>
           </div>
         </div>
@@ -199,6 +283,15 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
           })}
         </div>
       </div>
+
+      <ModalRubrica
+        isOpen={isRubricaOpen}
+        onClose={() => setIsRubricaOpen(false)}
+        especialidadNombre={rubricaActual.nombre}
+        moldeEspecialidad={rubricaActual.molde}
+        especialidadesDisponibles={especialidadesDisponibles}
+        especialidadInicial={rubricaActual.nombre || especialidadesDisponibles[0]?.nombre}
+      />
 
       {/* MODAL DE CAMBIO DE CONTRASEÑA */}
       {showPassModal && (

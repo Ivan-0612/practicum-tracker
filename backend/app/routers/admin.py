@@ -45,7 +45,7 @@ async def crear_especialidad(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
-    if current_user.rol != "admin":
+    if current_user.rol not in ["admin", "profesor"]:
         raise HTTPException(status_code=403, detail="No autorizado")
 
     if not file.filename.endswith(".json"):
