@@ -42,6 +42,7 @@ class EspecialidadCreate(EspecialidadBase):
 class EspecialidadResponse(EspecialidadBase):
     id: UUID
     creado_en: datetime
+    plantilla_excel_storage_path: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -85,6 +86,48 @@ class AlumnoResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ImportAlumnoError(BaseModel):
+    fila: int
+    email_acceso: Optional[EmailStr] = None
+    motivo: str
+
+
+class ImportAlumnoOk(BaseModel):
+    fila: int
+    email_acceso: EmailStr
+    alumno_id: UUID
+
+
+class ImportAlumnosResponse(BaseModel):
+    total_filas: int
+    creados: int
+    duplicados: int
+    fallidos: int
+    creados_detalle: List[ImportAlumnoOk]
+    fallos: List[ImportAlumnoError]
+
+
+class ImportRotacionError(BaseModel):
+    fila: int
+    email_alumno: Optional[EmailStr] = None
+    motivo: str
+
+
+class ImportRotacionOk(BaseModel):
+    fila: int
+    email_alumno: EmailStr
+    rotacion_id: UUID
+
+
+class ImportRotacionesResponse(BaseModel):
+    total_filas: int
+    creados: int
+    duplicados: int
+    fallidos: int
+    creados_detalle: List[ImportRotacionOk]
+    fallos: List[ImportRotacionError]
 
 
 # ==========================================

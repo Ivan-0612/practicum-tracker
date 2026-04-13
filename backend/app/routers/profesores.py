@@ -51,8 +51,12 @@ def obtener_mis_alumnos(
             is not None
         )
 
+        hospital_finalize_count = rotacion.hospital_finalize_count or 0
+
         if rotacion.completada:
             estado = "Completada"
+        elif hospital_finalize_count == 1:
+            estado = "Pendiente Confirmación Final"
         elif tiene_respuestas:
             estado = "En Proceso"
         else:
@@ -103,6 +107,7 @@ def obtener_mis_alumnos(
                 "completada": rotacion.completada,
                 "codigo_anonimo": alumno.codigo_anonimo,
                 "estado_evaluacion": estado,
+                "hospital_finalize_count": hospital_finalize_count,
                 "centro_practicas": rotacion.centro_practicas,
                 "periodo_academico": rotacion.periodo_academico,
                 "tutor_hospital_email": tutor_hospital_email,

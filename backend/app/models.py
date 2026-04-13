@@ -80,9 +80,33 @@ class Especialidad(Base):
 
     # --- CAMBIO AQUÍ: Ahora guardamos el JSON directamente ---
     contenido_json = Column(JSON, nullable=False)
+    plantilla_excel_storage_path = Column(String, nullable=True)
 
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
     rotaciones = relationship("Rotacion", back_populates="especialidad")
+
+
+class PlantillaExcelMappingGlobal(Base):
+    __tablename__ = "plantilla_excel_mapping_global"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Almacena el mapping único compartido por TODAS las especialidades
+    # Estructura: { "indicador_id": "EVALUACION!B86", ... }
+    mapping_json = Column(JSON, nullable=False, default={})
+    
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+    actualizado_en = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class UnidadesCompetenciaGlobal(Base):
+    __tablename__ = "unidades_competencia_global"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Estructura: {"apartados": [...], "niveles": {...}}
+    uc_json = Column(JSON, nullable=False, default={})
+
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+    actualizado_en = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Rotacion(Base):
@@ -104,6 +128,11 @@ class Rotacion(Base):
     fecha_inicio = Column(Date, nullable=True)
     fecha_fin = Column(Date, nullable=True)
     completada = Column(Boolean, default=False)
+    hospital_finalize_count = Column(Integer, nullable=False, default=0)
+    hospital_first_finalized_at = Column(DateTime(timezone=True), nullable=True)
+    hospital_second_finalized_at = Column(DateTime(timezone=True), nullable=True)
+    final_grade_text = Column(String, nullable=True)
+    final_grade_calculated_at = Column(DateTime(timezone=True), nullable=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     alumno = relationship("Alumno", back_populates="rotaciones")

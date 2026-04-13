@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from . import models
 from .routers import auth, alumnos, admin, profesores, cuadernillos
+from sqlalchemy import text
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -10,6 +11,23 @@ from slowapi.errors import RateLimitExceeded
 
 # Esta línea le dice a SQLAlchemy que cree las tablas en Supabase
 Base.metadata.create_all(bind=engine)
+
+
+def aplicar_migraciones_ligeras():
+    stmts = [
+        "ALTER TABLE especialidades ADD COLUMN IF NOT EXISTS plantilla_excel_storage_path VARCHAR",
+        "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS hospital_finalize_count INTEGER DEFAULT 0 NOT NULL",
+        "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS hospital_first_finalized_at TIMESTAMPTZ",
+        "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS hospital_second_finalized_at TIMESTAMPTZ",
+        "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS final_grade_text VARCHAR",
+        "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS final_grade_calculated_at TIMESTAMPTZ",
+    ]
+    with engine.begin() as conn:
+        for stmt in stmts:
+            conn.execute(text(stmt))
+
+
+aplicar_migraciones_ligeras()
 
 app = FastAPI(
     title="Practicum Tracker API",

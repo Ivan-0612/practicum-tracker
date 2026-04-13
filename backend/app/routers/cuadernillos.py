@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import or_  
@@ -21,8 +22,39 @@ from reportlab.platypus import (
     TableStyle,
     PageBreak,
 )
+from ..utils.email_utils import (
+    enviar_aviso_cierre_alumno_email,
+    enviar_nota_final_email,
+)
+from ..utils.excel_utils import generar_excel_evaluado
+from ..utils.mapping_global_utils import ensure_global_mapping
+from ..utils.especialidad_json_utils import compose_molde_with_global_nic
+from ..utils.unidades_competencia_global_utils import ensure_global_uc
 
 router = APIRouter(prefix="/api/v1/cuadernillos", tags=["Cuadernillos"])
+
+
+def _get_tutores_por_tipo(db: Session, rotacion_id: str):
+    asignaciones = (
+        db.query(models.AsignacionTutor)
+        .filter(models.AsignacionTutor.rotacion_id == rotacion_id)
+        .all()
+    )
+    tutor_hospital_email = None
+    tutor_universidad_email = None
+
+    for asig in asignaciones:
+        tipo_tutor = (
+            (asig.tipo_tutor or "")
+            or (getattr(asig.tutor, "tipo_tutor", "") if asig.tutor else "")
+        )
+        tipo_tutor = tipo_tutor.strip().lower()
+        if "hosp" in tipo_tutor:
+            tutor_hospital_email = asig.tutor.email if asig.tutor else None
+        elif "uni" in tipo_tutor:
+            tutor_universidad_email = asig.tutor.email if asig.tutor else None
+
+    return tutor_hospital_email, tutor_universidad_email, asignaciones
 
 
 @router.get("/especialidades")
@@ -67,10 +99,17 @@ def obtener_molde_por_especialidad(
             detail="El contenido del cuadernillo esta vacio en la base de datos",
         )
 
+    uc_global = ensure_global_uc(db)
+    molde = compose_molde_with_global_nic(
+        especialidad.nombre,
+        especialidad.contenido_json,
+        uc_global,
+    )
+
     return {
         "id": str(especialidad.id),
         "especialidad": especialidad.nombre,
-        "molde": especialidad.contenido_json,
+        "molde": molde,
     }
 
 
@@ -95,7 +134,12 @@ def obtener_molde_cuadernillo(
             status_code=400, detail="Esta rotación no tiene especialidad asignada"
         )
 
-    molde_json = rotacion.especialidad.contenido_json
+    uc_global = ensure_global_uc(db)
+    molde_json = compose_molde_with_global_nic(
+        rotacion.especialidad.nombre,
+        rotacion.especialidad.contenido_json,
+        uc_global,
+    )
 
     if not molde_json:
         raise HTTPException(
@@ -119,27 +163,13 @@ def obtener_molde_cuadernillo(
 
     # Obtenemos las asignaciones y comprobamos si es tutor de universidad
     es_tutor_universidad = False
-    asignaciones = (
-        db.query(models.AsignacionTutor)
-        .filter(models.AsignacionTutor.rotacion_id == rotacion.id)
-        .all()
+    tutor_hospital_email, tutor_universidad_email, asignaciones = _get_tutores_por_tipo(
+        db, rotacion.id
     )
-    
+
     tutores = []
-    tutor_hospital_email = None
-    tutor_universidad_email = None
     for asig in asignaciones:
         tutores.append(asig.tutor.email)
-        tipo_tutor = (
-            (asig.tipo_tutor or "")
-            or (getattr(asig.tutor, "tipo_tutor", "") if asig.tutor else "")
-        )
-        tipo_tutor = tipo_tutor.strip().lower()
-
-        if "hosp" in tipo_tutor:
-            tutor_hospital_email = asig.tutor.email if asig.tutor else None
-        elif "uni" in tipo_tutor:
-            tutor_universidad_email = asig.tutor.email if asig.tutor else None
 
         if current_user.rol == "profesor" and asig.tutor_id == current_user.id:
             # Nos curamos en salud por si pusiste el campo en Usuario o AsignacionTutor
@@ -167,6 +197,9 @@ def obtener_molde_cuadernillo(
         "tutor_hospital_email": tutor_hospital_email,
         "tutor_universidad_email": tutor_universidad_email,
         "tutores": tutores,
+        "hospital_finalize_count": rotacion.hospital_finalize_count,
+        "can_finalize_again": rotacion.hospital_finalize_count < 2 and not rotacion.completada,
+        "final_grade_text": rotacion.final_grade_text,
     }
 
 
@@ -227,9 +260,29 @@ def finalizar_rotacion(
     rotacion = (
         db.query(models.Rotacion).filter(models.Rotacion.id == rotacion_id).first()
     )
-    if not rotacion or rotacion.completada:
+    if not rotacion:
         raise HTTPException(
-            status_code=400, detail="Rotación no encontrada o ya finalizada"
+            status_code=400, detail="Rotación no encontrada"
+        )
+
+    if rotacion.completada or (rotacion.hospital_finalize_count or 0) >= 2:
+        raise HTTPException(status_code=400, detail="La evaluación ya está cerrada")
+
+    mi_asignacion = (
+        db.query(models.AsignacionTutor)
+        .filter(
+            models.AsignacionTutor.rotacion_id == rotacion.id,
+            models.AsignacionTutor.tutor_id == current_user.id,
+        )
+        .first()
+    )
+    if not mi_asignacion:
+        raise HTTPException(status_code=403, detail="No eres tutor de esta rotación")
+
+    if (mi_asignacion.tipo_tutor or "").strip().lower() != "hospital":
+        raise HTTPException(
+            status_code=403,
+            detail="Solo el tutor del hospital puede finalizar la evaluación",
         )
 
     if not rotacion.especialidad:
@@ -238,16 +291,26 @@ def finalizar_rotacion(
         )
 
     try:
-        molde = rotacion.especialidad.contenido_json
+        uc_global = ensure_global_uc(db)
+        molde = compose_molde_with_global_nic(
+            rotacion.especialidad.nombre,
+            rotacion.especialidad.contenido_json,
+            uc_global,
+        )
         if not molde:
             raise HTTPException(
                 status_code=404,
                 detail="No se pudo cargar el molde desde la base de datos",
             )
 
-        total_esperado = len(molde["bloque_sinon"]["elementos"])
+        total_esperado = 0
+        elementos_unidades = set()
         for apartado in molde["apartados"]:
-            total_esperado += len(apartado["elementos"])
+            for elemento in apartado["elementos"]:
+                elemento_id = elemento.get("id")
+                if elemento_id:
+                    elementos_unidades.add(elemento_id)
+                    total_esperado += 1
 
         db_resp = (
             db.query(models.CuadernilloRespuesta)
@@ -259,10 +322,7 @@ def finalizar_rotacion(
 
         total_real = 0
         for elemento_id, data in respuestas_dict.items():
-            if (
-                data.get("valor_sinon") is not None
-                or data.get("valor_nivel") is not None
-            ):
+            if elemento_id in elementos_unidades and data.get("valor_nivel") is not None:
                 total_real += 1
 
         if total_real < total_esperado:
@@ -271,12 +331,66 @@ def finalizar_rotacion(
                 detail=f"Incompleto: faltan {total_esperado - total_real} campos de nota por rellenar.",
             )
 
-        rotacion.completada = True
+        # Obtener mapping global (con recuperación automática desde mapping por defecto)
+        mapping_json = ensure_global_mapping(db)
+        if not mapping_json:
+            raise HTTPException(status_code=400, detail="No hay mapeo Excel global configurado")
+
+        _, nota_final = generar_excel_evaluado(rotacion.especialidad, respuestas_dict, mapping_json)
+
+        ahora = datetime.now(timezone.utc)
+        intento_actual = (rotacion.hospital_finalize_count or 0) + 1
+        rotacion.hospital_finalize_count = intento_actual
+        rotacion.final_grade_text = nota_final
+        rotacion.final_grade_calculated_at = ahora
+
+        tutor_hospital_email, tutor_universidad_email, _ = _get_tutores_por_tipo(
+            db, rotacion.id
+        )
+
+        nombre_real = security.descifrar_dato(rotacion.alumno.nombre_cifrado)
+        apellidos_real = security.descifrar_dato(rotacion.alumno.apellidos_cifrado)
+        alumno_email_real = security.descifrar_dato(rotacion.alumno.email_cifrado)
+        alumno_nombre = f"{nombre_real} {apellidos_real}".strip()
+
+        if intento_actual == 1:
+            rotacion.hospital_first_finalized_at = ahora
+            enviar_nota_final_email(
+                recipients=[tutor_hospital_email],
+                alumno_nombre=alumno_nombre,
+                especialidad=rotacion.especialidad.nombre,
+                nota_final=nota_final,
+                intento=1,
+            )
+        else:
+            rotacion.hospital_second_finalized_at = ahora
+            rotacion.completada = True
+            enviar_nota_final_email(
+                recipients=[tutor_hospital_email, tutor_universidad_email],
+                alumno_nombre=alumno_nombre,
+                especialidad=rotacion.especialidad.nombre,
+                nota_final=nota_final,
+                intento=2,
+            )
+            enviar_aviso_cierre_alumno_email(
+                recipient=alumno_email_real,
+                alumno_nombre=alumno_nombre,
+                especialidad=rotacion.especialidad.nombre,
+                tutor_email=current_user.email,
+            )
+
         db.commit()
-        return {"mensaje": "Evaluación finalizada con éxito"}
+        return {
+            "mensaje": "Evaluación finalizada con éxito",
+            "intento_actual": intento_actual,
+            "bloqueada": rotacion.completada,
+            "nota_final": nota_final,
+        }
 
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -324,7 +438,12 @@ def descargar_pdf_evaluacion_desde_cero(
             status_code=400, detail="Esta rotación no tiene especialidad asignada"
         )
 
-    molde = rotacion.especialidad.contenido_json
+    uc_global = ensure_global_uc(db)
+    molde = compose_molde_with_global_nic(
+        rotacion.especialidad.nombre,
+        rotacion.especialidad.contenido_json,
+        uc_global,
+    )
 
     if not molde:
         raise HTTPException(

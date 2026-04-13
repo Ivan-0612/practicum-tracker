@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
+import ModalTipoAltaAlumno from "@/components/ModalTipoAltaAlumno";
 import { 
   LogOut, 
   FileJson, 
@@ -22,7 +23,16 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet,
+  Upload,
+  RefreshCcw,
+  CheckCircle,
+  XCircle,
+  ArrowRight,
+  Edit3,
+  Zap,
+  ArrowLeft
 } from "lucide-react";
 
 // --- COMPONENTE: RENDERIZADOR VISTA EVALUACIÓN COMPACTA (VERSIÓN UFV) ---
@@ -132,6 +142,29 @@ export default function AdminPanel() {
   const [rawText, setRawText] = useState(""); 
   const [isSavingJSON, setIsSavingJSON] = useState(false);
 
+  // ESTADOS PARA EL WIZARD DE PLANTILLAS EXCEL
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | null>(null);
+  const [wizardEspecialidadId, setWizardEspecialidadId] = useState("");
+  const [wizardEspecialidadNombre, setWizardEspecialidadNombre] = useState("");
+  const [excelActionMode, setExcelActionMode] = useState<"new" | "existing">("new");
+  const [archivoExcelWizard, setArchivoExcelWizard] = useState<File | null>(null);
+  const [isLoadingWizardData, setIsLoadingWizardData] = useState(false);
+  const [isSavingWizardMapping, setIsSavingWizardMapping] = useState(false);
+  const [wizardRows, setWizardRows] = useState<any[]>([]);
+  const [wizardStep3Mode, setWizardStep3Mode] = useState<"visual" | "json">("visual");
+  const [mappingExcelJson, setMappingExcelJson] = useState("{}");
+  const [excelTemplateStatus, setExcelTemplateStatus] = useState<{ [id: string]: boolean }>({});
+  const [especialidadesTab, setEspecialidadesTab] = useState<"json" | "excel" | "mapping">("excel");
+  
+  // ESTADOS PARA MAPPING GLOBAL
+  const [mappingGlobalJson, setMappingGlobalJson] = useState("{}");
+  const [isLoadingMappingGlobal, setIsLoadingMappingGlobal] = useState(false);
+  const [isSavingMappingGlobal, setIsSavingMappingGlobal] = useState(false);
+  const [ucGlobalJson, setUcGlobalJson] = useState("{}");
+  const [archivoUcGlobal, setArchivoUcGlobal] = useState<File | null>(null);
+  const [isLoadingUcGlobal, setIsLoadingUcGlobal] = useState(false);
+  const [isSavingUcGlobal, setIsSavingUcGlobal] = useState(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -141,6 +174,95 @@ export default function AdminPanel() {
   // ESTADOS DE ESTADÍSTICAS DE USUARIOS
   const [statsUsuarios, setStatsUsuarios] = useState({ alumnos: 0, profesores: 0, total: 0 });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [modalAltaAlumnoAbierto, setModalAltaAlumnoAbierto] = useState(false);
+
+  const fetchUcGlobal = async () => {
+    setIsLoadingUcGlobal(true);
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/unidades-competencia/global`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUcGlobalJson(JSON.stringify(data.uc_json || {}, null, 2));
+      } else {
+        setUcGlobalJson("{}");
+      }
+    } catch {
+      setUcGlobalJson("{}");
+    } finally {
+      setIsLoadingUcGlobal(false);
+    }
+  };
+
+  const guardarUcGlobal = async () => {
+    let ucObj: any;
+    try {
+      ucObj = JSON.parse(ucGlobalJson);
+    } catch {
+      alert("⚠️ El JSON de UC global no es válido.");
+      return;
+    }
+
+    setIsSavingUcGlobal(true);
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/unidades-competencia/global`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(ucObj),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`❌ ${err.detail || "No se pudo guardar UC global"}`);
+        return;
+      }
+
+      alert("✅ Plantilla UC global guardada correctamente.");
+      fetchUcGlobal();
+    } catch {
+      alert("❌ Error de conexión al guardar UC global.");
+    } finally {
+      setIsSavingUcGlobal(false);
+    }
+  };
+
+  const subirArchivoUcGlobal = async () => {
+    if (!archivoUcGlobal) {
+      alert("⚠️ Selecciona un archivo JSON de UC global.");
+      return;
+    }
+
+    setIsSavingUcGlobal(true);
+    const token = Cookies.get("practicum_token");
+
+    try {
+      const text = await archivoUcGlobal.text();
+      const ucObj = JSON.parse(text);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/unidades-competencia/global`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(ucObj),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`❌ ${err.detail || "No se pudo subir UC global"}`);
+        return;
+      }
+
+      alert("✅ Archivo UC global subido correctamente.");
+      setArchivoUcGlobal(null);
+      fetchUcGlobal();
+    } catch {
+      alert("❌ Error leyendo/subiendo archivo UC global.");
+    } finally {
+      setIsSavingUcGlobal(false);
+    }
+  };
 
   const fetchEspecialidades = async () => {
     setIsLoadingEspecialidades(true);
@@ -152,6 +274,12 @@ export default function AdminPanel() {
       if (res.ok) {
         const data = await res.json();
         setEspecialidades(data);
+        // Actualizar estado de plantillas
+        const statusMap: { [id: string]: boolean } = {};
+        for (const esp of data) {
+          statusMap[esp.id] = esp.plantilla_excel_storage_path ? true : false;
+        }
+        setExcelTemplateStatus(statusMap);
       }
     } catch (error) {
       console.error("Error al cargar especialidades", error);
@@ -185,6 +313,8 @@ export default function AdminPanel() {
   useEffect(() => {
     fetchEspecialidades();
     fetchStatsUsuarios();
+    fetchMappingGlobal();
+    fetchUcGlobal();
   }, []);
 
   const handleLogout = () => {
@@ -256,9 +386,277 @@ export default function AdminPanel() {
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(jsonValidado)
       });
-      if (res.ok) { alert("✅ Archivo JSON actualizado."); setJsonPreview(jsonValidado); } 
-      else { alert("❌ Error al guardar."); }
+      if (res.ok) {
+        alert("✅ Archivo JSON actualizado.");
+        setJsonPreview(jsonValidado);
+      } else {
+        const err = await res.json();
+        alert(`❌ ${err.detail || "Error al guardar"}`);
+      }
     } catch (error) { alert("⚠️ Formato JSON Inválido."); } finally { setIsSavingJSON(false); }
+  };
+
+  const parseFilaFromMappingValue = (value: string): string => {
+    if (!value || typeof value !== "string") return "";
+    const raw = value.trim().toUpperCase();
+    const match = raw.match(/([A-Z]+\d+)$/);
+    return match ? match[1] : "";
+  };
+
+  const normalizeCellRef = (value: string): string => {
+    const raw = (value || "").trim().toUpperCase();
+    if (!raw) return "";
+
+    const fromFull = raw.match(/(?:[A-Z0-9_]+!)?([A-Z]+\d+)$/);
+    if (fromFull) return fromFull[1];
+
+    const onlyDigits = raw.match(/^(\d+)$/);
+    if (onlyDigits) return `B${onlyDigits[1]}`;
+
+    return "";
+  };
+
+  const fetchMappingGlobal = async () => {
+    setIsLoadingMappingGlobal(true);
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/plantilla-excel/mapping`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMappingGlobalJson(JSON.stringify(data.mapping_json || {}, null, 2));
+      } else {
+        setMappingGlobalJson("{}");
+      }
+    } catch {
+      console.error("Error al cargar mapping global");
+      setMappingGlobalJson("{}");
+    } finally {
+      setIsLoadingMappingGlobal(false);
+    }
+  };
+
+  const guardarMappingGlobal = async () => {
+    try {
+      const mappingObj = JSON.parse(mappingGlobalJson);
+      setIsSavingMappingGlobal(true);
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/plantilla-excel/mapping`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(mappingObj)
+      });
+      if (res.ok) {
+        alert("✅ Mapping global guardado correctamente.");
+        fetchMappingGlobal();
+      } else {
+        const err = await res.json();
+        alert(`❌ ${err.detail || "No se pudo guardar el mapping"}`);
+      }
+    } catch {
+      alert("⚠️ El JSON de mapeo no es válido.");
+    } finally {
+      setIsSavingMappingGlobal(false);
+    }
+  };
+
+  // --- FUNCIONES DEL WIZARD ---
+
+  const cargarWizardEspecialidad = async (especialidadId: string) => {
+    setIsLoadingWizardData(true);
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades/${especialidadId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Extraer filas de la rúbrica para mapeo visual
+        const filasExtraidas: any[] = [];
+        const mappingObj = JSON.parse(mappingGlobalJson || "{}");
+        if (data.contenido_json && data.contenido_json.apartados) {
+          data.contenido_json.apartados.forEach((apartado: any, apartadoIdx: number) => {
+            if (apartado.elementos) {
+              apartado.elementos.forEach((elemento: any, elementoIdx: number) => {
+                filasExtraidas.push({
+                  id: elemento.id || `${apartadoIdx}_${elementoIdx}`,
+                  texto: elemento.texto,
+                  apartado: apartado.titulo,
+                  fila: parseFilaFromMappingValue(mappingObj[elemento.id] || "")
+                });
+              });
+            }
+          });
+        }
+        setWizardRows(filasExtraidas);
+        // Cargar mapping existente si hay
+        setMappingExcelJson(JSON.stringify(mappingObj, null, 2));
+      }
+    } catch (error) {
+      console.error("Error al cargar especialidad para wizard", error);
+      alert("❌ No se pudo cargar la especialidad");
+    } finally {
+      setIsLoadingWizardData(false);
+    }
+  };
+
+  const construirMappingDesdeWizard = () => {
+    // Construir mapping desde los wizardRows con ids reales de rúbrica
+    const mappingObj: any = {};
+    for (const row of wizardRows) {
+      const key = row.id;
+      if (!key) continue;
+      const normalizedCell = normalizeCellRef(row.fila || "");
+      if (!normalizedCell) continue;
+      mappingObj[key] = `EVALUACION!${normalizedCell}`;
+    }
+    return mappingObj;
+  };
+
+  const parseMappingExcelJson = (): any => {
+    try {
+      return JSON.parse(mappingExcelJson);
+    } catch {
+      throw new Error("JSON de mapeo inválido");
+    }
+  };
+
+  const guardarWizard = async () => {
+    try {
+      setIsSavingWizardMapping(true);
+      const token = Cookies.get("practicum_token");
+      
+      let mappingFinal: any;
+      if (wizardStep3Mode === "visual") {
+        mappingFinal = construirMappingDesdeWizard();
+      } else {
+        mappingFinal = parseMappingExcelJson();
+      }
+
+      // Guardar mapping global
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/plantilla-excel/mapping`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(mappingFinal)
+      });
+
+      if (res.ok) {
+        alert("✅ Mapping guardado correctamente");
+        setMappingGlobalJson(JSON.stringify(mappingFinal, null, 2));
+        resetWizard();
+      } else {
+        const err = await res.json();
+        alert(`❌ ${err.detail || "No se pudo guardar el mapping"}`);
+      }
+    } catch (error) {
+      alert(`❌ Error: ${error}`);
+    } finally {
+      setIsSavingWizardMapping(false);
+    }
+  };
+
+  const handleSubirPlantillaExcel = async () => {
+    if (!wizardEspecialidadId || !archivoExcelWizard) {
+      alert("⚠️ Selecciona especialidad y archivo");
+      return;
+    }
+    setIsSavingWizardMapping(true);
+    const token = Cookies.get("practicum_token");
+    const formData = new FormData();
+    formData.append("file", archivoExcelWizard);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades/${wizardEspecialidadId}/plantilla-excel`,
+        {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+          body: formData,
+        }
+      );
+
+      if (res.ok) {
+        alert("✅ Plantilla Excel guardada correctamente");
+        setExcelTemplateStatus(prev => ({ ...prev, [wizardEspecialidadId]: true }));
+        setArchivoExcelWizard(null);
+      } else {
+        const err = await res.json();
+        alert(`❌ Error: ${err.detail || "No se pudo subir la plantilla"}`);
+      }
+    } catch {
+      alert("❌ Error de conexión");
+    } finally {
+      setIsSavingWizardMapping(false);
+    }
+  };
+
+  const resetWizard = () => {
+    setWizardStep(null);
+    setWizardEspecialidadId("");
+    setWizardEspecialidadNombre("");
+    setExcelActionMode("new");
+    setArchivoExcelWizard(null);
+    setWizardRows([]);
+    setWizardStep3Mode("visual");
+    setMappingExcelJson("{}");
+  };
+
+  const handleSubirPlantillaYMappingEnSecuencia = async () => {
+    if (!wizardEspecialidadId || !archivoExcelWizard) {
+      alert("⚠️ Selecciona especialidad y archivo");
+      return;
+    }
+
+    setIsSavingWizardMapping(true);
+    const token = Cookies.get("practicum_token");
+
+    try {
+      // 1. Subir plantilla
+      const formData = new FormData();
+      formData.append("file", archivoExcelWizard);
+      const resPlantilla = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades/${wizardEspecialidadId}/plantilla-excel`,
+        {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+          body: formData,
+        }
+      );
+
+      if (!resPlantilla.ok) {
+        const err = await resPlantilla.json();
+        throw new Error(err.detail || "No se pudo subir la plantilla");
+      }
+
+      // 2. Guardar mapping global
+      let mappingFinal: any;
+      if (wizardStep3Mode === "visual") {
+        mappingFinal = construirMappingDesdeWizard();
+      } else {
+        mappingFinal = parseMappingExcelJson();
+      }
+
+      const resMapping = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/plantilla-excel/mapping`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(mappingFinal)
+      });
+
+      if (!resMapping.ok) {
+        const err = await resMapping.json();
+        throw new Error(err.detail || "No se pudo guardar el mapping");
+      }
+
+      alert("✅ Plantilla y mapping guardados correctamente");
+      setExcelTemplateStatus(prev => ({ ...prev, [wizardEspecialidadId]: true }));
+      setMappingGlobalJson(JSON.stringify(mappingFinal, null, 2));
+      resetWizard();
+    } catch (error) {
+      alert(`❌ Error: ${error}`);
+    } finally {
+      setIsSavingWizardMapping(false);
+    }
   };
 
   useEffect(() => {
@@ -303,27 +701,482 @@ export default function AdminPanel() {
           <button onClick={handleLogout} className="flex items-center gap-2 bg-white text-red-600 px-5 py-2.5 rounded-xl font-bold border border-red-200 hover:bg-red-50 transition-all shadow-sm active:scale-95"><LogOut className="w-4 h-4" /> Cerrar sesión</button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           {/* GESTIÓN DE ESPECIALIDADES */}
-          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative flex flex-col h-full">
+          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative flex flex-col">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-blue-50 p-2.5 rounded-xl text-ufv-azul"><Settings className="w-6 h-6" /></div>
               <h2 className="text-xl font-black text-ufv-azul-oscuro">Gestión de Especialidades</h2>
             </div>
+
+            <div className="mb-5 bg-gray-50 border border-gray-200 rounded-2xl p-1 grid grid-cols-3 gap-1">
+              <button
+                type="button"
+                onClick={() => setEspecialidadesTab("json")}
+                className={`py-2.5 rounded-xl text-sm font-black transition-all ${especialidadesTab === "json" ? "bg-white text-ufv-azul shadow-sm border border-blue-100" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                Rúbrica JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => setEspecialidadesTab("mapping")}
+                className={`py-2.5 rounded-xl text-sm font-black transition-all ${especialidadesTab === "mapping" ? "bg-white text-ufv-azul shadow-sm border border-blue-100" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                Mapping Global
+              </button>
+              <button
+                type="button"
+                onClick={() => setEspecialidadesTab("excel")}
+                className={`py-2.5 rounded-xl text-sm font-black transition-all ${especialidadesTab === "excel" ? "bg-white text-ufv-azul shadow-sm border border-blue-100" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                Plantilla Excel
+              </button>
+            </div>
             
+            {especialidadesTab === "json" && (
             <form onSubmit={handleCrearEspecialidad} className="space-y-4 border-t border-gray-100 pt-6">
               <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Nombre de la Especialidad</label>
                   <input type="text" required value={nombreEspecialidad} onChange={e => setNombreEspecialidad(e.target.value)} className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50 focus:bg-white focus:border-ufv-azul outline-none transition-all" />
               </div>
               <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Archivo Rúbrica (.json)</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Archivo Actividades NIC (.json)</label>
                   <input type="file" accept=".json" required onChange={e => setArchivoJSON(e.target.files ? e.target.files[0] : null)} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-ufv-azul hover:file:bg-blue-100 cursor-pointer" />
               </div>
               <button type="submit" disabled={isUploading} className={`w-full mt-4 px-5 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm border ${isUploading ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-ufv-azul text-white hover:bg-ufv-azul-oscuro"}`}>
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileJson className="w-5 h-5" />} {isUploading ? "Guardando..." : "Crear Especialidad"}
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileJson className="w-5 h-5" />} {isUploading ? "Guardando..." : "Crear Especialidad (NIC)"}
               </button>
             </form>
+            )}
+
+            {especialidadesTab === "mapping" && (
+            <div className="space-y-4 border-t border-gray-100 pt-6">
+              <div>
+                <h3 className="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
+                  <Code2 className="w-4 h-4" /> Mapping Global (Compartido)
+                </h3>
+                <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+                  Configura aquí el mapping único que se reutilizará para <strong>TODAS</strong> las especialidades. 
+                  Cada especialidad tendrá su propia plantilla Excel, pero todas usarán este mapping.
+                </p>
+              </div>
+
+              {isLoadingMappingGlobal ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-ufv-azul" />
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800">Plantilla global de unidades de competencia</h4>
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={(e) => setArchivoUcGlobal(e.target.files ? e.target.files[0] : null)}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      onClick={subirArchivoUcGlobal}
+                      disabled={!archivoUcGlobal || isSavingUcGlobal}
+                      className="w-full px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {isSavingUcGlobal ? "Subiendo UC..." : "Subir JSON UC Global"}
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 mb-2">JSON actual UC global</h4>
+                    {isLoadingUcGlobal ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-5 h-5 animate-spin text-ufv-azul" />
+                      </div>
+                    ) : (
+                      <textarea
+                        value={ucGlobalJson}
+                        onChange={(e) => setUcGlobalJson(e.target.value)}
+                        placeholder='{"apartados":[],"niveles":{}}'
+                        className="w-full min-h-64 border border-gray-200 rounded-xl bg-gray-50 p-4 text-xs font-mono outline-none focus:border-ufv-azul focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
+                        spellCheck={false}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={guardarUcGlobal}
+                      disabled={isSavingUcGlobal}
+                      className={`mt-3 w-full px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${isSavingUcGlobal ? "bg-gray-100 text-gray-400 border border-gray-200" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}
+                    >
+                      {isSavingUcGlobal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      {isSavingUcGlobal ? "Guardando UC..." : "Guardar UC Global"}
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={mappingGlobalJson}
+                    onChange={(e) => setMappingGlobalJson(e.target.value)}
+                    placeholder='{"a1_01":"EVALUACION!B5","a1_02":"EVALUACION!B6"}'
+                    className="w-full min-h-96 border border-gray-200 rounded-xl bg-gray-50 p-4 text-xs font-mono outline-none focus:border-ufv-azul focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
+                    spellCheck={false}
+                  />
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-xs text-blue-800 font-medium leading-relaxed">
+                      <strong>Formato esperado:</strong> Un objeto JSON con claves por indicador y valores tipo <span className="font-mono bg-blue-100 px-1 rounded">"EVALUACION!B86"</span>
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={guardarMappingGlobal}
+                    disabled={isSavingMappingGlobal}
+                    className={`w-full px-5 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${isSavingMappingGlobal ? "bg-gray-100 text-gray-400 border border-gray-200" : "bg-ufv-azul text-white hover:bg-ufv-azul-oscuro active:scale-95"}`}
+                  >
+                    {isSavingMappingGlobal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    {isSavingMappingGlobal ? "Guardando..." : "Guardar Mapping Global"}
+                  </button>
+                </>
+              )}
+            </div>
+            )}
+
+            {especialidadesTab === "excel" && !wizardStep && (
+            <div className="space-y-4 border-t border-gray-100 pt-6">
+              <div>
+                <h3 className="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4" /> Estado de Plantillas por Especialidad
+                </h3>
+                <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+                  Visualiza qué especialidades tienen plantilla Excel por especialidad configurada.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {isLoadingEspecialidades ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-ufv-azul" />
+                  </div>
+                ) : (
+                  especialidades.map((esp) => (
+                    <div key={esp.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-ufv-azul hover:bg-blue-50/30 transition-all group">
+                      <div className="flex items-center gap-3 flex-1">
+                        {excelTemplateStatus[esp.id] ? (
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-gray-300" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-gray-800 text-sm truncate">{esp.nombre}</p>
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
+                            <span className="text-xs text-gray-500">
+                              {excelTemplateStatus[esp.id] ? "✅ Plantilla presente" : "❌ Sin plantilla"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setWizardEspecialidadId(esp.id);
+                          setWizardEspecialidadNombre(esp.nombre);
+                          setWizardStep(2);
+                          cargarWizardEspecialidad(esp.id);
+                        }}
+                        className="ml-2 flex items-center gap-1 px-4 py-2.5 bg-ufv-azul text-white rounded-lg font-bold text-sm hover:bg-ufv-azul-oscuro transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <Edit3 className="w-4 h-4" /> Configurar
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            )}
+
+            {especialidadesTab === "excel" && wizardStep && (
+            <div className="space-y-4 border-t border-gray-100 pt-6">
+              {/* --- WIZARD UI --- */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-black text-gray-800">Configurar Plantilla Excel</h3>
+                  <p className="text-xs text-gray-500 mt-1">Especialidad: <span className="font-bold text-ufv-azul">{wizardEspecialidadNombre}</span></p>
+                </div>
+                <button
+                  onClick={resetWizard}
+                  className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* INDICADOR DE PASO */}
+              <div className="flex gap-2 mb-6">
+                {[1, 2, 3, 4].map((step) => (
+                  <div
+                    key={step}
+                    className={`flex-1 h-2 rounded-full transition-all ${
+                      step <= (wizardStep || 0)
+                        ? step === wizardStep
+                          ? "bg-ufv-azul"
+                          : "bg-blue-200"
+                        : "bg-gray-200"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* PASO 1: SELECCIONAR ESPECIALIDAD */}
+              {wizardStep === 1 && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-gray-800">Paso 1: Seleccionar Especialidad</h4>
+                  <p className="text-sm text-gray-600">Ya seleccionada: <span className="font-bold">{wizardEspecialidadNombre}</span></p>
+                  <button
+                    onClick={() => {
+                      setExcelActionMode("new");
+                      setWizardStep(2);
+                    }}
+                    className="w-full flex items-center justify-between p-4 bg-ufv-azul text-white rounded-xl hover:bg-ufv-azul-oscuro transition-all shadow-sm"
+                  >
+                    <span className="font-bold">Continuar</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
+
+              {/* PASO 2: ELEGIR MODO */}
+              {wizardStep === 2 && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-gray-800">Paso 2: Elegir Acción</h4>
+                  <p className="text-sm text-gray-600 mb-4">¿Qué deseas hacer con la plantilla?</p>
+                  
+                  <div className="grid grid-cols-1 gap-3">
+                    <button
+                      onClick={() => {
+                        setExcelActionMode("new");
+                        setWizardStep(3);
+                      }}
+                      className="p-4 border-2 border-gray-200 rounded-xl hover:border-ufv-azul hover:bg-blue-50 transition-all text-left"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Upload className="w-5 h-5 text-ufv-azul mt-0.5" />
+                        <div>
+                          <p className="font-bold text-gray-800">Subir Nueva Plantilla</p>
+                          <p className="text-xs text-gray-500 mt-1">Selecciona un archivo Excel para esta especialidad</p>
+                        </div>
+                      </div>
+                    </button>
+
+                    {excelTemplateStatus[wizardEspecialidadId] && (
+                      <button
+                        onClick={() => {
+                          setExcelActionMode("existing");
+                          setWizardStep(3);
+                        }}
+                        className="p-4 border-2 border-gray-200 rounded-xl hover:border-ufv-azul hover:bg-blue-50 transition-all text-left"
+                      >
+                        <div className="flex items-start gap-3">
+                          <Eye className="w-5 h-5 text-green-600 mt-0.5" />
+                          <div>
+                            <p className="font-bold text-gray-800">Usar Plantilla Existente</p>
+                            <p className="text-xs text-gray-500 mt-1">Mapear la plantilla actual a la rúbrica</p>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setWizardStep(1)}
+                    className="w-full p-3 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 font-bold text-sm"
+                  >
+                    ← Atrás
+                  </button>
+                </div>
+              )}
+
+              {/* PASO 3: MAPEO O SUBIDA */}
+              {wizardStep === 3 && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-gray-800">
+                    {excelActionMode === "new" ? "Paso 3: Subir Plantilla" : "Paso 3: Mapear Plantilla"}
+                  </h4>
+
+                  {excelActionMode === "new" && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Selecciona archivo Excel</label>
+                        <input
+                          type="file"
+                          accept=".xlsx"
+                          onChange={(e) => setArchivoExcelWizard(e.target.files?.[0] || null)}
+                          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-ufv-azul hover:file:bg-blue-100"
+                        />
+                        {archivoExcelWizard && (
+                          <p className="text-xs text-green-600 font-bold mt-2">✅ {archivoExcelWizard.name}</p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (archivoExcelWizard) {
+                            setWizardStep(4);
+                          } else {
+                            alert("⚠️ Selecciona un archivo");
+                          }
+                        }}
+                        className="w-full p-3 bg-ufv-azul text-white rounded-xl font-bold hover:bg-ufv-azul-oscuro transition-all"
+                      >
+                        Continuar → Mapeo
+                      </button>
+                    </div>
+                  )}
+
+                  {excelActionMode === "existing" && (
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600">Mapea los elementos de la rúbrica a las filas del Excel</p>
+                      
+                      <div className="flex gap-2 mb-4">
+                        <button
+                          onClick={() => setWizardStep3Mode("visual")}
+                          className={`flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                            wizardStep3Mode === "visual"
+                              ? "bg-ufv-azul text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                        >
+                          <Zap className="w-4 h-4 inline mr-1" /> Visual
+                        </button>
+                        <button
+                          onClick={() => setWizardStep3Mode("json")}
+                          className={`flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                            wizardStep3Mode === "json"
+                              ? "bg-gray-800 text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                        >
+                          <Code2 className="w-4 h-4 inline mr-1" /> JSON
+                        </button>
+                      </div>
+
+                      {wizardStep3Mode === "visual" && (
+                        <div className="space-y-3 max-h-80 overflow-y-auto">
+                          {isLoadingWizardData ? (
+                            <div className="flex justify-center py-6">
+                              <Loader2 className="w-6 h-6 animate-spin text-ufv-azul" />
+                            </div>
+                          ) : wizardRows.length === 0 ? (
+                            <p className="text-sm text-gray-500 text-center py-6">No hay elementos para mapear</p>
+                          ) : (
+                            wizardRows.map((row, idx) => (
+                              <div key={row.id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                <p className="text-xs text-gray-600 font-bold mb-1">{row.apartado}</p>
+                                <p className="text-sm text-gray-800 mb-2 font-medium">{row.texto}</p>
+                                <input
+                                  type="text"
+                                  value={row.fila || ""}
+                                  onChange={(e) => {
+                                    const newRows = [...wizardRows];
+                                    newRows[idx].fila = e.target.value;
+                                    setWizardRows(newRows);
+                                  }}
+                                  placeholder="ej: B86, B87..."
+                                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ufv-azul focus:ring-2 focus:ring-blue-100 outline-none"
+                                />
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+
+                      {wizardStep3Mode === "json" && (
+                        <textarea
+                          value={mappingExcelJson}
+                          onChange={(e) => setMappingExcelJson(e.target.value)}
+                          placeholder='{"a1_01":"B5","a1_02":"B6"}'
+                          className="w-full min-h-64 p-3 border border-gray-200 rounded-lg bg-gray-50 font-mono text-sm focus:border-ufv-azul outline-none"
+                        />
+                      )}
+
+                      <button
+                        onClick={() => setWizardStep(4)}
+                        className="w-full p-3 bg-ufv-azul text-white rounded-xl font-bold hover:bg-ufv-azul-oscuro transition-all"
+                      >
+                        Continuar → Resumen
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setWizardStep(2)}
+                    className="w-full p-3 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 font-bold text-sm"
+                  >
+                    ← Atrás
+                  </button>
+                </div>
+              )}
+
+              {/* PASO 4: RESUMEN Y GUARDAR */}
+              {wizardStep === 4 && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-gray-800">Paso 4: Resumen y Guardar</h4>
+
+                  {excelActionMode === "new" && archivoExcelWizard && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                      <p className="text-sm font-bold text-green-800">📄 Archivo a subir:</p>
+                      <p className="text-xs text-green-700 mt-1">{archivoExcelWizard.name}</p>
+                    </div>
+                  )}
+
+                  {excelActionMode === "existing" && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <p className="text-sm font-bold text-blue-800">Mapping configurado:</p>
+                      <p className="text-xs text-blue-700 mt-1 font-mono">
+                        {wizardStep3Mode === "visual"
+                          ? `${wizardRows.filter(r => r.fila).length} elementos mapeados`
+                          : "JSON validado"}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl">
+                    <p className="text-xs font-bold text-amber-900">💡 Nota:</p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      El mapping se guardará de forma global y se aplicará automáticamente a todas las especialidades.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setWizardStep(3)}
+                      className="flex-1 p-3 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 font-bold text-sm"
+                    >
+                      ← Atrás
+                    </button>
+                    <button
+                       onClick={async () => {
+                         if (excelActionMode === "new" && archivoExcelWizard) {
+                           await handleSubirPlantillaYMappingEnSecuencia();
+                         } else if (excelActionMode === "existing") {
+                           await guardarWizard();
+                         }
+                       }}
+                      disabled={isSavingWizardMapping}
+                      className={`flex-1 p-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                        isSavingWizardMapping
+                          ? "bg-gray-100 text-gray-400"
+                          : "bg-ufv-azul text-white hover:bg-ufv-azul-oscuro"
+                      }`}
+                    >
+                      {isSavingWizardMapping ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      {isSavingWizardMapping ? "Guardando..." : "Guardar"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            )}
 
             <div className="mt-8 pt-6 border-t border-gray-100 flex-1 flex flex-col">
               <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Especialidades Activas</h3>
@@ -351,7 +1204,9 @@ export default function AdminPanel() {
                       <li key={esp.id} className="flex items-center justify-between gap-3 p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-gray-200">
                         <div className="flex items-center gap-3 truncate">
                           <div className="bg-blue-100 p-1.5 rounded-md text-ufv-azul"><Tag className="w-4 h-4" /></div>
-                          <span className="font-bold text-gray-700 text-sm truncate">{esp.nombre}</span>
+                          <div className="min-w-0">
+                            <span className="font-bold text-gray-700 text-sm truncate block">{esp.nombre}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleVerPreview(esp.id, esp.nombre)} className="p-2 text-gray-400 hover:text-ufv-azul hover:bg-blue-50 rounded-lg transition-all"><Eye className="w-4 h-4" /></button>
@@ -366,7 +1221,7 @@ export default function AdminPanel() {
           </div>
 
           {/* MÓDULO 2: GESTIÓN DE USUARIOS */}
-          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul flex flex-col h-full">
+          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul flex flex-col">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-blue-50 p-2.5 rounded-xl text-ufv-azul"><Users className="w-6 h-6" /></div>
               <h2 className="text-xl font-black text-ufv-azul-oscuro">Gestión de Usuarios</h2>
@@ -377,7 +1232,7 @@ export default function AdminPanel() {
             </p>
             
             {/* --- PANEL DE ESTADÍSTICAS (AHORA DINÁMICO) --- */}
-            <div className="grid grid-cols-2 gap-3 mb-auto">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
                 <GraduationCap className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
                 <span className="text-3xl font-black text-gray-800">
@@ -433,7 +1288,7 @@ export default function AdminPanel() {
 
               {/* Fila 2: Alumnos */}
               <button 
-                onClick={() => router.push("/admin/alumnos/nuevo")} 
+                onClick={() => setModalAltaAlumnoAbierto(true)} 
                 className="w-full bg-ufv-azul-oscuro text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <GraduationCap className="w-5 h-5" /> Nuevo Alumno
@@ -505,6 +1360,13 @@ export default function AdminPanel() {
           </div>
         </div>
       )}
+
+      <ModalTipoAltaAlumno
+        isOpen={modalAltaAlumnoAbierto}
+        onClose={() => setModalAltaAlumnoAbierto(false)}
+        onManual={() => router.push("/admin/alumnos/nuevo")}
+        onExcel={() => router.push("/admin/alumnos/importar")}
+      />
     </div>
   );
 }

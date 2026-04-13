@@ -30,6 +30,9 @@ export default function PantallaEvaluacion() {
   
   const [esSoloLectura, setEsSoloLectura] = useState(false);
 
+  const intentoFinalizacion = datos?.hospital_finalize_count || 0;
+  const esUltimaOportunidad = intentoFinalizacion === 1;
+
   useEffect(() => {
     cargarCuadernillo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,7 +144,11 @@ export default function PantallaEvaluacion() {
       return;
     }
 
-    if (!confirm("⚠️ ¿Estás seguro de que deseas FINALIZAR la evaluación?\n\nUna vez finalizada, las notas serán definitivas y no podrás hacer más cambios.")) return;
+    const mensajeConfirmacion = esUltimaOportunidad
+      ? "⚠️ Esta es la SEGUNDA y última confirmación.\n\nSe bloqueará la evaluación y se enviará la nota final al tutor hospital y al tutor universidad.\n\n¿Deseas continuar?"
+      : "⚠️ Esta es la PRIMERA confirmación.\n\nSe enviará la nota final al tutor hospital, pero podrás seguir editando antes de la confirmación final.\n\n¿Deseas continuar?";
+
+    if (!confirm(mensajeConfirmacion)) return;
     
     setFinalizando(true);
     try {
@@ -159,8 +166,15 @@ export default function PantallaEvaluacion() {
       });
 
       if (res.ok) {
-        alert("✅ Evaluación finalizada con éxito.");
-        router.push("/profesor/dashboard");
+        const data = await res.json();
+        if (data.bloqueada) {
+          alert("✅ Evaluación cerrada definitivamente. Se envió la nota final a ambos tutores.");
+          router.push("/profesor/dashboard");
+          return;
+        }
+
+        alert("✅ Primera confirmación registrada. Se envió la nota al tutor hospital. Puedes seguir editando antes del cierre final.");
+        await cargarCuadernillo();
       } else {
         const errorData = await res.json();
         alert(`❌ No se pudo finalizar:\n${errorData.detail}`);
@@ -214,6 +228,10 @@ export default function PantallaEvaluacion() {
           {datos.rotacion_completada ? (
             <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 md:px-4 py-2 rounded-lg font-bold text-xs md:text-sm border border-green-200">
               <Lock className="w-4 h-4" /> Acta Cerrada
+            </div>
+          ) : intentoFinalizacion === 1 ? (
+            <div className="flex items-center gap-2 bg-amber-50 text-amber-700 px-3 md:px-4 py-2 rounded-lg font-bold text-xs md:text-sm border border-amber-200">
+              <AlertCircle className="w-4 h-4" /> Pendiente 2ª Confirmación
             </div>
           ) : esSoloLectura ? (
             <div className="flex items-center gap-2 bg-blue-50 text-ufv-azul px-3 md:px-4 py-2 rounded-lg font-bold text-xs md:text-sm border border-blue-200">
@@ -392,32 +410,37 @@ export default function PantallaEvaluacion() {
                   {/* --- AQUÍ ESTÁ EL CONTADOR DE PROGRESO RESTAURADO --- */}
                   <div className="flex items-center gap-3 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-200 w-full md:w-auto justify-center md:justify-start">
                     <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Progreso</span>
-                    <div className="flex items-center gap-1.5">
-                        <span className={`text-lg font-black ${respondidasCount === totalCount ? 'text-green-600' : 'text-ufv-azul'}`}>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        <span className={`text-lg leading-none font-black tabular-nums ${respondidasCount === totalCount ? 'text-green-600' : 'text-ufv-azul'}`}>
                           {respondidasCount}
                         </span>
-                        <span className="text-gray-400 font-bold text-sm">/ {totalCount}</span>
+                        <span className="text-gray-400 font-bold text-sm leading-none tabular-nums">/ {totalCount}</span>
                     </div>
                   </div>
 
+                  <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-gray-200 w-full md:w-auto justify-center md:justify-start">
+                    <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Confirmación</span>
+                    <span className="text-sm font-black text-ufv-azul">{intentoFinalizacion}/2</span>
+                  </div>
+
                   {/* BOTONES DE GUARDAR */}
-                  <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                  <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto">
                     <button 
                       onClick={guardarBorrador}
                       disabled={guardando || finalizando}
-                      className="w-full sm:w-auto px-6 py-3.5 bg-blue-50 text-ufv-azul border border-blue-200 font-bold rounded-xl flex justify-center items-center gap-2 hover:bg-blue-100 transition-all disabled:opacity-50"
+                      className="w-full sm:w-auto px-5 py-3 bg-blue-50 text-ufv-azul border border-blue-200 text-sm font-bold rounded-xl flex justify-center items-center gap-2 hover:bg-blue-100 transition-all disabled:opacity-50 whitespace-nowrap"
                     >
                       {guardando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} 
-                      Guardar Borrador
+                      {esUltimaOportunidad ? "Guardar Cambios" : "Guardar Borrador"}
                     </button>
 
                     <button 
                       onClick={finalizarEvaluacion}
                       disabled={guardando || finalizando}
-                      className="w-full sm:w-auto px-8 py-3.5 bg-green-600 text-white font-black rounded-xl shadow-md flex justify-center items-center gap-2 hover:bg-green-700 transition-all disabled:opacity-50 active:scale-95"
+                      className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white text-sm font-black rounded-xl shadow-md flex justify-center items-center gap-2 hover:bg-green-700 transition-all disabled:opacity-50 active:scale-95 whitespace-nowrap"
                     >
                       {finalizando ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                      FINALIZAR
+                      {esUltimaOportunidad ? "CONFIRMAR CIERRE (2/2)" : "FINALIZAR (1/2)"}
                     </button>
                   </div>
                 </>

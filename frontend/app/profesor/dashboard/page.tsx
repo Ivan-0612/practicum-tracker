@@ -24,6 +24,7 @@ interface AlumnoAsignado {
   numero_rotacion: number; 
   especialidad: string;
   estado_evaluacion: string;
+  hospital_finalize_count?: number;
   mi_rol: string; 
   periodo_academico: string;
   centro_practicas?: string;
@@ -264,6 +265,8 @@ export default function ProfesorDashboard() {
 
           {item.estado_evaluacion === "Completada" ? (
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 shrink-0">✅ Evaluado</div>
+          ) : item.estado_evaluacion === "Pendiente Confirmación Final" ? (
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">⚠️ Cierre 1/2</div>
           ) : item.estado_evaluacion === "En Proceso" ? (
             <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 shrink-0">📝 Borrador</div>
           ) : (
@@ -303,6 +306,10 @@ export default function ProfesorDashboard() {
         {item.estado_evaluacion === "Completada" ? (
           <button onClick={() => router.push(`/profesor/evaluar/${item.rotacion_id}`)} className="w-full bg-green-50 border border-green-200 text-green-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-100 transition-all shadow-sm text-sm">
             <CheckCircle2 className="w-4 h-4" /> Acta Cerrada (Revisar)
+          </button>
+        ) : item.estado_evaluacion === "Pendiente Confirmación Final" && item.mi_rol !== "universidad" ? (
+          <button onClick={() => router.push(`/profesor/evaluar/${item.rotacion_id}`)} className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm text-sm bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100">
+            <PenTool className="w-4 h-4" /> Confirmar Cierre Final (2/2)
           </button>
         ) : (
           <button onClick={() => router.push(`/profesor/evaluar/${item.rotacion_id}`)} className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm text-sm ${item.mi_rol === 'universidad' ? 'bg-blue-50 border border-blue-200 text-ufv-azul hover:bg-blue-100' : 'bg-white border border-gray-200 text-gray-700 hover:bg-ufv-azul hover:text-white'}`}>
@@ -388,6 +395,7 @@ export default function ProfesorDashboard() {
                 <option value="Todos">Todos los estados</option>
                 <option value="Pendiente">⏳ Pendientes</option>
                 <option value="En Proceso">📝 Borradores</option>
+                <option value="Pendiente Confirmación Final">⚠️ Cierre 1/2</option>
                 <option value="Completada">✅ Evaluados</option>
               </select>
 
