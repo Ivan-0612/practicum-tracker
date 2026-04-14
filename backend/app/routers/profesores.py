@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models, security, schemas
+from ..utils.periodo_academico_utils import normalizar_periodo_academico
 
 router = APIRouter(prefix="/api/v1/profesores", tags=["Profesores"])
 
@@ -109,7 +110,7 @@ def obtener_mis_alumnos(
                 "estado_evaluacion": estado,
                 "hospital_finalize_count": hospital_finalize_count,
                 "centro_practicas": rotacion.centro_practicas,
-                "periodo_academico": rotacion.periodo_academico,
+                "periodo_academico": normalizar_periodo_academico(rotacion.periodo_academico),
                 "tutor_hospital_email": tutor_hospital_email,
                 "tutor_universidad_email": tutor_universidad_email,
                 # --- NUEVO: ENVIAMOS EL ROL ESPECÍFICO PARA ESTA ROTACIÓN ---

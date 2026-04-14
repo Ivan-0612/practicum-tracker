@@ -1,0 +1,42 @@
+{
+  "especialidad": "UCI",
+  "bloque_sinon": {
+    "titulo": "Actividades NIC",
+    "elementos": [
+      { "id": "b0_01", "texto": "2300 - Administración de medicación" },
+      { "id": "b0_02", "texto": "2314 - Administración de medicación: intravenosa (i.v.)" },
+      { "id": "b0_03", "texto": "6520 - Análisis de la situación sanitaria" },
+      { "id": "b0_04", "texto": "5270 - Apoyo emocional" },
+      { "id": "b0_05", "texto": "3160 - Aspiración de las vías aéreas" },
+      { "id": "b0_06", "texto": "840 - Cambio de posición" },
+      { "id": "b0_07", "texto": "6540 - Control de infecciones" },
+      { "id": "b0_08", "texto": "4044 - Cuidados cardiacos: agudos" },
+      { "id": "b0_09", "texto": "4062 - Cuidados circulatorios: insuficiencia arterial" },
+      { "id": "b0_10", "texto": "4066 - Cuidados circulatorios: insuficiencia venosa" },
+      { "id": "b0_11", "texto": "3661 - Cuidados de las heridas: quemaduras" },
+      { "id": "b0_12", "texto": "4106 - Cuidados del embolismo: pulmonar" },
+      { "id": "b0_13", "texto": "5290 - Facilitar el duelo" },
+      { "id": "b0_14", "texto": "4232 - Flebotomía: muestra de sangre arterial" },
+      { "id": "b0_15", "texto": "3120 - Intubación y estabilización de vías aéreas" },
+      { "id": "b0_16", "texto": "1910 - Manejo del equilibrio acidobásico" },
+      { "id": "b0_17", "texto": "6482 - Manejo ambiental: confort" },
+      { "id": "b0_18", "texto": "6412 - Manejo de la anafilaxia" },
+      { "id": "b0_19", "texto": "4090 - Manejo de la arritmia" },
+      { "id": "b0_20", "texto": "4095 - Manejo del desfibrilador: externo" },
+      { "id": "b0_21", "texto": "4096 - Manejo del desfibrilador: interno" },
+      { "id": "b0_22", "texto": "4250 - Manejo del shock" },
+      { "id": "b0_23", "texto": "4254 - Manejo del shock: cardíaco" },
+      { "id": "b0_24", "texto": "4256 - Manejo del shock: vasogénico" },
+      { "id": "b0_25", "texto": "4258 - Manejo del shock: volumen" },
+      { "id": "b0_26", "texto": "4240 - Mantenimiento del acceso para diálisis" },
+      { "id": "b0_27", "texto": "7820 - Manejo de muestras" },
+      { "id": "b0_28", "texto": "7370 - Planificación para el alta" },
+      { "id": "b0_29", "texto": "6320 - Reanimación" },
+      { "id": "b0_30", "texto": "2110 - Terapia de hemofiltración" },
+      { "id": "b0_31", "texto": "970 - Transferencia" },
+      { "id": "b0_32", "texto": "4516 - Tratamiento por el consumo de sustancias nocivas: sobredosis" },
+      { "id": "b0_33", "texto": "6658 - Vigilancia: electrónica por control remoto" },
+      { "id": "b0_34", "texto": "6650 - Vigilancia" }
+    ]
+  }
+}

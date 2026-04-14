@@ -121,7 +121,7 @@ class Rotacion(Base):
 
     curso = Column(Integer, nullable=True)
     numero_rotacion = Column(Integer, nullable=True)
-    periodo_academico = Column(String, nullable=False, default="2025/2026")
+    periodo_academico = Column(String, nullable=False, default="2025/26")
     centro_practicas = Column(String, nullable=True)
     fecha_inicio = Column(Date, nullable=True)
 

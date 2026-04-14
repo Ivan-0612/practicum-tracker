@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 from uuid import UUID
 import re
 import unicodedata
+from ..utils.periodo_academico_utils import normalizar_periodo_academico
 
 router = APIRouter(prefix="/api/v1/alumnos", tags=["Alumnos"])
 
@@ -79,6 +80,8 @@ def _resolver_especialidad(db: Session, valor):
 
 
 def _crear_alumno_desde_datos(db: Session, alumno_in: schemas.AlumnoCreate):
+    periodo_academico = normalizar_periodo_academico(alumno_in.periodo_academico)
+
     existe_usuario = (
         db.query(models.Usuario)
         .filter(models.Usuario.email == alumno_in.email_acceso)
@@ -154,7 +157,7 @@ def _crear_alumno_desde_datos(db: Session, alumno_in: schemas.AlumnoCreate):
         especialidad_id=especialidad.id,
         curso=alumno_in.curso,
         numero_rotacion=alumno_in.numero_rotacion,
-        periodo_academico=alumno_in.periodo_academico,
+        periodo_academico=periodo_academico,
         centro_practicas=alumno_in.centro_practicas,
     )
     db.add(nueva_rotacion)
@@ -199,6 +202,8 @@ def _crear_rotacion_alumno(
     email_tutor_hospital: str,
     email_tutor_universidad: str,
 ):
+    periodo_academico = normalizar_periodo_academico(periodo_academico)
+
     existe_periodo = (
         db.query(models.Rotacion)
         .filter(
@@ -420,7 +425,7 @@ def importar_alumnos_excel(
                 email_tutor_universidad=str(datos_crudos["email_tutor_universidad"]).strip(),
                 centro_practicas=str(datos_crudos["centro_practicas"]).strip(),
                 numero_rotacion=numero_rotacion,
-                periodo_academico=str(datos_crudos["periodo_academico"]).strip(),
+                periodo_academico=normalizar_periodo_academico(str(datos_crudos["periodo_academico"]).strip()),
                 especialidad_id=especialidad.id,
             )
 
@@ -550,7 +555,7 @@ def obtener_mi_evaluacion(
                 "centro_practicas": r.centro_practicas,
                 "completada": r.completada,
                 "tutores": tutores_dict,  # <-- AHORA ES UN DICCIONARIO
-                "periodo_academico": r.periodo_academico,
+                "periodo_academico": normalizar_periodo_academico(r.periodo_academico),
             }
         )
 
@@ -614,7 +619,7 @@ def listar_alumnos_por_email(
                     ),
                     "centro_practicas": rot.centro_practicas,
                     "tutores": tutores_dict,  # <-- AHORA ES UN DICCIONARIO
-                    "periodo_academico": rot.periodo_academico,
+                    "periodo_academico": normalizar_periodo_academico(rot.periodo_academico),
                     "completada": rot.completada,
                     "hospital_finalize_count": rot.hospital_finalize_count or 0,
                 }
@@ -766,6 +771,7 @@ def importar_rotaciones_excel(
                     "periodo académico",
                 )
             ).strip()
+            periodo_academico = normalizar_periodo_academico(periodo_academico)
             centro_practicas = str(
                 _obtener_valor_requerido(
                     fila,
@@ -814,7 +820,7 @@ def importar_rotaciones_excel(
             if not especialidad:
                 raise ValueError("La especialidad indicada no existe")
 
-            key = (str(alumno.id), numero_rotacion, _normalizar_texto(periodo_academico))
+            key = (str(alumno.id), numero_rotacion, periodo_academico)
             if key in seen_keys:
                 raise ValueError("Duplicado dentro del Excel para el mismo alumno, rotación y periodo")
 

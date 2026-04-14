@@ -1,4 +1,8 @@
-[
+{
+  "especialidad": "Hospitalización II",
+  "bloque_sinon": {
+    "titulo": "Actividades NIC",
+    "elementos": [
       { "id": "b0_01", "texto": "2300 - Administración de medicación" },
       { "id": "b0_02", "texto": "2311 - Administración de medicación: inhalatoria" },
       { "id": "b0_03", "texto": "2313 - Administración de medicación: intramuscular (i.m.)" },
@@ -46,3 +50,5 @@
       { "id": "b0_45", "texto": "3590 - Vigilancia de la piel" },
       { "id": "b0_46", "texto": "6650 - Vigilancia" }
     ]
+  }
+}

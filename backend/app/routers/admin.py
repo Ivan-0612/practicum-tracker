@@ -6,6 +6,7 @@ from typing import List
 import shutil
 import os
 from io import BytesIO
+from ..utils.periodo_academico_utils import normalizar_periodo_academico
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from ..utils.excel_utils import (
@@ -628,7 +629,7 @@ def exportar_evaluaciones_alumnos_excel(
     rotaciones = (
         db.query(models.Rotacion)
         .join(models.Alumno, models.Alumno.id == models.Rotacion.alumno_id)
-        .filter(models.Rotacion.final_grade_text.isnot(None))
+        .filter(models.Rotacion.completada.is_(True))
         .order_by(
             models.Rotacion.periodo_academico.desc(),
             models.Rotacion.curso.desc(),
@@ -688,7 +689,7 @@ def exportar_evaluaciones_alumnos_excel(
                 correo,
                 rot.curso or alumno.curso,
                 rot.numero_rotacion or alumno.numero_rotacion,
-                rot.periodo_academico,
+                normalizar_periodo_academico(rot.periodo_academico),
                 rot.centro_practicas or "",
                 rot.especialidad.nombre if rot.especialidad else "Sin especialidad",
                 tutor_hospital,

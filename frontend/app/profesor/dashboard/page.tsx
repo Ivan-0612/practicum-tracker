@@ -59,6 +59,7 @@ export default function ProfesorDashboard() {
   const [isRubricaOpen, setIsRubricaOpen] = useState(false);
   const [rubricaActual, setRubricaActual] = useState({ nombre: "", molde: null });
   const [especialidadesSistema, setEspecialidadesSistema] = useState<EspecialidadDisponible[]>([]);
+  const [estadoEvaluacionActivo, setEstadoEvaluacionActivo] = useState<"Evaluados" | "No Evaluados" | null>(null);
 
   // 1. Leer memoria al cargar
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function ProfesorDashboard() {
         if (estadoGuardado.cursoActivo !== undefined) setCursoActivo(estadoGuardado.cursoActivo);
         if (estadoGuardado.rotacionActiva !== undefined) setRotacionActiva(estadoGuardado.rotacionActiva);
         if (estadoGuardado.especialidadActiva !== undefined) setEspecialidadActiva(estadoGuardado.especialidadActiva);
+        if (estadoGuardado.estadoEvaluacionActivo !== undefined) setEstadoEvaluacionActivo(estadoGuardado.estadoEvaluacionActivo);
       } catch (e) {
         console.error("Error leyendo memoria", e);
       }
@@ -88,10 +90,11 @@ export default function ProfesorDashboard() {
         busqueda,
         cursoActivo,
         rotacionActiva,
-        especialidadActiva
+        especialidadActiva,
+        estadoEvaluacionActivo
       }));
     }
-  }, [isInitialized, filtroPeriodo, filtroEstado, busqueda, cursoActivo, rotacionActiva, especialidadActiva]);
+  }, [isInitialized, filtroPeriodo, filtroEstado, busqueda, cursoActivo, rotacionActiva, especialidadActiva, estadoEvaluacionActivo]);
 
   // 3. Cargar datos del API
   useEffect(() => { 
@@ -224,25 +227,34 @@ export default function ProfesorDashboard() {
     (filtroEstado === "Todos" || a.estado_evaluacion === filtroEstado)
   );
 
-  const cursosDisponibles = Array.from(new Set(alumnosPorEstadoYPeriodo.map(a => a.curso))).sort();
-  const rotacionesDelCurso = cursoActivo ? Array.from(new Set(alumnosPorEstadoYPeriodo.filter(a => a.curso === cursoActivo).map(a => a.numero_rotacion))).sort() : [];
-  const especialidadesDeLaRotacion = (cursoActivo && rotacionActiva) ? Array.from(new Set(alumnosPorEstadoYPeriodo.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva).map(a => a.especialidad))).sort() : [];
+  // Aplicar filtro de Evaluados/No Evaluados desde el principio
+  const alumnosPorEvaluacion = estadoEvaluacionActivo 
+    ? alumnosPorEstadoYPeriodo.filter(a => 
+        estadoEvaluacionActivo === "Evaluados" 
+          ? a.estado_evaluacion === "Completada"
+          : a.estado_evaluacion !== "Completada"
+      )
+    : alumnosPorEstadoYPeriodo;
+
+  const cursosDisponibles = Array.from(new Set(alumnosPorEvaluacion.map(a => a.curso))).sort();
+  const rotacionesDelCurso = cursoActivo ? Array.from(new Set(alumnosPorEvaluacion.filter(a => a.curso === cursoActivo).map(a => a.numero_rotacion))).sort() : [];
+  const especialidadesDeLaRotacion = (cursoActivo && rotacionActiva) ? Array.from(new Set(alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva).map(a => a.especialidad))).sort() : [];
   const especialidadesDesdeAlumnos = Array.from(
     new Map(
-      alumnosPorEstadoYPeriodo.map((a) => [a.especialidad, { nombre: a.especialidad, rotacionId: a.rotacion_id }])
+      alumnosPorEvaluacion.map((a) => [a.especialidad, { nombre: a.especialidad, rotacionId: a.rotacion_id }])
     ).values()
   ).sort((a, b) => a.nombre.localeCompare(b.nombre));
   const especialidadesDisponibles = especialidadesSistema.length > 0 ? especialidadesSistema : especialidadesDesdeAlumnos;
   const puedeAbrirRubrica = especialidadesDisponibles.length > 0;
 
   const isBuscando = busqueda.trim().length > 0;
-  let alumnosAMostrar = alumnosPorEstadoYPeriodo;
+  let alumnosAMostrar = alumnosPorEvaluacion;
   
   if (isBuscando) {
     const texto = busqueda.toLowerCase();
-    alumnosAMostrar = alumnosPorEstadoYPeriodo.filter(a => a.nombre_completo.toLowerCase().includes(texto) || a.email.toLowerCase().includes(texto));
+    alumnosAMostrar = alumnosPorEvaluacion.filter(a => a.nombre_completo.toLowerCase().includes(texto) || a.email.toLowerCase().includes(texto));
   } else if (cursoActivo && rotacionActiva && especialidadActiva) {
-    alumnosAMostrar = alumnosPorEstadoYPeriodo.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva && a.especialidad === especialidadActiva);
+    alumnosAMostrar = alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva && a.especialidad === especialidadActiva);
   }
 
   const alumnoParaRubrica = !isBuscando && cursoActivo && rotacionActiva && especialidadActiva
@@ -379,7 +391,7 @@ export default function ProfesorDashboard() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Calendar className="h-4 w-4 text-gray-400" /></div>
                 <select 
                   value={filtroPeriodo} 
-                  onChange={(e) => { setFiltroPeriodo(e.target.value); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); }}
+                  onChange={(e) => { setFiltroPeriodo(e.target.value); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); setEstadoEvaluacionActivo(null); }}
                   className="block w-full pl-11 pr-8 py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-ufv-azul outline-none font-bold appearance-none cursor-pointer"
                 >
                   <option value="Todos">Todos los años</option>
@@ -389,13 +401,13 @@ export default function ProfesorDashboard() {
 
               <select 
                 value={filtroEstado} 
-                onChange={(e) => { setFiltroEstado(e.target.value); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); }}
+                onChange={(e) => { setFiltroEstado(e.target.value); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); setEstadoEvaluacionActivo(null); }}
                 className="bg-white border border-gray-200 text-gray-700 rounded-xl p-3.5 shadow-sm font-bold outline-none cursor-pointer"
               >
                 <option value="Todos">Todos los estados</option>
                 <option value="Pendiente">⏳ Pendientes</option>
                 <option value="En Proceso">📝 Borradores</option>
-                <option value="Pendiente Confirmación Final">⚠️ Cierre 1/2</option>
+                <option value="Pendiente Confirmación Final">⚠️ Sin confirmar</option>
                 <option value="Completada">✅ Evaluados</option>
               </select>
 
@@ -419,7 +431,8 @@ export default function ProfesorDashboard() {
               {/* BREADCRUMBS */}
               {!isBuscando && (
                 <div className="flex flex-wrap items-center text-sm text-gray-500 mb-6 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm font-medium w-fit">
-                  <button onClick={() => { setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); }} className={`flex items-center gap-1.5 hover:text-ufv-azul px-2 ${!cursoActivo ? "font-bold text-ufv-azul" : ""}`}><Home className="w-4 h-4" /> Inicio</button>
+                  <button onClick={() => { setEstadoEvaluacionActivo(null); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); }} className={`flex items-center gap-1.5 hover:text-ufv-azul px-2 ${!estadoEvaluacionActivo ? "font-bold text-ufv-azul" : ""}`}><Home className="w-4 h-4" /> Inicio</button>
+                  {estadoEvaluacionActivo && <><ChevronRight className="w-4 h-4 mx-1 text-gray-300" /><button onClick={() => { setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); }} className={`px-2 ${!cursoActivo ? "font-bold text-ufv-azul" : ""}`}>{estadoEvaluacionActivo}</button></>}
                   {cursoActivo && <><ChevronRight className="w-4 h-4 mx-1 text-gray-300" /><button onClick={() => { setRotacionActiva(null); setEspecialidadActiva(null); }} className={`px-2 ${!rotacionActiva ? "font-bold text-ufv-azul" : ""}`}>{cursoActivo}º Curso</button></>}
                   {rotacionActiva && <><ChevronRight className="w-4 h-4 mx-1 text-gray-300" /><button onClick={() => setEspecialidadActiva(null)} className={`px-2 ${!especialidadActiva ? "font-bold text-ufv-azul" : ""}`}>Rotación {rotacionActiva}</button></>}
                   {especialidadActiva && <><ChevronRight className="w-4 h-4 mx-1 text-gray-300" /><span className="font-bold text-ufv-azul px-2">{especialidadActiva}</span></>}
@@ -431,6 +444,32 @@ export default function ProfesorDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {alumnosAMostrar.map(item => <TarjetaAlumno key={item.rotacion_id} item={item} />)}
                 </div>
+              ) : !estadoEvaluacionActivo ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
+                  {(() => {
+                    const alumnosEvaluados = alumnosPorEstadoYPeriodo.filter(a => a.estado_evaluacion === "Completada");
+                    const alumnosNoEvaluados = alumnosPorEstadoYPeriodo.filter(a => a.estado_evaluacion !== "Completada");
+                    
+                    return (
+                      <>
+                        <button onClick={() => setEstadoEvaluacionActivo("Evaluados")} className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group">
+                          <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                          <div>
+                            <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">Evaluados</h3>
+                            <p className="text-sm font-bold text-gray-500 mt-1">{alumnosEvaluados.length} alumnos</p>
+                          </div>
+                        </button>
+                        <button onClick={() => setEstadoEvaluacionActivo("No Evaluados")} className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group">
+                          <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                          <div>
+                            <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">No Evaluados</h3>
+                            <p className="text-sm font-bold text-gray-500 mt-1">{alumnosNoEvaluados.length} alumnos</p>
+                          </div>
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
               ) : !cursoActivo ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {cursosDisponibles.map(curso => (
@@ -438,7 +477,7 @@ export default function ProfesorDashboard() {
                       <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                       <div>
                         <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">{curso}º Curso</h3>
-                        <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEstadoYPeriodo.filter(a => a.curso === curso).length} alumnos</p>
+                        <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === curso).length} alumnos</p>
                       </div>
                     </button>
                   ))}
@@ -450,7 +489,7 @@ export default function ProfesorDashboard() {
                       <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                       <div>
                         <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">Rotación {rot}</h3>
-                        <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEstadoYPeriodo.filter(a => a.curso === cursoActivo && a.numero_rotacion === rot).length} alumnos</p>
+                        <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rot).length} alumnos</p>
                       </div>
                     </button>
                   ))}
@@ -462,7 +501,7 @@ export default function ProfesorDashboard() {
                       <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Briefcase className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                       <div>
                         <h3 className="text-lg font-black text-ufv-azul-oscuro group-hover:text-ufv-azul truncate max-w-[200px]">{esp}</h3>
-                        <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEstadoYPeriodo.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva && a.especialidad === esp).length} alumnos</p>
+                        <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva && a.especialidad === esp).length} alumnos</p>
                       </div>
                     </button>
                   ))}

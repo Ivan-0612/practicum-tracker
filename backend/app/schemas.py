@@ -67,7 +67,7 @@ class AlumnoBase(BaseModel):
     centro_practicas: str
 
     numero_rotacion: int = 1
-    periodo_academico: str = "2025/2026"
+    periodo_academico: str = "2025/26"
     especialidad_id: UUID
 
 

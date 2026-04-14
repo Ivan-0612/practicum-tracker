@@ -32,7 +32,8 @@ import {
   ArrowRight,
   Edit3,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  BookOpen
 } from "lucide-react";
 
 // --- COMPONENTE: RENDERIZADOR VISTA EVALUACIÓN COMPACTA (VERSIÓN UFV) ---
@@ -750,92 +751,143 @@ export default function AdminPanel() {
             )}
 
             {especialidadesTab === "mapping" && (
-            <div className="space-y-4 border-t border-gray-100 pt-6">
-              <div>
-                <h3 className="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
-                  <Code2 className="w-4 h-4" /> Mapping Global (Compartido)
-                </h3>
-                <p className="text-xs text-gray-600 mb-4 leading-relaxed">
-                  Configura aquí el mapping único que se reutilizará para <strong>TODAS</strong> las especialidades. 
-                  Cada especialidad tendrá su propia plantilla Excel, pero todas usarán este mapping.
-                </p>
-              </div>
-
-              {isLoadingMappingGlobal ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-ufv-azul" />
+            <div className="space-y-6 border-t border-gray-100 pt-6">
+              
+              {/* SECCIÓN 1: PLANTILLA GLOBAL DE UNIDADES DE COMPETENCIA */}
+              <div className="space-y-4">
+                <div className="bg-ufv-azul-oscuro text-white rounded-2xl p-4 shadow-sm border-l-4 border-ufv-azul">
+                  <h3 className="text-sm font-black flex items-center gap-2 mb-2">
+                    <BookOpen className="w-5 h-5" /> PLANTILLA GLOBAL DE UNIDADES DE COMPETENCIA
+                  </h3>
+                  <p className="text-xs text-blue-100 leading-relaxed">
+                    Define la estructura única de unidades de competencia que será utilizada por TODAS las especialidades del sistema.
+                  </p>
                 </div>
-              ) : (
-                <>
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800">Plantilla global de unidades de competencia</h4>
+
+                <div>
+                  {/* Upload section */}
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3 h-fit shadow-sm">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                      <Upload className="w-4 h-4" /> Cargar Nuevo
+                    </h4>
                     <input
                       type="file"
                       accept=".json"
                       onChange={(e) => setArchivoUcGlobal(e.target.files ? e.target.files[0] : null)}
-                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-ufv-azul-oscuro hover:file:bg-gray-200 cursor-pointer"
                     />
                     <button
                       type="button"
                       onClick={subirArchivoUcGlobal}
                       disabled={!archivoUcGlobal || isSavingUcGlobal}
-                      className="w-full px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                      className="w-full px-4 py-2.5 rounded-xl font-bold text-sm bg-ufv-azul text-white hover:bg-ufv-azul-oscuro disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
-                      {isSavingUcGlobal ? "Subiendo UC..." : "Subir JSON UC Global"}
+                      {isSavingUcGlobal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {isSavingUcGlobal ? "Subiendo..." : "Subir JSON"}
                     </button>
                   </div>
+                </div>
 
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 mb-2">JSON actual UC global</h4>
-                    {isLoadingUcGlobal ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="w-5 h-5 animate-spin text-ufv-azul" />
-                      </div>
-                    ) : (
-                      <textarea
-                        value={ucGlobalJson}
-                        onChange={(e) => setUcGlobalJson(e.target.value)}
-                        placeholder='{"apartados":[],"niveles":{}}'
-                        className="w-full min-h-64 border border-gray-200 rounded-xl bg-gray-50 p-4 text-xs font-mono outline-none focus:border-ufv-azul focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
-                        spellCheck={false}
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={guardarUcGlobal}
-                      disabled={isSavingUcGlobal}
-                      className={`mt-3 w-full px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${isSavingUcGlobal ? "bg-gray-100 text-gray-400 border border-gray-200" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}
-                    >
-                      {isSavingUcGlobal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                      {isSavingUcGlobal ? "Guardando UC..." : "Guardar UC Global"}
-                    </button>
-                  </div>
-
-                  <textarea
-                    value={mappingGlobalJson}
-                    onChange={(e) => setMappingGlobalJson(e.target.value)}
-                    placeholder='{"a1_01":"EVALUACION!B5","a1_02":"EVALUACION!B6"}'
-                    className="w-full min-h-96 border border-gray-200 rounded-xl bg-gray-50 p-4 text-xs font-mono outline-none focus:border-ufv-azul focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
-                    spellCheck={false}
-                  />
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <p className="text-xs text-blue-800 font-medium leading-relaxed">
-                      <strong>Formato esperado:</strong> Un objeto JSON con claves por indicador y valores tipo <span className="font-mono bg-blue-100 px-1 rounded">"EVALUACION!B86"</span>
-                    </p>
-                  </div>
-
+                {/* Editor JSON */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                    <Code2 className="w-4 h-4" /> Editor JSON
+                  </h4>
+                  {isLoadingUcGlobal ? (
+                    <div className="flex items-center justify-center py-8 border border-gray-200 rounded-xl bg-gray-50">
+                      <Loader2 className="w-6 h-6 animate-spin text-ufv-azul" />
+                    </div>
+                  ) : (
+                    <textarea
+                      value={ucGlobalJson}
+                      onChange={(e) => setUcGlobalJson(e.target.value)}
+                      placeholder='{"apartados":[],"niveles":{}}'
+                      className="w-full min-h-48 border border-gray-200 rounded-xl bg-white p-4 text-xs font-mono outline-none focus:border-ufv-azul focus:ring-2 focus:ring-ufv-azul/10 transition-all shadow-sm"
+                      spellCheck={false}
+                    />
+                  )}
                   <button
                     type="button"
-                    onClick={guardarMappingGlobal}
-                    disabled={isSavingMappingGlobal}
-                    className={`w-full px-5 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${isSavingMappingGlobal ? "bg-gray-100 text-gray-400 border border-gray-200" : "bg-ufv-azul text-white hover:bg-ufv-azul-oscuro active:scale-95"}`}
+                    onClick={guardarUcGlobal}
+                    disabled={isSavingUcGlobal}
+                    className={`w-full px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm border ${isSavingUcGlobal ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-ufv-azul text-white hover:bg-ufv-azul-oscuro border-ufv-azul"}`}
                   >
-                    {isSavingMappingGlobal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    {isSavingMappingGlobal ? "Guardando..." : "Guardar Mapping Global"}
+                    {isSavingUcGlobal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    {isSavingUcGlobal ? "Guardando..." : "Guardar Plantilla UC"}
                   </button>
-                </>
-              )}
+                </div>
+              </div>
+
+              {/* SEPARADOR */}
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+              </div>
+
+              {/* SECCIÓN 2: MAPPING DE EXCEL */}
+              <div className="space-y-4">
+                <div className="bg-ufv-azul-oscuro text-white rounded-2xl p-4 shadow-sm border-l-4 border-ufv-rosa-oscuro">
+                  <h3 className="text-sm font-black flex items-center gap-2 mb-2">
+                    <FileSpreadsheet className="w-5 h-5" /> MAPPING: EXCEL → UNIDADES DE COMPETENCIA
+                  </h3>
+                  <p className="text-xs text-blue-100 leading-relaxed">
+                    Configura la transcodificación entre las celdas del archivo Excel y los indicadores de unidades de competencia.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3 shadow-sm">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                    <Code2 className="w-4 h-4" /> Estructura del Mapping
+                  </h4>
+                  <div className="bg-white rounded-lg p-3 space-y-2 border border-gray-200">
+                    <p className="text-xs text-gray-700 font-medium">
+                      Cada indicador se mapea a una celda Excel específica:
+                    </p>
+                    <div className="bg-gray-50 rounded p-2 font-mono text-[11px] text-gray-600 overflow-auto border border-gray-200">
+                      {`{
+  "a1_01": "EVALUACION!B5",
+  "a1_02": "EVALUACION!B6",
+  "a2_03": "EVALUACION!C7"
+}`}
+                    </div>
+                    <p className="text-xs text-gray-800 font-semibold">
+                      Formato: <span className="font-mono bg-gray-100 px-1 rounded text-[10px] border border-gray-300">"HOJA!CELDA"</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Editor JSON - Mapping */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                    <Edit3 className="w-4 h-4" /> Editor JSON
+                  </h4>
+                  {isLoadingMappingGlobal ? (
+                    <div className="flex items-center justify-center py-8 border border-gray-200 rounded-xl bg-gray-50">
+                      <Loader2 className="w-6 h-6 animate-spin text-ufv-azul" />
+                    </div>
+                  ) : (
+                    <textarea
+                      value={mappingGlobalJson}
+                      onChange={(e) => setMappingGlobalJson(e.target.value)}
+                      placeholder='{"a1_01":"EVALUACION!B5","a1_02":"EVALUACION!B6"}'
+                      className="w-full min-h-64 border border-gray-200 rounded-xl bg-white p-4 text-xs font-mono outline-none focus:border-ufv-azul focus:ring-2 focus:ring-ufv-azul/10 transition-all shadow-sm"
+                      spellCheck={false}
+                    />
+                  )}
+                </div>
+
+                {/* Botón guardar - Mapping */}
+                <button
+                  type="button"
+                  onClick={guardarMappingGlobal}
+                  disabled={isSavingMappingGlobal}
+                  className={`w-full px-5 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm border ${isSavingMappingGlobal ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-ufv-azul text-white hover:bg-ufv-azul-oscuro border-ufv-azul"}`}
+                >
+                  {isSavingMappingGlobal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  {isSavingMappingGlobal ? "Guardando..." : "Guardar Mapping Excel"}
+                </button>
+              </div>
             </div>
             )}
 

@@ -7,10 +7,14 @@ import Image from "next/image";
 import { ChevronLeft, User, GraduationCap, Briefcase, KeyRound, Save, AlertCircle, CheckCircle2, Calendar, Building } from "lucide-react";
 
 // --- LÓGICA DINÁMICA DE AÑOS ACADÉMICOS ---
+const formatearPeriodoAcademico = (inicio: number, fin: number) => `${inicio}/${String(fin).slice(-2)}`;
+
 const obtenerPeriodoActual = () => {
   const hoy = new Date();
   const año = hoy.getFullYear();
-  return hoy.getMonth() < 8 ? `${año - 1}/${año}` : `${año}/${año + 1}`;
+  return hoy.getMonth() < 8
+    ? formatearPeriodoAcademico(año - 1, año)
+    : formatearPeriodoAcademico(año, año + 1);
 };
 
 const generarPeriodos = () => {
@@ -22,7 +26,7 @@ const generarPeriodos = () => {
   const periodos = [];
   // Rango: 4 años en el pasado (-4), el actual (0), y 2 en el futuro (2)
   for (let i = -4; i <= 2; i++) {
-    periodos.push(`${añoBase + i}/${añoBase + i + 1}`);
+    periodos.push(formatearPeriodoAcademico(añoBase + i, añoBase + i + 1));
   }
   
   // Opcional: Le damos la vuelta para que los años más recientes salgan arriba del todo en la lista
