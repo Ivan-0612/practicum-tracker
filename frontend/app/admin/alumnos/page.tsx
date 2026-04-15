@@ -6,10 +6,9 @@ import Cookies from "js-cookie";
 import Image from "next/image";
 import ModalNuevaRotacion from "@/components/ModalNuevaRotacion";
 import ModalTipoAltaAlumno from "@/components/ModalTipoAltaAlumno";
-import ModalTipoAsignarRotacion from "@/components/ModalTipoAsignarRotacion";
 import { 
   Trash2, Mail, GraduationCap, ChevronLeft, Filter, 
-  Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp, Building, Download
+  Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp, Building, Download, FileSpreadsheet
 } from "lucide-react";
 
 interface RotacionInfo {
@@ -51,7 +50,6 @@ export default function ListaAlumnosAdmin() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState({ id: "", email: "" });
   const [modalAltaAlumnoAbierto, setModalAltaAlumnoAbierto] = useState(false);
-  const [modalTipoRotacionAbierto, setModalTipoRotacionAbierto] = useState(false);
   const [paginaActual, setPaginaActual] = useState(1);
 
   useEffect(() => {
@@ -107,7 +105,7 @@ export default function ListaAlumnosAdmin() {
 
   const abrirModalRotacion = (id: string, email: string) => {
     setAlumnoSeleccionado({ id, email });
-    setModalTipoRotacionAbierto(true);
+    setModalAbierto(true);
   };
 
   const descargarExcelRotacion = async (rotacionId: string) => {
@@ -226,6 +224,12 @@ export default function ListaAlumnosAdmin() {
                 className="bg-white text-ufv-azul px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 border border-blue-200 active:scale-95 transition-all shadow-sm shrink-0"
               >
                 <Download className="w-5 h-5" /> Descargar evaluaciones
+              </button>
+              <button 
+                onClick={() => router.push("/admin/alumnos/rotaciones/importar")}
+                className="bg-white text-emerald-700 px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 border border-emerald-200 active:scale-95 transition-all shadow-sm shrink-0"
+              >
+                <FileSpreadsheet className="w-5 h-5" /> Importar rotaciones 
               </button>
               <button 
                 onClick={() => setModalAltaAlumnoAbierto(true)} 
@@ -468,19 +472,6 @@ export default function ListaAlumnosAdmin() {
         onExcel={() => router.push("/admin/alumnos/importar")}
       />
 
-      <ModalTipoAsignarRotacion
-        isOpen={modalTipoRotacionAbierto}
-        alumnoEmail={alumnoSeleccionado.email}
-        onClose={() => setModalTipoRotacionAbierto(false)}
-        onManual={() => {
-          setModalTipoRotacionAbierto(false);
-          setModalAbierto(true);
-        }}
-        onAutomatico={() => {
-          setModalTipoRotacionAbierto(false);
-          router.push("/admin/alumnos/rotaciones/importar");
-        }}
-      />
     </div>
   );
 }

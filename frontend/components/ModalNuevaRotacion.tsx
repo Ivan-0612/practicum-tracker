@@ -13,11 +13,18 @@ interface ModalProps {
 }
 
 // --- LÓGICA DINÁMICA DE AÑOS ACADÉMICOS ---
+const formatearPeriodoAcademico = (inicio: number) => {
+  const fin = inicio + 1;
+  return `${inicio}/${String(fin % 100).padStart(2, "0")}`;
+};
+
 const obtenerPeriodoActual = () => {
   const hoy = new Date();
   const año = hoy.getFullYear();
   // Si estamos antes de Septiembre (mes 8), el curso empezó el año pasado
-  return hoy.getMonth() < 8 ? `${año - 1}/${año}` : `${año}/${año + 1}`;
+  return hoy.getMonth() < 8
+    ? formatearPeriodoAcademico(año - 1)
+    : formatearPeriodoAcademico(año);
 };
 
 const generarPeriodos = () => {
@@ -29,7 +36,7 @@ const generarPeriodos = () => {
   const periodos = [];
   // Rango: 4 años en el pasado (-4), el actual (0), y 2 en el futuro (2)
   for (let i = -4; i <= 2; i++) {
-    periodos.push(`${añoBase + i}/${añoBase + i + 1}`);
+    periodos.push(formatearPeriodoAcademico(añoBase + i));
   }
   
   // Opcional: Le damos la vuelta para que los años más recientes salgan arriba del todo en la lista

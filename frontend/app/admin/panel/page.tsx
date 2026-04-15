@@ -36,6 +36,9 @@ import {
   BookOpen
 } from "lucide-react";
 
+const PLANTILLA_EXCEL_ALUMNOS_URL =
+  "https://hlwthmqvspeunagmzdju.supabase.co/storage/v1/object/public/plantillas/alumnos/plantilla_nuevos_alumnos.xlsx";
+
 // --- COMPONENTE: RENDERIZADOR VISTA EVALUACIÓN COMPACTA (VERSIÓN UFV) ---
 const RenderizadorEvaluacionCompacta = ({ data }: { data: any }) => {
   if (!data || !data.apartados) {
@@ -1345,6 +1348,15 @@ export default function AdminPanel() {
               >
                 <GraduationCap className="w-5 h-5" /> Nuevo Alumno
               </button>
+
+              <a
+                href={PLANTILLA_EXCEL_ALUMNOS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full bg-white text-ufv-azul border border-blue-100 px-4 py-3.5 rounded-xl hover:bg-blue-50 font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <FileSpreadsheet className="w-5 h-5" /> Descargar plantilla Excel
+              </a>
               
               {/* Fila 3: Ver Listas */}
               <div className="flex flex-col sm:flex-row gap-3 mt-1">

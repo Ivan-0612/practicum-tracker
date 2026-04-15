@@ -1,13 +1,12 @@
 "use client";
 
-import { X, Briefcase, FileSpreadsheet, ArrowRight } from "lucide-react";
+import { X, Briefcase, ArrowRight } from "lucide-react";
 
 type ModalTipoAsignarRotacionProps = {
   isOpen: boolean;
   alumnoEmail: string;
   onClose: () => void;
   onManual: () => void;
-  onAutomatico: () => void;
 };
 
 export default function ModalTipoAsignarRotacion({
@@ -15,7 +14,6 @@ export default function ModalTipoAsignarRotacion({
   alumnoEmail,
   onClose,
   onManual,
-  onAutomatico,
 }: ModalTipoAsignarRotacionProps) {
   if (!isOpen) return null;
 
@@ -37,11 +35,11 @@ export default function ModalTipoAsignarRotacion({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
+        <div className="p-6">
           <button
             type="button"
             onClick={onManual}
-            className="group rounded-2xl border border-gray-200 bg-white p-5 text-left hover:border-ufv-azul hover:shadow-md transition-all"
+            className="w-full group rounded-2xl border border-gray-200 bg-white p-5 text-left hover:border-ufv-azul hover:shadow-md transition-all"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-ufv-azul flex items-center justify-center">
@@ -52,23 +50,6 @@ export default function ModalTipoAsignarRotacion({
             <h3 className="text-lg font-black text-gray-900">Asignar manualmente</h3>
             <p className="text-sm text-gray-500 mt-2 leading-relaxed">
               Abre el formulario tradicional para asignar la rotación de este alumno.
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={onAutomatico}
-            className="group rounded-2xl border border-gray-200 bg-white p-5 text-left hover:border-ufv-azul hover:shadow-md transition-all"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <FileSpreadsheet className="w-6 h-6" />
-              </div>
-              <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-ufv-azul transition-colors" />
-            </div>
-            <h3 className="text-lg font-black text-gray-900">Asignar por Excel</h3>
-            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-              Importa varias rotaciones para alumnos existentes en una sola subida.
             </p>
           </button>
         </div>
