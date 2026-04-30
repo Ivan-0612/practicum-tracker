@@ -6,7 +6,7 @@ import Cookies from "js-cookie";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, PenTool, Lock, Eye } from "lucide-react";
 
-interface Fichaje { id: string; fecha: string; firmado_en: string; firmado_por: string;}
+interface Fichaje { id: string; fecha: string; firmado_en: string; firmado_por: string; fecha_recuperada?: string; }
 
 export default function CalendarioProfesor() {
   const params = useParams();
@@ -23,7 +23,7 @@ export default function CalendarioProfesor() {
   const [fechaBase, setFechaBase] = useState(new Date());
   const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
 
-  const hoyStr = new Date().toLocaleDateString('en-CA'); 
+  const hoyStr = new Date().toLocaleDateString('en-CA');
 
   useEffect(() => { cargarAsistencia(); }, [rotacionId]);
 
@@ -34,7 +34,7 @@ export default function CalendarioProfesor() {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (!res.ok) throw new Error("Error al cargar el registro.");
-      
+
       const data = await res.json();
       setFichajes(data.registros || []);
       setEsTutorUni(data.es_tutor_universidad);
@@ -42,12 +42,24 @@ export default function CalendarioProfesor() {
     } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   };
 
-  const handleFirmarDia = async () => {
+  const [fechaRecuperacionInput, setFechaRecuperacionInput] = useState("");
+
+  const handleFirmarDia = async (esRecuperada: boolean = false) => {
     if (!diaSeleccionado || esTutorUni || rotacionCerrada) return;
-    
+
     if (diaSeleccionado > hoyStr) {
-        alert("⚠️ No puedes firmar un día que aún no ha pasado.");
-        return;
+      alert("⚠️ No puedes firmar un día que aún no ha pasado.");
+      return;
+    }
+
+    if (esRecuperada && !fechaRecuperacionInput) {
+      alert("⚠️ Debes seleccionar la fecha de recuperación.");
+      return;
+    }
+
+    if (esRecuperada && fechaRecuperacionInput > hoyStr) {
+      alert("⚠️ No puedes usar una fecha de recuperación en el futuro.");
+      return;
     }
 
     setFirmando(true);
@@ -56,10 +68,15 @@ export default function CalendarioProfesor() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/profesores/firmar-asistencia`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ rotacion_id: rotacionId, fecha: diaSeleccionado })
+        body: JSON.stringify({
+          rotacion_id: rotacionId,
+          fecha: diaSeleccionado,
+          fecha_recuperada: esRecuperada ? fechaRecuperacionInput : null
+        })
       });
       if (res.ok) {
         await cargarAsistencia();
+        setFechaRecuperacionInput("");
         alert("✅ Jornada firmada correctamente.");
       } else {
         const err = await res.json();
@@ -71,18 +88,18 @@ export default function CalendarioProfesor() {
   const añoActual = fechaBase.getFullYear();
   const mesActual = fechaBase.getMonth();
   const diasEnMes = new Date(añoActual, mesActual + 1, 0).getDate();
-  const offsetDias = (new Date(añoActual, mesActual, 1).getDay() + 6) % 7; 
+  const offsetDias = (new Date(añoActual, mesActual, 1).getDay() + 6) % 7;
 
-  const fichajesDict = fichajes.reduce((acc, f) => { 
+  const fichajesDict = fichajes.reduce((acc, f) => {
     if (f.fecha) {
-        const fechaLimpia = f.fecha.split('T')[0].split(' ')[0];
-        acc[fechaLimpia] = f; 
+      const fechaLimpia = f.fecha.split('T')[0].split(' ')[0];
+      acc[fechaLimpia] = f;
     }
-    return acc; 
+    return acc;
   }, {} as Record<string, Fichaje>);
 
   const getFormatFecha = (dia: number) => `${añoActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-  
+
   const fichajeActivo = diaSeleccionado ? fichajesDict[diaSeleccionado] : null;
 
   if (loading) return <div className="p-10 text-center font-bold animate-pulse text-ufv-azul">Cargando calendario...</div>;
@@ -120,15 +137,15 @@ export default function CalendarioProfesor() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-black text-ufv-azul-oscuro capitalize">{fechaBase.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</h2>
                 <div className="flex gap-2">
-                  <button onClick={() => setFechaBase(new Date(añoActual, mesActual - 1, 1))} className="p-2 border rounded-xl hover:bg-gray-50 transition-colors"><ChevronLeft className="w-5 h-5"/></button>
-                  <button onClick={() => setFechaBase(new Date(añoActual, mesActual + 1, 1))} className="p-2 border rounded-xl hover:bg-gray-50 transition-colors"><ChevronRight className="w-5 h-5"/></button>
+                  <button onClick={() => setFechaBase(new Date(añoActual, mesActual - 1, 1))} className="p-2 border rounded-xl hover:bg-gray-50 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+                  <button onClick={() => setFechaBase(new Date(añoActual, mesActual + 1, 1))} className="p-2 border rounded-xl hover:bg-gray-50 transition-colors"><ChevronRight className="w-5 h-5" /></button>
                 </div>
               </div>
 
               <div className="grid grid-cols-7 gap-2">
                 {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(dia => <div key={dia} className="text-center text-xs font-bold text-gray-400">{dia}</div>)}
                 {Array.from({ length: offsetDias }).map((_, i) => <div key={`empty-${i}`} className="h-14" />)}
-                
+
                 {Array.from({ length: diasEnMes }).map((_, i) => {
                   const fechaStr = getFormatFecha(i + 1);
                   const isSigned = !!fichajesDict[fechaStr];
@@ -139,8 +156,8 @@ export default function CalendarioProfesor() {
                   const bloqueadoUni = esTutorUni && !isSigned;
 
                   return (
-                    <button 
-                      key={i} 
+                    <button
+                      key={i}
                       onClick={() => { if (!esFuturo && !bloqueadoUni) setDiaSeleccionado(fechaStr); }}
                       disabled={esFuturo || bloqueadoUni}
                       className={`h-14 rounded-xl border flex flex-col items-center justify-center transition-all 
@@ -164,28 +181,35 @@ export default function CalendarioProfesor() {
                 <div className="bg-white rounded-[2rem] p-6 border border-gray-200 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Día seleccionado</p>
                   <h3 className="font-black text-ufv-azul-oscuro text-xl mb-6">{new Date(diaSeleccionado).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
-                  
+
                   {fichajeActivo ? (
                     <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
                       <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-2" />
                       <p className="font-black text-green-800 text-lg">Jornada Validada</p>
-                      
+
+                      {/* Mostrar si fue recuperada */}
+                      {fichajeActivo.fecha_recuperada && (
+                        <p className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-100 py-1.5 px-3 rounded-lg inline-block border border-emerald-200">
+                          Recuperada el {new Date(fichajeActivo.fecha_recuperada).toLocaleDateString('es-ES')}
+                        </p>
+                      )}
+
                       {/* SELLO DE FIRMA DIGITAL (Visible para Hospital y Universidad) */}
                       <div className="mt-4 bg-white/60 p-3 rounded-xl border border-green-100/50">
-                         <p className="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-1">Validado por:</p>
-                         <p className="text-sm font-bold text-green-900 truncate" title={fichajeActivo.firmado_por}>
-                            {fichajeActivo.firmado_por}
-                         </p>
-                         <p className="text-[10px] font-bold text-green-600 mt-1 uppercase tracking-wide">
-                            El {new Date(fichajeActivo.firmado_en).toLocaleString('es-ES')}
-                         </p>
+                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-1">Validado por:</p>
+                        <p className="text-sm font-bold text-green-900 truncate" title={fichajeActivo.firmado_por}>
+                          {fichajeActivo.firmado_por}
+                        </p>
+                        <p className="text-[10px] font-bold text-green-600 mt-1 uppercase tracking-wide">
+                          El {new Date(fichajeActivo.firmado_en).toLocaleString('es-ES')}
+                        </p>
                       </div>
                     </div>
                   ) : (
                     <div className="bg-gray-50 rounded-2xl p-5 text-center border border-dashed border-gray-200">
                       <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-2" />
                       <p className="font-bold text-gray-600">Sin firma registrada</p>
-                      
+
                       {/* LÓGICA VISUAL ESTRICTA DEL BOTÓN */}
                       {esTutorUni ? (
                         <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
@@ -198,9 +222,25 @@ export default function CalendarioProfesor() {
                       ) : rotacionCerrada ? (
                         <p className="mt-4 text-xs text-gray-400 font-bold bg-gray-100 p-3 rounded-xl border border-gray-200">Modo lectura activo</p>
                       ) : (
-                        <button onClick={handleFirmarDia} disabled={firmando} className="mt-4 w-full bg-ufv-azul text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro active:scale-95 transition-all shadow-md">
-                          {firmando ? <span className="animate-pulse">Procesando...</span> : <><PenTool className="w-4 h-4"/> Firmar Asistencia</>}
-                        </button>
+                        <div className="mt-4 flex flex-col gap-3 text-left">
+                          <button onClick={() => handleFirmarDia(false)} disabled={firmando} className="w-full bg-ufv-azul text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro active:scale-95 transition-all shadow-md">
+                            {firmando ? <span className="animate-pulse">Procesando...</span> : <><PenTool className="w-4 h-4" /> Firmar Asistencia</>}
+                          </button>
+
+                          <div className="bg-white border border-gray-200 p-3 rounded-xl shadow-sm mt-2">
+                            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-widest">¿Asistencia Recuperada?</label>
+                            <input
+                              type="date"
+                              className="w-full text-sm p-2 border border-gray-300 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-2 font-medium text-gray-700"
+                              value={fechaRecuperacionInput}
+                              onChange={(e) => setFechaRecuperacionInput(e.target.value)}
+                              max={hoyStr}
+                            />
+                            <button onClick={() => handleFirmarDia(true)} disabled={firmando || !fechaRecuperacionInput} className="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all shadow-sm disabled:opacity-50">
+                              <PenTool className="w-4 h-4" /> Firmar
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}

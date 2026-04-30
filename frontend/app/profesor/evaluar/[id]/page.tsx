@@ -328,6 +328,46 @@ export default function PantallaEvaluacion() {
               </h2>
             </div>
 
+            {/* TABLA DE CRITERIOS DE EVALUACIÓN */}
+            <div className="mb-8 overflow-x-auto">
+              <table className="w-full min-w-[600px] text-xs md:text-sm text-left border-collapse border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <thead className="bg-gray-100 text-gray-700 font-bold">
+                  <tr>
+                    <th className="border border-gray-200 p-2 md:p-3 text-center bg-gray-200">CRITERIOS</th>
+                    <th className="border border-gray-200 p-2 md:p-3 text-center w-1/4">NIVEL 1 (BÁSICO)</th>
+                    <th className="border border-gray-200 p-2 md:p-3 text-center w-1/4">NIVEL 2 (INTERMEDIO)</th>
+                    <th className="border border-gray-200 p-2 md:p-3 text-center w-1/4">NIVEL 3 (AVANZADO)</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-600 bg-white">
+                  <tr>
+                    <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs">FRECUENCIA DE REALIZACIÓN</td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs">AUTONOMÍA PERSONAL</td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs leading-tight">MOMENTO ADECUADO DE REALIZACIÓN</td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">HASTA EL 50%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs leading-tight">UTILIZACIÓN ADECUADA DE RECURSOS</td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">HASTA EL 50%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                    <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
             <div className="space-y-6 md:space-y-8">
               {apartado.elementos.map((item: any, idx: number) => {
                 const resp = respuestas[item.id];

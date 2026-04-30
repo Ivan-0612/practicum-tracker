@@ -59,7 +59,8 @@ export default function ListaProfesores() {
       });
 
       if (res.ok) {
-        alert("✅ Profesor eliminado correctamente.");
+        const data = await res.json();
+        alert(`✅ ${data?.mensaje || "Operación completada."}`);
         fetchProfesores(); 
       } else {
         const errorData = await res.json();
@@ -67,6 +68,27 @@ export default function ListaProfesores() {
       }
     } catch (error) {
       alert("❌ Error de conexión con el servidor.");
+    }
+  };
+
+  const actualizarTipoTutor = async (id: string, tipo_tutor: "hospital" | "universidad") => {
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores/${id}/tipo`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tipo_tutor }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "No se pudo actualizar el tipo de tutor");
+      }
+      fetchProfesores();
+    } catch (error: any) {
+      alert(`❌ ${error.message || "Error al actualizar el tipo"}`);
     }
   };
 
@@ -148,21 +170,13 @@ export default function ListaProfesores() {
               </div>
 
               {/* GRUPO 2: BOTONES DE ACCIÓN */}
-              <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+              <div className="flex gap-3 shrink-0">
                 <button 
-                  onClick={() => router.push("/admin/profesores/nuevo?tipo=hospital")} 
+                  onClick={() => router.push("/admin/profesores/nuevo")} 
                   className="h-14 px-6 bg-ufv-azul text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm"
                 >
-                  <Briefcase className="w-5 h-5 shrink-0" />
-                  <span className="whitespace-nowrap">+ Tutor Hospital</span>
-                </button>
-
-                <button 
-                  onClick={() => router.push("/admin/profesores/nuevo?tipo=universidad")} 
-                  className="h-14 px-6 bg-ufv-azul text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm"
-                >
-                  <GraduationCap className="w-5 h-5 shrink-0" />
-                  <span className="whitespace-nowrap">+ Tutor UFV</span>
+                  <UserPlus className="w-5 h-5 shrink-0" />
+                  <span className="whitespace-nowrap">+ Nuevo Tutor</span>
                 </button>
               </div>
 
@@ -209,6 +223,25 @@ export default function ListaProfesores() {
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-pink-100 text-ufv-rosa-oscuro border border-pink-200">
                                   <Briefcase className="w-3.5 h-3.5" /> Tutor Hospital 
                                 </span>
+                              )}
+                              {!profesor.tipo_tutor && (
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-200">
+                                    Sin tipo
+                                  </span>
+                                  <button
+                                    onClick={() => actualizarTipoTutor(profesor.id, "hospital")}
+                                    className="text-[10px] px-2 py-1 rounded-md bg-pink-50 text-ufv-rosa-oscuro border border-pink-200 font-black uppercase tracking-wider"
+                                  >
+                                    Marcar Hospital
+                                  </button>
+                                  <button
+                                    onClick={() => actualizarTipoTutor(profesor.id, "universidad")}
+                                    className="text-[10px] px-2 py-1 rounded-md bg-blue-50 text-ufv-azul border border-blue-200 font-black uppercase tracking-wider"
+                                  >
+                                    Marcar Universidad
+                                  </button>
+                                </div>
                               )}
                             </div>
                             {/* -------------------------------------- */}

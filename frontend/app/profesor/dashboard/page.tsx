@@ -5,11 +5,13 @@ import Cookies from "js-cookie";
 import { 
   User, LogOut, ChevronRight, Mail, Folder, Search, Home, 
   ChevronLeft, Lock, X, Briefcase, Eye, PenTool, 
-  CheckCircle2, Calendar, BookOpen 
+  CheckCircle2, Calendar, BookOpen, Download 
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import ModalRubrica from "@/components/ModalRubrica";
+import * as XLSX from "xlsx";
+import { validarPasswordFuerte } from "@/lib/utils";
 
 // Interfaz actualizada con el Centro de Prácticas
 interface AlumnoAsignado {
@@ -28,7 +30,15 @@ interface AlumnoAsignado {
   mi_rol: string; 
   periodo_academico: string;
   centro_practicas?: string;
+  nota?: string;
 }
+
+const formatearPeriodoAcademico = (inicio: number, fin: number) => `${inicio}/${String(fin).slice(-2)}`;
+const obtenerPeriodoActual = () => {
+  const hoy = new Date();
+  const anio = hoy.getFullYear();
+  return hoy.getMonth() < 8 ? formatearPeriodoAcademico(anio - 1, anio) : formatearPeriodoAcademico(anio, anio + 1);
+};
 
 interface EspecialidadDisponible {
   nombre: string;
@@ -60,6 +70,26 @@ export default function ProfesorDashboard() {
   const [rubricaActual, setRubricaActual] = useState({ nombre: "", molde: null });
   const [especialidadesSistema, setEspecialidadesSistema] = useState<EspecialidadDisponible[]>([]);
   const [estadoEvaluacionActivo, setEstadoEvaluacionActivo] = useState<"Evaluados" | "No Evaluados" | null>(null);
+
+  // Estados modal Excel
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportCurso, setExportCurso] = useState("");
+  const [exportRotacion, setExportRotacion] = useState("");
+  const [exportEspecialidad, setExportEspecialidad] = useState("");
+  const [exportPeriodo, setExportPeriodo] = useState("");
+  const [exportSoloEvaluados, setExportSoloEvaluados] = useState(false);
+
+  const periodosParaExportar = (() => {
+    const pActual = obtenerPeriodoActual();
+    const añoInicio = Number(pActual.split("/")[0]);
+    return [
+      formatearPeriodoAcademico(añoInicio - 3, añoInicio - 2),
+      formatearPeriodoAcademico(añoInicio - 2, añoInicio - 1),
+      formatearPeriodoAcademico(añoInicio - 1, añoInicio),
+      pActual,
+      formatearPeriodoAcademico(añoInicio + 1, añoInicio + 2),
+    ].reverse();
+  })();
 
   // 1. Leer memoria al cargar
   useEffect(() => {
@@ -159,6 +189,12 @@ export default function ProfesorDashboard() {
 
     if (passFormData.nueva !== passFormData.confirmar) {
       setPassStatus({ type: "error", msg: "Las contraseñas nuevas no coinciden." });
+      return;
+    }
+
+    const { valida, msg } = validarPasswordFuerte(passFormData.nueva);
+    if (!valida) {
+      setPassStatus({ type: "error", msg });
       return;
     }
 
@@ -382,7 +418,16 @@ export default function ProfesorDashboard() {
           {/* BARRA DE FILTROS */}
           <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 className="text-2xl font-extrabold text-ufv-azul-oscuro">Directorio de Alumnos</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-extrabold text-ufv-azul-oscuro">Directorio de Alumnos</h2>
+                <button 
+                  onClick={() => setShowExportModal(true)} 
+                  title="Exportar listado a Excel" 
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-colors shadow-sm"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              </div>
               <p className="text-gray-500 mt-1 font-medium">Navega por las carpetas o busca un alumno directamente.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -549,6 +594,154 @@ export default function ProfesorDashboard() {
               {passStatus.msg && <div className={`p-4 rounded-xl text-sm font-bold ${passStatus.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{passStatus.msg}</div>}
               <button type="submit" className="w-full bg-ufv-azul text-white py-4 rounded-xl font-black shadow-lg hover:bg-ufv-azul-oscuro active:scale-95 transition-all">Actualizar Contraseña</button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL INFORME Y EXPORTACIÓN */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-8 bg-gray-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-t-4 border-emerald-500">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+              <h3 className="text-xl font-black text-ufv-azul-oscuro flex items-center gap-2"><BookOpen className="w-5 h-5 text-emerald-500"/> Informe de Calificaciones</h3>
+              <button onClick={() => setShowExportModal(false)} className="p-2 text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col lg:flex-row gap-8">
+              {/* PANEL DE FILTROS LATERAL */}
+              <div className="w-full lg:w-64 shrink-0 flex flex-col gap-4">
+                <p className="text-sm text-gray-500 font-medium leading-relaxed mb-2">Filtra la tabla en tiempo real antes de descargar.</p>
+                
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Curso</label>
+                  <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm font-bold text-gray-700" value={exportCurso} onChange={e => setExportCurso(e.target.value)}>
+                     <option value="">Todos los cursos</option>
+                     {Array.from(new Set(alumnos.map(a => a.curso))).sort().map(c => <option key={c} value={c}>{c}º Curso</option>)}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Rotación</label>
+                  <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm font-bold text-gray-700" value={exportRotacion} onChange={e => setExportRotacion(e.target.value)}>
+                     <option value="">Todas las rotaciones</option>
+                     {Array.from(new Set(alumnos.map(a => a.numero_rotacion))).sort().map(r => <option key={r} value={r}>Rotación {r}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Especialidad</label>
+                  <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm font-bold text-gray-700" value={exportEspecialidad} onChange={e => setExportEspecialidad(e.target.value)}>
+                     <option value="">Todas las especialidades</option>
+                     {Array.from(new Set(alumnos.map(a => a.especialidad))).sort().map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Año Académico</label>
+                  <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm font-bold text-gray-700" value={exportPeriodo} onChange={e => setExportPeriodo(e.target.value)}>
+                     <option value="">Todos los años</option>
+                     {periodosParaExportar.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Estado</label>
+                  <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm font-bold text-gray-700" value={exportSoloEvaluados ? "evaluados" : "todos"} onChange={e => setExportSoloEvaluados(e.target.value === "evaluados")}>
+                     <option value="todos">Todos los alumnos</option>
+                     <option value="evaluados">Solo evaluados (con nota)</option>
+                  </select>
+                </div>
+
+                <div className="mt-auto pt-6">
+                  <button 
+                    onClick={() => {
+                      let filtrados = alumnos;
+                      if (exportCurso) filtrados = filtrados.filter(a => a.curso.toString() === exportCurso);
+                      if (exportRotacion) filtrados = filtrados.filter(a => a.numero_rotacion.toString() === exportRotacion);
+                      if (exportEspecialidad) filtrados = filtrados.filter(a => a.especialidad === exportEspecialidad);
+                      if (exportPeriodo) filtrados = filtrados.filter(a => a.periodo_academico === exportPeriodo);
+                      if (exportSoloEvaluados) filtrados = filtrados.filter(a => a.estado_evaluacion === "Completada");
+
+                      const filas = filtrados.map(a => ({
+                        'Alumno': a.nombre_completo,
+                        'Email': a.email,
+                        'Curso': a.curso,
+                        'Rotación': a.numero_rotacion,
+                        'Periodo': a.periodo_academico,
+                        'Especialidad': a.especialidad,
+                        'Centro de Prácticas': a.centro_practicas || '',
+                        'Estado': a.estado_evaluacion,
+                        'Nota Final': a.nota || 'N/A'
+                      }));
+
+                      const worksheet = XLSX.utils.json_to_sheet(filas);
+                      const workbook = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(workbook, worksheet, "Alumnos");
+                      XLSX.writeFile(workbook, "Informe_Calificaciones.xlsx");
+                    }} 
+                    className="w-full bg-emerald-500 text-white py-4 rounded-xl font-black shadow-lg hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                     <Download className="w-5 h-5"/> Descargar .xlsx
+                  </button>
+                </div>
+              </div>
+
+              {/* TABLA PRINCIPAL */}
+              <div className="flex-1 border border-gray-200 rounded-2xl overflow-hidden shadow-sm flex flex-col h-full min-h-[400px]">
+                 <div className="overflow-x-auto overflow-y-auto max-h-[60vh] lg:max-h-full">
+                    <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                       <thead className="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                          <tr>
+                             <th className="p-4 font-bold text-gray-600 border-b border-gray-200">Alumno</th>
+                             <th className="p-4 font-bold text-gray-600 border-b border-gray-200">Curso / Rot.</th>
+                             <th className="p-4 font-bold text-gray-600 border-b border-gray-200">Especialidad</th>
+                             <th className="p-4 font-bold text-gray-600 border-b border-gray-200">Estado</th>
+                             <th className="p-4 font-bold text-gray-600 border-b border-gray-200 text-center">Nota Final</th>
+                          </tr>
+                       </thead>
+                       <tbody className="bg-white divide-y divide-gray-100">
+                          {(() => {
+                             let filtrados = alumnos;
+                             if (exportCurso) filtrados = filtrados.filter(a => a.curso.toString() === exportCurso);
+                             if (exportRotacion) filtrados = filtrados.filter(a => a.numero_rotacion.toString() === exportRotacion);
+                             if (exportEspecialidad) filtrados = filtrados.filter(a => a.especialidad === exportEspecialidad);
+                             if (exportPeriodo) filtrados = filtrados.filter(a => a.periodo_academico === exportPeriodo);
+                             if (exportSoloEvaluados) filtrados = filtrados.filter(a => a.estado_evaluacion === "Completada");
+
+                             if (filtrados.length === 0) {
+                               return <tr><td colSpan={5} className="p-10 text-center text-gray-500 font-medium">No hay alumnos que coincidan con estos filtros.</td></tr>;
+                             }
+
+                             return filtrados.map(a => (
+                               <tr key={a.rotacion_id} className="hover:bg-gray-50 transition-colors">
+                                  <td className="p-4">
+                                     <p className="font-bold text-ufv-azul-oscuro">{a.nombre_completo}</p>
+                                     <p className="text-xs text-gray-500 mt-0.5">{a.email}</p>
+                                  </td>
+                                  <td className="p-4 font-medium text-gray-700">
+                                     <span className="font-bold">{a.curso}º</span> - Rot. {a.numero_rotacion}
+                                  </td>
+                                  <td className="p-4 text-xs font-bold text-gray-600">
+                                     <span className="bg-gray-100 px-2.5 py-1 rounded-md">{a.especialidad}</span>
+                                  </td>
+                                  <td className="p-4">
+                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.estado_evaluacion === 'Completada' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                       {a.estado_evaluacion}
+                                     </span>
+                                  </td>
+                                  <td className="p-4 text-center">
+                                     <span className={`font-black text-base ${a.nota ? 'text-ufv-azul' : 'text-gray-400'}`}>
+                                       {a.nota || '-'}
+                                     </span>
+                                  </td>
+                               </tr>
+                             ));
+                          })()}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

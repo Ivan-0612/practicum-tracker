@@ -179,6 +179,10 @@ export default function AdminPanel() {
   const [statsUsuarios, setStatsUsuarios] = useState({ alumnos: 0, profesores: 0, total: 0 });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [modalAltaAlumnoAbierto, setModalAltaAlumnoAbierto] = useState(false);
+  const [usuariosTab, setUsuariosTab] = useState<"gestion" | "pendientes">("gestion");
+  const [isLoadingPendientes, setIsLoadingPendientes] = useState(false);
+  const [alumnosPendientes, setAlumnosPendientes] = useState<any[]>([]);
+  const [busquedaPendientes, setBusquedaPendientes] = useState("");
 
   const fetchUcGlobal = async () => {
     setIsLoadingUcGlobal(true);
@@ -314,11 +318,54 @@ export default function AdminPanel() {
     }
   };
 
+  const fetchAlumnosPendientes = async () => {
+    setIsLoadingPendientes(true);
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/alumnos/pendientes`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAlumnosPendientes(Array.isArray(data.resultados) ? data.resultados : []);
+      } else {
+        setAlumnosPendientes([]);
+      }
+    } catch (error) {
+      console.error("Error al cargar alumnos pendientes", error);
+      setAlumnosPendientes([]);
+    } finally {
+      setIsLoadingPendientes(false);
+    }
+  };
+
+  const handleEliminarPendiente = async (id: string, email: string) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar la invitación de "${email}"?`)) return;
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/usuarios/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        alert("✅ Registro eliminado.");
+        fetchAlumnosPendientes();
+        fetchStatsUsuarios();
+      } else {
+        const errorData = await res.json();
+        alert(`❌ Error: ${errorData.detail || "No se pudo eliminar el registro"}`);
+      }
+    } catch (error) {
+      alert("❌ Error de conexión con el servidor.");
+    }
+  };
+
   useEffect(() => {
     fetchEspecialidades();
     fetchStatsUsuarios();
     fetchMappingGlobal();
     fetchUcGlobal();
+    fetchAlumnosPendientes();
   }, []);
 
   const handleLogout = () => {
@@ -1233,7 +1280,7 @@ export default function AdminPanel() {
             </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-gray-100 flex-1 flex flex-col">
+            <div className="mt-4 pt-6 border-t border-gray-100 flex-1 flex flex-col">
               <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Especialidades Activas</h3>
               
               {/* BUSCADOR DE LA LISTA */}
@@ -1285,9 +1332,31 @@ export default function AdminPanel() {
             <p className="text-gray-500 font-medium mb-6 leading-relaxed">
               Administra las cuentas de acceso al sistema. Da de alta a nuevos docentes y matricula a los estudiantes en sus rotaciones correspondientes.
             </p>
+
+            <div className="mb-6 bg-gray-50 border border-gray-200 rounded-2xl p-1 grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                onClick={() => setUsuariosTab("gestion")}
+                className={`py-2.5 rounded-xl text-sm font-black transition-all ${usuariosTab === "gestion" ? "bg-white text-ufv-azul shadow-sm border border-blue-100" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                Gestión general
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsuariosTab("pendientes");
+                  fetchAlumnosPendientes();
+                }}
+                className={`py-2.5 rounded-xl text-sm font-black transition-all ${usuariosTab === "pendientes" ? "bg-white text-ufv-azul shadow-sm border border-blue-100" : "text-gray-500 hover:text-gray-700"}`}
+              >
+                Alumnos pendientes
+              </button>
+            </div>
             
             {/* --- PANEL DE ESTADÍSTICAS (AHORA DINÁMICO) --- */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            {usuariosTab === "gestion" && (
+            <>
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
                 <GraduationCap className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
                 <span className="text-3xl font-black text-gray-800">
@@ -1317,29 +1386,14 @@ export default function AdminPanel() {
             {/* --------------------------------------------- */}
 
             {/* --- BOTONES DE GESTIÓN DE USUARIOS --- */}
-            <div className="flex flex-col gap-3 mt-8">
-              {/* Fila 1: Botones de CREAR TUTORES */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button 
-                  onClick={() => router.push("/admin/profesores/nuevo?tipo=hospital")} 
-                  className="bg-ufv-azul text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <UserPlus className="w-4 h-4" /> Nuevo Tutor
-                  </div>
-                  <span className="opacity-80 text-[10px] uppercase">Hospital</span>
-                </button>
-
-                <button 
-                  onClick={() => router.push("/admin/profesores/nuevo?tipo=universidad")} 
-                  className="bg-ufv-azul text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <UserPlus className="w-4 h-4" /> Nuevo Tutor
-                  </div>
-                  <span className="opacity-80 text-[10px] uppercase">Universidad</span>
-                </button>
-              </div>
+            <div className="flex flex-col gap-3 mt-4">
+              {/* Fila 1: Botón de CREAR TUTOR */}
+              <button 
+                onClick={() => router.push("/admin/profesores/nuevo")} 
+                className="w-full bg-ufv-azul text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <UserPlus className="w-4 h-4" /> Nuevo Tutor
+              </button>
 
               {/* Fila 2: Alumnos */}
               <button 
@@ -1367,7 +1421,74 @@ export default function AdminPanel() {
                   <GraduationCap className="w-4 h-4" /> Ver Alumnos
                 </button>
               </div>
+
+              <button
+                onClick={() => router.push("/admin/centros")}
+                className="w-full bg-blue-50 text-ufv-azul border border-blue-100 px-4 py-3.5 rounded-xl hover:bg-blue-100 font-bold flex items-center justify-center gap-2 transition-all"
+              >
+                <Settings className="w-4 h-4" /> Centros y tutores
+              </button>
             </div>
+            </>
+            )}
+
+            {usuariosTab === "pendientes" && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por correo..."
+                      value={busquedaPendientes}
+                      onChange={(e) => setBusquedaPendientes(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-ufv-azul outline-none transition-all text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={() => fetchAlumnosPendientes()}
+                    className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 flex items-center justify-center gap-2 transition-all"
+                  >
+                    <RefreshCcw className="w-4 h-4" /> Actualizar
+                  </button>
+                </div>
+
+                <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                    <div className="col-span-6 p-3">Email</div>
+                    <div className="col-span-4 p-3">Fecha Invitación</div>
+                    <div className="col-span-2 p-3 text-center">Acción</div>
+                  </div>
+                  {isLoadingPendientes ? (
+                    <div className="p-10 text-center"><Loader2 className="w-6 h-6 animate-spin text-ufv-azul mx-auto" /></div>
+                  ) : alumnosPendientes.filter(a => a.email.toLowerCase().includes(busquedaPendientes.toLowerCase())).length === 0 ? (
+                    <div className="p-10 text-center text-sm text-gray-400 font-medium">No se encontraron resultados.</div>
+                  ) : (
+                    <ul className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                      {alumnosPendientes
+                        .filter(a => a.email.toLowerCase().includes(busquedaPendientes.toLowerCase()))
+                        .map((alumno) => (
+                          <li key={alumno.id} className="grid grid-cols-12 text-sm hover:bg-gray-50 transition-colors items-center">
+                            <div className="col-span-6 p-3 font-bold text-gray-700 truncate">{alumno.email}</div>
+                            <div className="col-span-4 p-3 text-gray-500 text-[11px] font-medium">
+                              {alumno.creado_en ? new Date(alumno.creado_en).toLocaleDateString() : "-"}
+                            </div>
+                            <div className="col-span-2 p-3 flex justify-center">
+                              <button
+                                onClick={() => handleEliminarPendiente(alumno.id, alumno.email)}
+                                className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="Eliminar invitación"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
 
           </div>
         </div>

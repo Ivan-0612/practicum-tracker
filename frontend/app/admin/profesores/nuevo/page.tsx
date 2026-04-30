@@ -1,16 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { ChevronLeft, UserPlus, Mail, KeyRound, Save, CheckCircle2, AlertCircle } from "lucide-react";
+import { ChevronLeft, UserPlus, Mail, KeyRound, Save, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { validarPasswordFuerte } from "@/lib/utils";
 
 export default function NuevoProfesor() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tipoInicial = searchParams.get("tipo") === "hospital" || searchParams.get("tipo") === "universidad"
+    ? (searchParams.get("tipo") as "hospital" | "universidad")
+    : "hospital";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  
+  const [tipoTutor, setTipoTutor] = useState<"hospital" | "universidad">(tipoInicial);
+
   // Mejoramos el estado del mensaje para manejar estilos de éxito/error y el loading
   const [mensaje, setMensaje] = useState({ tipo: "", texto: "" });
   const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +25,7 @@ export default function NuevoProfesor() {
     e.preventDefault();
     setIsLoading(true);
     setMensaje({ tipo: "", texto: "" });
-    
+
     const token = Cookies.get("practicum_token");
 
     try {
@@ -29,16 +35,22 @@ export default function NuevoProfesor() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ email, password, rol: "profesor" }),
+        body: JSON.stringify({ email, password, rol: "profesor", tipo_tutor: tipoTutor }),
       });
 
       if (!response.ok) {
-        throw new Error("Error al crear el profesor. Verifica los datos o si el email ya existe.");
+        const errorData = await response.json();
+        // Si es error de validación (422), extraemos el mensaje del detalle
+        if (response.status === 422 && errorData.detail) {
+          const detail = Array.isArray(errorData.detail) ? errorData.detail[0].msg : errorData.detail;
+          throw new Error(detail);
+        }
+        throw new Error(errorData.detail || "Error al crear el profesor. Verifica los datos o si el email ya existe.");
       }
 
       setMensaje({ tipo: "success", texto: "✅ Profesor dado de alta correctamente" });
       setTimeout(() => router.push("/admin/panel"), 1500);
-      
+
     } catch (err: any) {
       setMensaje({ tipo: "error", texto: err.message });
     } finally {
@@ -49,9 +61,9 @@ export default function NuevoProfesor() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
-        
+
         {/* BOTÓN VOLVER */}
-        <button 
+        <button
           type="button"
           onClick={() => router.push("/admin/panel")}
           className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
@@ -60,15 +72,15 @@ export default function NuevoProfesor() {
         </button>
 
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
-          
+
           {/* CABECERA CORPORATIVA */}
           <div className="flex flex-col md:flex-row items-start md:items-center mb-10 gap-6 border-b border-gray-100 pb-8">
-            <Image 
-              src="/logo-ufv.png" 
-              alt="Logo UFV" 
-              width={56} 
-              height={56} 
-              className="object-contain" 
+            <Image
+              src="/logo-ufv.png"
+              alt="Logo UFV"
+              width={56}
+              height={56}
+              className="object-contain"
             />
             <div>
               <h1 className="text-3xl font-black text-ufv-azul-oscuro">Alta de Nuevo Tutor</h1>
@@ -77,9 +89,9 @@ export default function NuevoProfesor() {
               </p>
             </div>
           </div>
-          
+
           <form onSubmit={handleSubmit} className="space-y-8">
-            
+
             {/* SECCIÓN DE DATOS DE ACCESO */}
             <section>
               <div className="flex items-center gap-3 mb-6">
@@ -88,7 +100,7 @@ export default function NuevoProfesor() {
                 </div>
                 <h3 className="text-xl font-black text-ufv-azul-oscuro">Credenciales del Tutor</h3>
               </div>
-              
+
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
@@ -96,14 +108,26 @@ export default function NuevoProfesor() {
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Mail className="h-5 w-5 text-gray-400" />
                     </div>
-                    <input 
-                      type="email" 
-                      required 
+                    <input
+                      type="email"
+                      required
                       placeholder="ejemplo@gmail.com"
-                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all" 
-                      onChange={e => setEmail(e.target.value)} 
+                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all"
+                      onChange={e => setEmail(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Tipo de Tutor</label>
+                  <select
+                    value={tipoTutor}
+                    onChange={(e) => setTipoTutor(e.target.value as "hospital" | "universidad")}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all"
+                  >
+                    <option value="hospital">Tutor Hospital</option>
+                    <option value="universidad">Tutor Universidad</option>
+                  </select>
                 </div>
 
                 <div>
@@ -112,15 +136,14 @@ export default function NuevoProfesor() {
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <KeyRound className="h-5 w-5 text-gray-400" />
                     </div>
-                    <input 
-                      type="password" 
-                      required 
-                      placeholder="Mínimo 8 caracteres"
-                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all" 
-                      onChange={e => setPassword(e.target.value)} 
+                    <input
+                      type="password"
+                      required
+                      placeholder="Ej: Practicum2024!"
+                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all"
+                      onChange={e => setPassword(e.target.value)}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-2 font-medium">El profesor podrá cambiar esta contraseña al iniciar sesión.</p>
                 </div>
               </div>
             </section>
@@ -128,26 +151,25 @@ export default function NuevoProfesor() {
             {/* MENSAJES DE ALERTA */}
             {mensaje.texto && (
               <div className={`p-4 rounded-xl font-bold flex items-center gap-3 ${mensaje.tipo === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-                {mensaje.tipo === "success" ? <CheckCircle2 className="w-5 h-5"/> : <AlertCircle className="w-5 h-5"/>}
+                {mensaje.tipo === "success" ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                 {mensaje.texto}
               </div>
             )}
 
             {/* BOTÓN DE ENVÍO */}
             <div className="pt-4 border-t border-gray-100">
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isLoading}
-                className={`w-full py-4 rounded-xl font-bold text-ufv-blanco shadow-md flex justify-center items-center gap-3 transition-all ${
-                  isLoading 
-                    ? "bg-gray-400 cursor-not-allowed" 
+                className={`w-full py-4 rounded-xl font-bold text-ufv-blanco shadow-md flex justify-center items-center gap-3 transition-all ${isLoading
+                    ? "bg-gray-400 cursor-not-allowed"
                     : "bg-ufv-azul hover:bg-ufv-azul-oscuro active:scale-95"
-                }`}
+                  }`}
               >
                 {isLoading ? "Registrando Tutor..." : (
                   <>
                     <Save className="w-5 h-5" />
-                    Finalizar y Guardar 
+                    Finalizar y Guardar
                   </>
                 )}
               </button>

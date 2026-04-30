@@ -21,6 +21,12 @@ def aplicar_migraciones_ligeras():
         "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS hospital_second_finalized_at TIMESTAMPTZ",
         "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS final_grade_text VARCHAR",
         "ALTER TABLE rotaciones ADD COLUMN IF NOT EXISTS final_grade_calculated_at TIMESTAMPTZ",
+        "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS registro_completado BOOLEAN DEFAULT TRUE NOT NULL",
+        "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS curso_pendiente INTEGER",
+        "CREATE TABLE IF NOT EXISTS centros_practicas (id UUID PRIMARY KEY, nombre VARCHAR NOT NULL, tutor_hospital_id UUID NOT NULL REFERENCES usuarios(id), tutor_universidad_id UUID NOT NULL REFERENCES usuarios(id), activo BOOLEAN DEFAULT TRUE, creado_en TIMESTAMPTZ DEFAULT NOW())",
+        "DROP INDEX IF EXISTS uq_centro_nombre_especialidad",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_centro_nombre ON centros_practicas (nombre)",
+        "ALTER TABLE centros_practicas DROP COLUMN IF EXISTS especialidad_id",
     ]
     with engine.begin() as conn:
         for stmt in stmts:

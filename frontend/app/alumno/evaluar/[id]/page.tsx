@@ -84,7 +84,7 @@ export default function VistaEvaluacionAlumno() {
     );
   }
 
-  const { molde, borrador, rotacion_completada, tutores, tutor_hospital_email, alumno, especialidad } = datos;
+  const { molde, borrador, rotacion_completada, tutores, tutor_hospital_email, evaluado_por_email, evaluado_por_rol, alumno, especialidad } = datos;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-32">
@@ -169,8 +169,21 @@ export default function VistaEvaluacionAlumno() {
               </div>
               <div className="z-10 w-full">
                 <h2 className="text-[10px] md:text-[11px] font-black text-ufv-azul-claro uppercase tracking-widest mb-2">Evaluado y Firmado por:</h2>
-                <div className="flex flex-wrap gap-2">
-                  {tutor_hospital_email ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  {evaluado_por_email ? (
+                    <>
+                      <span className="bg-white/10 px-3 md:px-4 py-1.5 rounded-lg md:rounded-xl text-xs md:text-sm font-bold border border-white/20 shadow-sm backdrop-blur-sm truncate max-w-full">
+                        {evaluado_por_email}
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                        evaluado_por_rol === 'campo' 
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                        : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                      }`}>
+                        {evaluado_por_rol === 'campo' ? 'Tutor de Campo' : 'Tutor Clínico'}
+                      </span>
+                    </>
+                  ) : tutor_hospital_email ? (
                     <span className="bg-white/10 px-3 md:px-4 py-1.5 rounded-lg md:rounded-xl text-xs md:text-sm font-bold border border-white/20 shadow-sm backdrop-blur-sm truncate max-w-full">
                       {tutor_hospital_email}
                     </span>
@@ -223,6 +236,46 @@ export default function VistaEvaluacionAlumno() {
                         {apartado.numero}
                     </div>
                     <h2 className="text-base md:text-xl font-black text-gray-800 leading-tight">{apartado.titulo}</h2>
+                </div>
+
+                {/* TABLA DE CRITERIOS DE EVALUACIÓN */}
+                <div className="mb-8 overflow-x-auto">
+                  <table className="w-full min-w-[600px] text-xs md:text-sm text-left border-collapse border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                    <thead className="bg-gray-100 text-gray-700 font-bold">
+                      <tr>
+                        <th className="border border-gray-200 p-2 md:p-3 text-center bg-gray-200">CRITERIOS</th>
+                        <th className="border border-gray-200 p-2 md:p-3 text-center w-1/4">NIVEL 1 (BÁSICO)</th>
+                        <th className="border border-gray-200 p-2 md:p-3 text-center w-1/4">NIVEL 2 (INTERMEDIO)</th>
+                        <th className="border border-gray-200 p-2 md:p-3 text-center w-1/4">NIVEL 3 (AVANZADO)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-gray-600 bg-white">
+                      <tr>
+                        <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs">FRECUENCIA DE REALIZACIÓN</td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs">AUTONOMÍA PERSONAL</td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs leading-tight">MOMENTO ADECUADO DE REALIZACIÓN</td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">HASTA EL 50%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">SIEMPRE</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-200 p-2 md:p-3 font-bold bg-gray-50 text-center text-xs leading-tight">UTILIZACIÓN ADECUADA DE RECURSOS</td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">HASTA EL 50%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                        <td className="border border-gray-200 p-2 md:p-3 text-center">ENTRE EL 51% Y EL 99%<br/><span className="text-[10px] text-gray-400">de las ocasiones...</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
 
                 {/* PREGUNTAS (Resultados de Aprendizaje) */}

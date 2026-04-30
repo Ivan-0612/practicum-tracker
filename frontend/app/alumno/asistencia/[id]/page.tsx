@@ -18,6 +18,7 @@ interface Fichaje {
   fecha: string;
   firmado_en: string;
   firmado_por: string;
+  fecha_recuperada?: string;
 }
 
 export default function CalendarioAsistenciaAlumno() {
@@ -195,6 +196,13 @@ export default function CalendarioAsistenciaAlumno() {
                             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
                             <p className="font-black text-green-800 text-xl">Jornada Validada</p>
                             
+                            {/* Mostrar si fue recuperada */}
+                            {fichajeActivo.fecha_recuperada && (
+                              <p className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-100 py-1.5 px-3 rounded-lg inline-block border border-emerald-200">
+                                Recuperada el {new Date(fichajeActivo.fecha_recuperada).toLocaleDateString('es-ES')}
+                              </p>
+                            )}
+
                             <div className="mt-4 bg-white/60 p-3 rounded-xl border border-green-100/50">
                               <p className="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-1">Firmado digitalmente por:</p>
                               <p className="text-sm font-bold text-green-900 truncate">{fichajeActivo.firmado_por}</p>

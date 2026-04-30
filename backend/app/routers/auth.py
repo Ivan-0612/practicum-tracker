@@ -5,9 +5,11 @@ from datetime import datetime, timedelta, timezone
 from ..database import get_db
 from .. import models, security, schemas  # Importaciones limpias
 import secrets
+from sqlalchemy import func
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 import os
 from dotenv import load_dotenv
+from ..utils.periodo_academico_utils import normalizar_periodo_academico
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -91,6 +93,12 @@ def login(
     if not usuario.activo:
         raise HTTPException(status_code=400, detail="Esta cuenta está desactivada")
 
+    if usuario.rol == "estudiante" and not usuario.registro_completado:
+        raise HTTPException(
+            status_code=403,
+            detail="Tu cuenta está pendiente de registro. Completa el alta desde la pantalla de registro.",
+        )
+
     # Si el login es correcto, reseteamos los intentos fallidos
     if registro_intentos:
         registro_intentos.intentos = 0
@@ -104,6 +112,158 @@ def login(
 
     # VOLVEMOS AL MÉTODO CLÁSICO: Devolvemos el token directamente en el JSON
     return {"access_token": access_token, "token_type": "bearer", "rol": usuario.rol}
+
+
+@router.post("/registro/verificar-email")
+def verificar_email_registro(
+    datos: schemas.RegistroVerificarEmailRequest,
+    db: Session = Depends(get_db),
+):
+    usuario = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.email == datos.email, models.Usuario.rol == "estudiante")
+        .first()
+    )
+
+    if not usuario or not usuario.activo:
+        raise HTTPException(
+            status_code=403,
+            detail="Este correo no está autorizado para registrarse. Contacta con administración.",
+        )
+
+    alumno_existente = (
+        db.query(models.Alumno)
+        .filter(models.Alumno.usuario_id == usuario.id)
+        .first()
+    )
+    if usuario.registro_completado or alumno_existente:
+        raise HTTPException(
+            status_code=400,
+            detail="Este correo ya tiene una cuenta completada. Usa el login.",
+        )
+
+    especialidades = db.query(models.Especialidad).order_by(models.Especialidad.nombre).all()
+    centros = (
+        db.query(models.CentroPracticas)
+        .filter(models.CentroPracticas.activo == True)
+        .order_by(models.CentroPracticas.nombre)
+        .all()
+    )
+
+    return {
+        "permitido": True,
+        "especialidades": [
+            {"id": str(esp.id), "nombre": esp.nombre}
+            for esp in especialidades
+        ],
+        "centros": [
+            {
+                "id": str(c.id),
+                "nombre": c.nombre,
+                "tutor_hospital_email": c.tutor_hospital.email if c.tutor_hospital else "",
+                "tutor_universidad_email": c.tutor_universidad.email if c.tutor_universidad else "",
+            }
+            for c in centros
+        ],
+    }
+
+
+@router.post("/registro/completar")
+def completar_registro_alumno(
+    datos: schemas.RegistroCompletarRequest,
+    db: Session = Depends(get_db),
+):
+    usuario = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.email == datos.email, models.Usuario.rol == "estudiante")
+        .first()
+    )
+    if not usuario or not usuario.activo:
+        raise HTTPException(status_code=403, detail="Correo no autorizado")
+
+    if usuario.registro_completado:
+        raise HTTPException(status_code=400, detail="La cuenta ya está registrada")
+
+    if (
+        db.query(models.Alumno)
+        .filter(models.Alumno.usuario_id == usuario.id)
+        .first()
+    ):
+        raise HTTPException(status_code=400, detail="El alumno ya está creado")
+
+    centro = (
+        db.query(models.CentroPracticas)
+        .filter(
+            models.CentroPracticas.id == datos.centro_practicas_id,
+            models.CentroPracticas.activo == True,
+        )
+        .first()
+    )
+    if not centro:
+        raise HTTPException(status_code=404, detail="Centro no encontrado")
+
+    if not centro.tutor_hospital_id or not centro.tutor_universidad_id:
+        raise HTTPException(
+            status_code=400,
+            detail="El centro no tiene tutores configurados",
+        )
+
+    periodo_academico = normalizar_periodo_academico(datos.periodo_academico)
+
+    nuevo_alumno = models.Alumno(
+        usuario_id=usuario.id,
+        curso=datos.curso,
+        grupo=datos.grupo,
+        numero_rotacion=datos.numero_rotacion,
+        codigo_anonimo=f"ALU-{secrets.token_hex(3).upper()}",
+        nombre_cifrado=security.cifrar_dato(datos.nombre),
+        apellidos_cifrado=security.cifrar_dato(datos.apellidos),
+        email_cifrado=security.cifrar_dato(datos.email_personal or datos.email),
+    )
+    db.add(nuevo_alumno)
+    db.flush()
+
+    nueva_rotacion = models.Rotacion(
+        alumno_id=nuevo_alumno.id,
+        especialidad_id=datos.especialidad_id,
+        curso=datos.curso,
+        numero_rotacion=datos.numero_rotacion,
+        periodo_academico=periodo_academico,
+        centro_practicas=centro.nombre,
+    )
+    db.add(nueva_rotacion)
+    db.flush()
+
+    db.add(
+        models.AsignacionTutor(
+            tutor_id=centro.tutor_hospital_id,
+            rotacion_id=nueva_rotacion.id,
+            tipo_tutor="hospital",
+        )
+    )
+    db.add(
+        models.AsignacionTutor(
+            tutor_id=centro.tutor_universidad_id,
+            rotacion_id=nueva_rotacion.id,
+            tipo_tutor="universidad",
+        )
+    )
+
+    usuario.password_hash = security.get_password_hash(datos.password)
+    usuario.registro_completado = True
+    usuario.curso_pendiente = None
+
+    db.commit()
+
+    access_token = security.create_access_token(
+        data={"sub": str(usuario.id), "rol": usuario.rol}
+    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "rol": usuario.rol,
+        "mensaje": "Registro completado correctamente",
+    }
 
 
 @router.post("/cambiar-password")
@@ -190,6 +350,7 @@ def confirmar_restablecimiento(
         .first()
     )
     usuario.password_hash = security.get_password_hash(datos.nueva_password)
+    usuario.registro_completado = True
     registro.usado = True
     db.commit()
     return {"mensaje": "Contraseña restablecida con éxito"}

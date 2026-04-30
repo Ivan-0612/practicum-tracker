@@ -185,6 +185,12 @@ export default function LoginPage() {
 
           {/* Enlace de recuperación (Rosa UFV) */}
           <div className="mt-8 text-center border-t border-gray-100 pt-6">
+            <button
+              onClick={() => router.push("/registro")}
+              className="text-sm font-bold text-ufv-azul hover:text-ufv-azul-oscuro transition-colors mr-4"
+            >
+              Crear cuenta
+            </button>
             <button 
                 onClick={solicitarRecuperacion}
                 className="text-sm font-bold text-ufv-rosa-oscuro hover:text-ufv-rosa-claro transition-colors"

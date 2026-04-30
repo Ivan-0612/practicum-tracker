@@ -8,7 +8,7 @@ import ModalNuevaRotacion from "@/components/ModalNuevaRotacion";
 import ModalTipoAltaAlumno from "@/components/ModalTipoAltaAlumno";
 import { 
   Trash2, Mail, GraduationCap, ChevronLeft, Filter, 
-  Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp, Building, Download, FileSpreadsheet
+  Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp, Building, Download, FileSpreadsheet, XCircle
 } from "lucide-react";
 
 interface RotacionInfo {
@@ -23,6 +23,7 @@ interface RotacionInfo {
   tutores: {
     hospital: string;
     universidad: string;
+    campo?: string;
   };
 }
 
@@ -164,6 +165,26 @@ export default function ListaAlumnosAdmin() {
     }
   };
 
+  const handleEliminarTutorCampo = async (rotacionId: string, emailTutor: string) => {
+    if (!window.confirm(`¿Seguro que quieres quitar el acceso al tutor de campo (${emailTutor}) de esta rotación?`)) return;
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/rotaciones/${rotacionId}/tutores/campo`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        alert("✅ Tutor de campo desasignado.");
+        cargarAlumnos();
+      } else {
+        const err = await res.json();
+        alert(`❌ ${err.detail || "No se pudo desasignar"}`);
+      }
+    } catch {
+      alert("❌ Error de conexión.");
+    }
+  };
+
   // Función para alternar el desplegable de un alumno
   const toggleExpandido = (alumnoId: string) => {
     setExpandidos(prev => ({
@@ -224,12 +245,6 @@ export default function ListaAlumnosAdmin() {
                 className="bg-white text-ufv-azul px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 border border-blue-200 active:scale-95 transition-all shadow-sm shrink-0"
               >
                 <Download className="w-5 h-5" /> Descargar evaluaciones
-              </button>
-              <button 
-                onClick={() => router.push("/admin/alumnos/rotaciones/importar")}
-                className="bg-white text-emerald-700 px-6 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 border border-emerald-200 active:scale-95 transition-all shadow-sm shrink-0"
-              >
-                <FileSpreadsheet className="w-5 h-5" /> Importar rotaciones 
               </button>
               <button 
                 onClick={() => setModalAltaAlumnoAbierto(true)} 
@@ -305,91 +320,109 @@ export default function ListaAlumnosAdmin() {
                         
                         {/* --- LÓGICA DE ROTACIONES CON DESPLEGABLE --- */}
                         <div className="space-y-2">
-                          {alumno.rotaciones.length > 0 ? (
-                            <div className="flex flex-col gap-3">
-                              
-                              {/* Botón Trigger del Acordeón */}
-                              <button 
-                                onClick={() => toggleExpandido(alumno.id)}
-                                className="flex items-center justify-between w-full bg-white border border-gray-200 hover:border-ufv-azul hover:bg-blue-50/50 p-3 rounded-xl transition-all group shadow-sm"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="bg-blue-50 text-ufv-azul p-2 rounded-lg group-hover:bg-ufv-azul group-hover:text-white transition-colors">
-                                    <Briefcase className="w-4 h-4" />
-                                  </div>
-                                  <span className="font-bold text-sm text-gray-700 group-hover:text-ufv-azul-oscuro transition-colors">
-                                    Ver rotaciones del alumno ({alumno.rotaciones.length})
-                                  </span>
-                                </div>
-                                {expandidos[alumno.id] ? (
-                                  <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-ufv-azul transition-colors" />
-                                ) : (
-                                  <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-ufv-azul transition-colors" />
-                                )}
-                              </button>
+                          {(() => {
+                            const rotacionesFiltradas = alumno.rotaciones.filter(rot => {
+                              const coincideC = filtroCurso === "todos" || rot.curso.toString() === filtroCurso;
+                              const coincideA = filtroAño === "todos" || rot.periodo_academico === filtroAño;
+                              return coincideC && coincideA;
+                            }).sort((a, b) => b.curso - a.curso);
 
-                              {/* Contenido Desplegable */}
-                              {expandidos[alumno.id] && (
-                                <div className="space-y-2 pl-3 border-l-2 border-blue-100 ml-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                  {alumno.rotaciones
-                                    .sort((a, b) => b.curso - a.curso)
-                                    .map((rot, i) => (
-                                      <div key={i} className="group text-sm bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between hover:border-ufv-azul-claro transition-all shadow-sm">
-                                        <div className="flex flex-col gap-1">
-                                          
-                                          <div className="flex items-center gap-2">
-                                            <span className={`font-bold flex items-center gap-1.5 ${rot.curso.toString() === filtroCurso ? 'text-ufv-rosa-oscuro' : 'text-ufv-azul-oscuro'}`}>
-                                              <Briefcase className="w-3.5 h-3.5" />
-                                              {rot.especialidad?.trim() ? rot.especialidad : "Sin especialidad asignada"}
-                                            </span>
-                                            {rot.periodo_academico && (
-                                              <span className="text-[10px] font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md border border-gray-200">
-                                                {rot.periodo_academico}
-                                              </span>
-                                            )}
-                                          </div>
-                                          
-                                          <span className="text-xs font-bold text-gray-500 mt-1">
-                                            {rot.curso}º Curso - Rotación {rot.numero_rotacion}
-                                          </span>
-                                          
-                                          <div className="flex flex-col gap-0.5 mt-1">
-                                            {/* --- NUEVO: MOSTRAR CENTRO DE PRÁCTICAS --- */}
-                                            <span className="text-xs text-gray-500 font-medium mb-1 flex items-center gap-1">
-                                              <Building className="w-3.5 h-3.5 text-gray-400" />
-                                              <b className="text-gray-700">Centro:</b> {rot.centro_practicas || "No especificado"}
-                                            </span>
-                                            {/* ------------------------------------------ */}
-                                            <span className="text-xs text-gray-500 font-medium">
-                                              <b className="text-gray-700">Hospital:</b> {rot.tutores.hospital || "No asignado"}
-                                            </span>
-                                            <span className="text-xs text-gray-500 font-medium">
-                                              <b className="text-gray-700">Universidad:</b> {rot.tutores.universidad || "No asignado"}
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <button onClick={() => handleEliminarRotacion(rot.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">
-                                          <Trash2 className="w-4 h-4" />
-                                        </button>
-                                        {rot.completada && (
-                                          <button
-                                            onClick={() => descargarExcelRotacion(rot.id)}
-                                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-ufv-azul transition-all"
-                                            title="Descargar Excel"
-                                          >
-                                            <Download className="w-4 h-4" />
-                                          </button>
-                                        )}
+                            if (rotacionesFiltradas.length > 0) {
+                              return (
+                                <div className="flex flex-col gap-3">
+                                  <button 
+                                    onClick={() => toggleExpandido(alumno.id)}
+                                    className="flex items-center justify-between w-full bg-white border border-gray-200 hover:border-ufv-azul hover:bg-blue-50/50 p-3 rounded-xl transition-all group shadow-sm"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="bg-blue-50 text-ufv-azul p-2 rounded-lg group-hover:bg-ufv-azul group-hover:text-white transition-colors">
+                                        <Briefcase className="w-4 h-4" />
                                       </div>
-                                    ))}
+                                      <span className="font-bold text-sm text-gray-700 group-hover:text-ufv-azul-oscuro transition-colors">
+                                        Ver rotaciones del alumno ({rotacionesFiltradas.length})
+                                      </span>
+                                    </div>
+                                    {expandidos[alumno.id] ? (
+                                      <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-ufv-azul transition-colors" />
+                                    ) : (
+                                      <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-ufv-azul transition-colors" />
+                                    )}
+                                  </button>
+
+                                  {expandidos[alumno.id] && (
+                                    <div className="space-y-2 pl-3 border-l-2 border-blue-100 ml-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                      {rotacionesFiltradas.map((rot, i) => (
+                                        <div key={i} className="group text-sm bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between hover:border-ufv-azul-claro transition-all shadow-sm">
+                                          <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-bold flex items-center gap-1.5 text-ufv-azul-oscuro">
+                                                <Briefcase className="w-3.5 h-3.5" />
+                                                {rot.especialidad?.trim() ? rot.especialidad : "Sin especialidad asignada"}
+                                              </span>
+                                              {rot.periodo_academico && (
+                                                <span className="text-[10px] font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md border border-gray-200">
+                                                  {rot.periodo_academico}
+                                                </span>
+                                              )}
+                                            </div>
+                                            
+                                            <span className="text-xs font-bold text-gray-500 mt-1">
+                                              {rot.curso}º Curso - Rotación {rot.numero_rotacion}
+                                            </span>
+                                            
+                                            <div className="flex flex-col gap-0.5 mt-1">
+                                              <span className="text-xs text-gray-500 font-medium mb-1 flex items-center gap-1">
+                                                <Building className="w-3.5 h-3.5 text-gray-400" />
+                                                <b className="text-gray-700">Centro:</b> {rot.centro_practicas || "No especificado"}
+                                              </span>
+                                              <span className="text-xs text-gray-500 font-medium">
+                                                <b className="text-gray-700">Hospital:</b> {rot.tutores.hospital || "No asignado"}
+                                              </span>
+                                              <span className="text-xs text-gray-500 font-medium">
+                                                <b className="text-gray-700">Universidad:</b> {rot.tutores.universidad || "No asignado"}
+                                              </span>
+                                              <div className="flex items-center gap-2 group/tutor">
+                                                <span className="text-xs text-gray-500 font-medium">
+                                                  <b className="text-gray-700">Tutor Campo:</b> {rot.tutores.campo || "Sin asignar"}
+                                                </span>
+                                                {rot.tutores.campo && (
+                                                  <button 
+                                                    onClick={() => handleEliminarTutorCampo(rot.id, rot.tutores.campo!)}
+                                                    className="opacity-0 group-hover/tutor:opacity-100 text-red-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-all"
+                                                    title="Eliminar tutor de campo"
+                                                  >
+                                                    <XCircle className="w-3.5 h-3.5" />
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <button onClick={() => handleEliminarRotacion(rot.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                          {rot.completada && (
+                                            <button
+                                              onClick={() => descargarExcelRotacion(rot.id)}
+                                              className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-ufv-azul transition-all"
+                                              title="Descargar Excel"
+                                            >
+                                              <Download className="w-4 h-4" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-lg font-bold border border-orange-100 italic w-fit mt-1">
-                              Sin historial de prácticas
-                            </div>
-                          )}
+                              );
+                            } else {
+                              return (
+                                <div className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-lg font-bold border border-orange-100 italic w-fit mt-1">
+                                  Sin historial para este filtro
+                                </div>
+                              );
+                            }
+                          })()}
                         </div>
                       </td>
                       
@@ -403,14 +436,8 @@ export default function ListaAlumnosAdmin() {
                         </div>
                       </td>
                       
-                      <td className="p-5 align-top text-right">
-                        <div className="flex flex-col gap-2 items-end">
-                          <button 
-                            onClick={() => abrirModalRotacion(alumno.id, alumno.email)} 
-                            className="bg-blue-50 text-ufv-azul px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-100 border border-blue-200 w-full max-w-[12rem] transition-colors"
-                          >
-                            Asignar Nueva Rotación
-                          </button>
+                      <td className="p-5 align-top">
+                        <div className="flex flex-col gap-2 items-center">
                           <button 
                             onClick={() => handleEliminarAlumno(alumno.id, alumno.email)} 
                             className="bg-white text-red-500 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-50 border border-red-200 w-full max-w-[12rem] flex items-center justify-center gap-2 transition-colors"

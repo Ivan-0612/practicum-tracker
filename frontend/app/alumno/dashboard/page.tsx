@@ -1,17 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
-import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X, Building, Home } from "lucide-react";
+import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X, Building, Home, PlusCircle } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import ModalRubrica from "@/components/ModalRubrica";
+import { validarPasswordFuerte } from "@/lib/utils";
 
 interface EspecialidadDisponible {
   nombre: string;
   especialidadId?: string;
   rotacionId?: string;
 }
+
+interface OpcionEspecialidad {
+  id: string;
+  nombre: string;
+}
+
+interface OpcionCentro {
+  id: string;
+  nombre: string;
+}
+
+const formatearPeriodoAcademico = (inicio: number, fin: number) => `${inicio}/${String(fin).slice(-2)}`;
+const obtenerPeriodoActual = () => {
+  const hoy = new Date();
+  const anio = hoy.getFullYear();
+  return hoy.getMonth() < 8 ? formatearPeriodoAcademico(anio - 1, anio) : formatearPeriodoAcademico(anio, anio + 1);
+};
 
 export default function AlumnoDashboard() {
   const router = useRouter();
@@ -28,6 +46,32 @@ export default function AlumnoDashboard() {
   const [isRubricaOpen, setIsRubricaOpen] = useState(false);
   const [rubricaActual, setRubricaActual] = useState({ nombre: "", molde: null });
   const [especialidadesSistema, setEspecialidadesSistema] = useState<EspecialidadDisponible[]>([]);
+  const [showNuevaRotacionModal, setShowNuevaRotacionModal] = useState(false);
+  const [isSavingNuevaRotacion, setIsSavingNuevaRotacion] = useState(false);
+  const [opcionesEspecialidades, setOpcionesEspecialidades] = useState<OpcionEspecialidad[]>([]);
+  const [opcionesCentros, setOpcionesCentros] = useState<OpcionCentro[]>([]);
+  const periodoActual = obtenerPeriodoActual();
+  const periodosAcademicos = useMemo(() => {
+    const añoActual = Number(periodoActual.split("/")[0]);
+    return [
+      formatearPeriodoAcademico(añoActual - 1, añoActual),
+      periodoActual,
+      formatearPeriodoAcademico(añoActual + 1, añoActual + 2),
+    ];
+  }, [periodoActual]);
+  const [nuevaRotacionForm, setNuevaRotacionForm] = useState({
+    curso: 2,
+    numero_rotacion: 1,
+    periodo_academico: periodoActual,
+    especialidad_id: "",
+    centro_practicas_id: "",
+  });
+
+  // ESTADOS PARA TUTOR DE CAMPO
+  const [showTutorCampoModal, setShowTutorCampoModal] = useState(false);
+  const [tutorCampoEmail, setTutorCampoEmail] = useState("");
+  const [rotacionSeleccionadaTutor, setRotacionSeleccionadaTutor] = useState<string | null>(null);
+  const [isSavingTutorCampo, setIsSavingTutorCampo] = useState(false);
 
   // 1. Leer memoria al cargar
   useEffect(() => {
@@ -100,6 +144,70 @@ export default function AlumnoDashboard() {
     router.push("/login");
   };
 
+  const cargarOpcionesNuevaRotacion = async () => {
+    const token = Cookies.get("practicum_token");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/opciones-rotacion`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      throw new Error("No se pudieron cargar especialidades y centros");
+    }
+    const data = await res.json();
+    const especialidades = Array.isArray(data.especialidades) ? data.especialidades : [];
+    const centros = Array.isArray(data.centros) ? data.centros : [];
+
+    const especialidadId = especialidades[0]?.id || "";
+    const centroId = centros[0]?.id || "";
+
+    setOpcionesEspecialidades(especialidades);
+    setOpcionesCentros(centros);
+    setNuevaRotacionForm((prev) => ({
+      ...prev,
+      especialidad_id: especialidadId,
+      centro_practicas_id: centroId,
+    }));
+  };
+
+  const abrirModalNuevaRotacion = async () => {
+    try {
+      await cargarOpcionesNuevaRotacion();
+      setShowNuevaRotacionModal(true);
+    } catch (error: any) {
+      alert(error.message || "Error cargando opciones");
+    }
+  };
+
+  const solicitarNuevaRotacion = async () => {
+    if (!nuevaRotacionForm.especialidad_id || !nuevaRotacionForm.centro_practicas_id) {
+      alert("Selecciona especialidad y centro");
+      return;
+    }
+
+    setIsSavingNuevaRotacion(true);
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/solicitar-siguiente-rotacion`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(nuevaRotacionForm),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "No se pudo solicitar la rotación");
+      }
+      alert("Nueva rotación solicitada correctamente");
+      setShowNuevaRotacionModal(false);
+      cargarDatos();
+    } catch (error: any) {
+      alert(error.message || "Error al solicitar nueva rotación");
+    } finally {
+      setIsSavingNuevaRotacion(false);
+    }
+  };
+
   const abrirManualRubrica = async (rotacionId: string, especialidadNombre: string) => {
     try {
       const token = Cookies.get("practicum_token");
@@ -127,6 +235,12 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
 
     if (passFormData.nueva !== passFormData.confirmar) {
       setPassStatus({ type: "error", msg: "Las contraseñas nuevas no coinciden." });
+      return;
+    }
+
+    const { valida, msg } = validarPasswordFuerte(passFormData.nueva);
+    if (!valida) {
+      setPassStatus({ type: "error", msg });
       return;
     }
 
@@ -173,6 +287,41 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
     }
   };
 
+  const handleAñadirTutorCampo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tutorCampoEmail || !rotacionSeleccionadaTutor) return;
+
+    setIsSavingTutorCampo(true);
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/rotaciones/${rotacionSeleccionadaTutor}/tutor-campo`, {
+        method: "POST",
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({
+          email: tutorCampoEmail
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Tutor de campo invitado con éxito. Se le ha enviado un correo electrónico.");
+        setShowTutorCampoModal(false);
+        setTutorCampoEmail("");
+        cargarDatos();
+      } else {
+        alert(data.detail || "Error al invitar al tutor de campo");
+      }
+    } catch (error) {
+      alert("Error de conexión con el servidor.");
+    } finally {
+      setIsSavingTutorCampo(false);
+    }
+  };
+
   if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse">Cargando tu expediente...</div>;
 
   const especialidadesDesdeRotaciones = Array.from(
@@ -191,6 +340,8 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
   const puedeAbrirRubrica = especialidadesDisponibles.length > 0;
   const rotacionesActivas = (datos?.rotaciones || []).filter((rot: any) => !rot.completada);
   const rotacionesPasadas = (datos?.rotaciones || []).filter((rot: any) => rot.completada);
+  const puedeSolicitarNuevaRotacion = rotacionesActivas.length === 0 && rotacionesPasadas.length > 0;
+  const centrosFiltradosNuevaRotacion = opcionesCentros;
 
   const TarjetaRotacion = ({ rot }: { rot: any }) => (
     <div className="relative bg-white p-6 rounded-3xl border border-gray-200 border-t-4 border-t-ufv-azul shadow-sm flex flex-col hover:shadow-xl transition-all duration-300">
@@ -232,6 +383,29 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                 <span className="text-gray-500 font-medium text-xs w-16">Académico:</span>
                 {rot.tutores.universidad || <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>}
               </span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-ufv-azul-oscuro truncate flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span className="text-gray-500 font-medium text-xs w-16">Campo:</span>
+                  {rot.tutores.campo ? (
+                    <span>{rot.tutores.campo}</span>
+                  ) : (
+                    <span className="text-gray-400 italic font-normal text-xs">Sin asignar</span>
+                  )}
+                </span>
+                {!rot.tutores.campo && !rot.completada && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRotacionSeleccionadaTutor(rot.id);
+                      setShowTutorCampoModal(true);
+                    }}
+                    className="text-xs text-ufv-azul font-bold hover:underline px-2 py-1"
+                  >
+                    + Añadir
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <span className="text-sm text-gray-400 italic">Sin asignar</span>
@@ -382,6 +556,15 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
         )}
       </div>
 
+      {puedeSolicitarNuevaRotacion && (
+        <button
+          onClick={abrirModalNuevaRotacion}
+          className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 active:scale-95"
+        >
+          <PlusCircle className="w-4 h-4" /> Solicitar nueva rotación
+        </button>
+      )}
+
       <ModalRubrica
         isOpen={isRubricaOpen}
         onClose={() => setIsRubricaOpen(false)}
@@ -390,6 +573,97 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
         especialidadesDisponibles={especialidadesDisponibles}
         especialidadInicial={rubricaActual.nombre || especialidadesDisponibles[0]?.nombre}
       />
+
+      {showNuevaRotacionModal && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-xl shadow-2xl border-t-4 border-ufv-azul">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-ufv-azul-oscuro">Nueva rotación</h2>
+              <button onClick={() => setShowNuevaRotacionModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Curso</label>
+                <select
+                  value={nuevaRotacionForm.curso}
+                  onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, curso: Number(e.target.value) })}
+                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                >
+                  <option value={2}>2º</option>
+                  <option value={3}>3º</option>
+                  <option value={4}>4º</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Rotación</label>
+                <select
+                  value={nuevaRotacionForm.numero_rotacion}
+                  onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, numero_rotacion: Number(e.target.value) })}
+                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                >
+                  <option value={1}>Rotación 1</option>
+                  <option value={2}>Rotación 2</option>
+                  <option value={3}>Rotación 3</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Especialidad</label>
+                <select
+                  value={nuevaRotacionForm.especialidad_id}
+                  onChange={(e) => {
+                    const nuevaEspecialidad = e.target.value;
+                    setNuevaRotacionForm({ ...nuevaRotacionForm, especialidad_id: nuevaEspecialidad });
+                  }}
+                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                >
+                  {opcionesEspecialidades.map((esp) => (
+                    <option key={esp.id} value={esp.id}>{esp.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Centro</label>
+                <select
+                  value={nuevaRotacionForm.centro_practicas_id}
+                  onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, centro_practicas_id: e.target.value })}
+                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                >
+                  {centrosFiltradosNuevaRotacion.map((centro) => (
+                    <option key={centro.id} value={centro.id}>{centro.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Periodo académico</label>
+                <select
+                  value={nuevaRotacionForm.periodo_academico}
+                  onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, periodo_academico: e.target.value })}
+                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                >
+                  {periodosAcademicos.map((periodo) => (
+                    <option key={periodo} value={periodo}>
+                      {periodo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-6">
+              <button type="button" onClick={() => setShowNuevaRotacionModal(false)} className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors border border-gray-200">Cancelar</button>
+              <button
+                type="button"
+                disabled={isSavingNuevaRotacion}
+                onClick={solicitarNuevaRotacion}
+                className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md"
+              >
+                {isSavingNuevaRotacion ? "Guardando..." : "Solicitar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE CAMBIO DE CONTRASEÑA */}
       {showPassModal && (
@@ -423,6 +697,44 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowPassModal(false)} className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors border border-transparent">Cancelar</button>
                 <button type="submit" className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all border border-transparent">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL AÑADIR TUTOR DE CAMPO */}
+      {showTutorCampoModal && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border-t-4 border-emerald-500 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-ufv-azul-oscuro">Añadir Tutor de Campo</h2>
+              <button onClick={() => { setShowTutorCampoModal(false); setTutorCampoEmail(""); }} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-6 font-medium">
+              Introduce el correo electrónico del enfermero/tutor que te acompaña en el hospital. 
+              Se le enviará una invitación para acceder a la plataforma y evaluarte. Tus tutores asignados también serán notificados.
+            </p>
+
+            <form onSubmit={handleAñadirTutorCampo} className="space-y-5">
+              <div>
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Email del Tutor</label>
+                <input 
+                  type="email" 
+                  required 
+                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-gray-900" 
+                  value={tutorCampoEmail} 
+                  onChange={(e) => setTutorCampoEmail(e.target.value)} 
+                  placeholder="ejemplo@hospital.com"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setShowTutorCampoModal(false); setTutorCampoEmail(""); }} className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors border border-transparent">Cancelar</button>
+                <button type="submit" disabled={isSavingTutorCampo} className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md active:scale-95 transition-all border border-transparent disabled:opacity-50">
+                  {isSavingTutorCampo ? "Invitando..." : "Invitar Tutor"}
+                </button>
               </div>
             </form>
           </div>

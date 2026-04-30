@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from ..database import get_db
 from .. import models, schemas, security
 import secrets
@@ -98,6 +99,7 @@ def _crear_alumno_desde_datos(db: Session, alumno_in: schemas.AlumnoCreate):
         .filter(
             models.Usuario.email == alumno_in.email_tutor_hospital,
             models.Usuario.rol == "profesor",
+            models.Usuario.activo == True,
         )
         .first()
     )
@@ -112,6 +114,7 @@ def _crear_alumno_desde_datos(db: Session, alumno_in: schemas.AlumnoCreate):
         .filter(
             models.Usuario.email == alumno_in.email_tutor_universidad,
             models.Usuario.rol == "profesor",
+            models.Usuario.activo == True,
         )
         .first()
     )
@@ -204,21 +207,21 @@ def _crear_rotacion_alumno(
 ):
     periodo_academico = normalizar_periodo_academico(periodo_academico)
 
-    existe_periodo = (
+    existe_rotacion_curso = (
         db.query(models.Rotacion)
         .filter(
             models.Rotacion.alumno_id == alumno.id,
             models.Rotacion.numero_rotacion == numero_rotacion,
-            models.Rotacion.periodo_academico == periodo_academico,
+            models.Rotacion.curso == curso,
         )
         .first()
     )
-    if existe_periodo:
+    if existe_rotacion_curso:
         raise HTTPException(
             status_code=400,
             detail=(
                 f"El alumno ya tiene asignada la Rotación {numero_rotacion} "
-                f"en el periodo {periodo_academico}."
+                f"para {curso}º Curso."
             ),
         )
 
@@ -227,6 +230,7 @@ def _crear_rotacion_alumno(
         .filter(
             models.Usuario.email == email_tutor_hospital,
             models.Usuario.rol == "profesor",
+            models.Usuario.activo == True,
         )
         .first()
     )
@@ -240,6 +244,7 @@ def _crear_rotacion_alumno(
         .filter(
             models.Usuario.email == email_tutor_universidad,
             models.Usuario.rol == "profesor",
+            models.Usuario.activo == True,
         )
         .first()
     )
@@ -282,6 +287,118 @@ def _crear_rotacion_alumno(
     return nueva_rotacion
 
 
+def _obtener_centro_valido(db: Session, centro_practicas_id: UUID):
+    centro = (
+        db.query(models.CentroPracticas)
+        .filter(
+            models.CentroPracticas.id == centro_practicas_id,
+            models.CentroPracticas.activo == True,
+        )
+        .first()
+    )
+    if not centro:
+        raise HTTPException(status_code=404, detail="Centro de prácticas no encontrado")
+
+    if not centro.tutor_hospital_id or not centro.tutor_universidad_id:
+        raise HTTPException(
+            status_code=400,
+            detail="El centro no tiene tutores configurados",
+        )
+
+    return centro
+
+
+def _crear_rotacion_desde_centro(
+    db: Session,
+    alumno,
+    curso: int,
+    numero_rotacion: int,
+    periodo_academico: str,
+    especialidad_id: UUID,
+    centro,
+):
+    periodo_academico = normalizar_periodo_academico(periodo_academico)
+
+    existe_rotacion_curso = (
+        db.query(models.Rotacion)
+        .filter(
+            models.Rotacion.alumno_id == alumno.id,
+            models.Rotacion.numero_rotacion == numero_rotacion,
+            models.Rotacion.curso == curso,
+        )
+        .first()
+    )
+    if existe_rotacion_curso:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"El alumno ya tiene asignada la Rotación {numero_rotacion} "
+                f"para {curso}º Curso."
+            ),
+        )
+
+    nueva_rotacion = models.Rotacion(
+        alumno_id=alumno.id,
+        especialidad_id=especialidad_id,
+        curso=curso,
+        numero_rotacion=numero_rotacion,
+        periodo_academico=periodo_academico,
+        centro_practicas=centro.nombre,
+    )
+    db.add(nueva_rotacion)
+    db.flush()
+
+    db.add(
+        models.AsignacionTutor(
+            tutor_id=centro.tutor_hospital_id,
+            rotacion_id=nueva_rotacion.id,
+            tipo_tutor="hospital",
+        )
+    )
+    db.add(
+        models.AsignacionTutor(
+            tutor_id=centro.tutor_universidad_id,
+            rotacion_id=nueva_rotacion.id,
+            tipo_tutor="universidad",
+        )
+    )
+
+    db.commit()
+    db.refresh(nueva_rotacion)
+    return nueva_rotacion
+
+
+@router.post("/pre-registro")
+def pre_registrar_alumno(
+    datos: schemas.AlumnoPreRegistroCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    existe = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.email == datos.email)
+        .first()
+    )
+    if existe:
+        raise HTTPException(status_code=400, detail="El correo ya está registrado")
+
+    nuevo_usuario = models.Usuario(
+        email=datos.email,
+        password_hash=security.get_password_hash(secrets.token_urlsafe(16)),
+        rol="estudiante",
+        registro_completado=False,
+        curso_pendiente=datos.curso,
+        activo=True,
+    )
+    db.add(nuevo_usuario)
+    db.commit()
+
+    return {"mensaje": "Alumno pre-registrado correctamente", "email": datos.email}
+
+
 @router.post("/", response_model=schemas.AlumnoResponse)
 def crear_alumno(alumno_in: schemas.AlumnoCreate, db: Session = Depends(get_db)):
     return _crear_alumno_desde_datos(db, alumno_in)
@@ -321,30 +438,24 @@ def importar_alumnos_excel(
         if clave:
             header_map[clave] = idx
 
-    required_headers = {
-        "nombre": ["nombre"],
-        "apellidos": ["apellidos"],
-        "email": ["email", "correo", "correo electronico", "email personal", "correo personal", "email alumno", "correo alumno"],
-        "password_acceso": ["password", "contraseña", "clave", "password acceso"],
-        "curso": ["curso", "curso academico"],
-        "grupo": ["grupo"],
-        "especialidad_id": ["especialidad", "especialidad id", "unidad", "unidad de competencia"],
-        "numero_rotacion": ["rotacion", "numero rotacion", "num rotacion", "rotación"],
-        "periodo_academico": ["periodo academico", "año academico", "ano academico"],
-        "centro_practicas": ["centro practicas", "centro", "hospital"],
-        "email_tutor_hospital": ["email tutor hospital", "tutor hospital", "tutor clinico"],
-        "email_tutor_universidad": ["email tutor universidad", "tutor universidad"],
-    }
+    aliases_email = [
+        "email",
+        "correo",
+        "correo electronico",
+        "email alumno",
+        "correo alumno",
+    ]
+    idx_email = None
+    for alias in aliases_email:
+        idx = header_map.get(_normalizar_texto(alias))
+        if idx is not None:
+            idx_email = idx
+            break
 
-    missing_headers = []
-    for campo, aliases in required_headers.items():
-        if not any(_normalizar_texto(alias) in header_map for alias in aliases):
-            missing_headers.append(campo)
-
-    if missing_headers:
+    if idx_email is None:
         raise HTTPException(
             status_code=400,
-            detail=f"El Excel no contiene las columnas necesarias: {', '.join(missing_headers)}",
+            detail="El Excel debe incluir una columna de correo (email/correo)",
         )
 
     total_filas = 0
@@ -360,23 +471,13 @@ def importar_alumnos_excel(
         email_acceso = None
 
         try:
-            datos_crudos = {
-                "nombre": _obtener_valor_requerido(fila, header_map, required_headers["nombre"], "nombre"),
-                "apellidos": _obtener_valor_requerido(fila, header_map, required_headers["apellidos"], "apellidos"),
-                "email_personal": _obtener_valor_requerido(fila, header_map, required_headers["email"], "email"),
-                "email_acceso": _obtener_valor_requerido(fila, header_map, required_headers["email"], "email"),
-                "password_acceso": _obtener_valor_requerido(fila, header_map, required_headers["password_acceso"], "password"),
-                "curso": _obtener_valor_requerido(fila, header_map, required_headers["curso"], "curso"),
-                "grupo": _obtener_valor_requerido(fila, header_map, required_headers["grupo"], "grupo"),
-                "especialidad_id": _obtener_valor_requerido(fila, header_map, required_headers["especialidad_id"], "especialidad"),
-                "numero_rotacion": _obtener_valor_requerido(fila, header_map, required_headers["numero_rotacion"], "rotación"),
-                "periodo_academico": _obtener_valor_requerido(fila, header_map, required_headers["periodo_academico"], "periodo académico"),
-                "centro_practicas": _obtener_valor_requerido(fila, header_map, required_headers["centro_practicas"], "centro de prácticas"),
-                "email_tutor_hospital": _obtener_valor_requerido(fila, header_map, required_headers["email_tutor_hospital"], "tutor hospital"),
-                "email_tutor_universidad": _obtener_valor_requerido(fila, header_map, required_headers["email_tutor_universidad"], "tutor universidad"),
-            }
+            if idx_email >= len(fila) or fila[idx_email] is None:
+                raise ValueError("Correo vacío")
 
-            email_acceso = str(datos_crudos["email_acceso"]).strip()
+            email_acceso = str(fila[idx_email]).strip()
+            if not email_acceso:
+                raise ValueError("Correo vacío")
+
             email_normalizado = email_acceso.lower()
             if email_normalizado in seen_emails:
                 fallos.append(
@@ -402,65 +503,31 @@ def importar_alumnos_excel(
                 )
                 continue
 
-            curso = _extraer_numero(datos_crudos["curso"])
-            numero_rotacion = _extraer_numero(datos_crudos["numero_rotacion"])
-            if curso not in (2, 3, 4):
-                raise ValueError("Curso inválido. Debe ser 2, 3 o 4")
-            if numero_rotacion not in (1, 2, 3):
-                raise ValueError("Rotación inválida. Debe ser 1, 2 o 3")
-
-            especialidad = _resolver_especialidad(db, datos_crudos["especialidad_id"])
-            if not especialidad:
-                raise ValueError("La especialidad indicada no existe")
-
-            alumno_create = schemas.AlumnoCreate(
-                nombre=str(datos_crudos["nombre"]).strip(),
-                apellidos=str(datos_crudos["apellidos"]).strip(),
-                email_personal=str(datos_crudos["email_personal"]).strip(),
-                curso=curso,
-                grupo=str(datos_crudos["grupo"]).strip(),
-                email_acceso=email_acceso,
-                password_acceso=str(datos_crudos["password_acceso"]).strip(),
-                email_tutor_hospital=str(datos_crudos["email_tutor_hospital"]).strip(),
-                email_tutor_universidad=str(datos_crudos["email_tutor_universidad"]).strip(),
-                centro_practicas=str(datos_crudos["centro_practicas"]).strip(),
-                numero_rotacion=numero_rotacion,
-                periodo_academico=normalizar_periodo_academico(str(datos_crudos["periodo_academico"]).strip()),
-                especialidad_id=especialidad.id,
+            nuevo_usuario = models.Usuario(
+                email=email_acceso,
+                password_hash=security.get_password_hash(secrets.token_urlsafe(16)),
+                rol="estudiante",
+                registro_completado=False,
+                activo=True,
             )
-
-            alumno_creado = _crear_alumno_desde_datos(db, alumno_create)
+            db.add(nuevo_usuario)
+            db.commit()
             seen_emails.add(email_normalizado)
             creados.append(
                 {
                     "fila": fila_numero,
                     "email_acceso": email_acceso,
-                    "alumno_id": str(alumno_creado.id),
+                    "alumno_id": str(nuevo_usuario.id),
                 }
             )
 
-        except ValidationError as exc:
-            db.rollback()
-            mensaje_error = "; ".join(
-                [
-                    f"{'.'.join(str(part) for part in err['loc'])}: {err['msg']}"
-                    for err in exc.errors()
-                ]
-            )
-            fallos.append(
-                {
-                    "fila": fila_numero,
-                    "email_acceso": email_acceso,
-                    "motivo": mensaje_error or "Datos inválidos",
-                }
-            )
-        except HTTPException as exc:
+        except ValidationError:
             db.rollback()
             fallos.append(
                 {
                     "fila": fila_numero,
                     "email_acceso": email_acceso,
-                    "motivo": exc.detail if isinstance(exc.detail, str) else "Error al crear el alumno",
+                    "motivo": "Correo inválido",
                 }
             )
         except ValueError as exc:
@@ -524,12 +591,14 @@ def obtener_mi_evaluacion(
         )
 
         # Mapeamos los tutores
-        tutores_dict = {"hospital": "", "universidad": ""}
+        tutores_dict = {"hospital": "", "universidad": "", "campo": ""}
         for asig in asignaciones:
             if asig.tipo_tutor == "hospital":
                 tutores_dict["hospital"] = asig.tutor.email
             elif asig.tipo_tutor == "universidad":
                 tutores_dict["universidad"] = asig.tutor.email
+            elif asig.tipo_tutor == "campo":
+                tutores_dict["campo"] = asig.tutor.email
 
         fichaje_hoy = (
             db.query(models.RegistroAsistencia)
@@ -600,12 +669,14 @@ def listar_alumnos_por_email(
                 .all()
             )
 
-            tutores_dict = {"hospital": "", "universidad": ""}
+            tutores_dict = {"hospital": "", "universidad": "", "campo": ""}
             for asig in asignaciones:
                 if asig.tipo_tutor == "hospital":
                     tutores_dict["hospital"] = asig.tutor.email
                 elif asig.tipo_tutor == "universidad":
                     tutores_dict["universidad"] = asig.tutor.email
+                elif asig.tipo_tutor == "campo":
+                    tutores_dict["campo"] = asig.tutor.email
 
             lista_rotaciones.append(
                 {
@@ -668,6 +739,128 @@ def asignar_rotacion_adicional(
     )
 
     return {"mensaje": "Rotación asignada correctamente"}
+
+
+@router.post("/asignar-rotacion-automatica")
+def asignar_rotacion_automatica(
+    alumno_id: UUID,
+    datos: schemas.RotacionAutomaticaCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    alumno = db.query(models.Alumno).filter(models.Alumno.id == alumno_id).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == datos.especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+
+    centro = _obtener_centro_valido(db, datos.centro_practicas_id)
+    _crear_rotacion_desde_centro(
+        db=db,
+        alumno=alumno,
+        curso=datos.curso,
+        numero_rotacion=datos.numero_rotacion,
+        periodo_academico=datos.periodo_academico,
+        especialidad_id=datos.especialidad_id,
+        centro=centro,
+    )
+
+    return {"mensaje": "Rotación asignada correctamente"}
+
+
+@router.get("/opciones-rotacion")
+def obtener_opciones_rotacion(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol not in ["admin", "estudiante"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    especialidades = db.query(models.Especialidad).order_by(models.Especialidad.nombre).all()
+    centros = (
+        db.query(models.CentroPracticas)
+        .filter(models.CentroPracticas.activo == True)
+        .order_by(models.CentroPracticas.nombre)
+        .all()
+    )
+
+    return {
+        "especialidades": [
+            {"id": str(esp.id), "nombre": esp.nombre}
+            for esp in especialidades
+        ],
+        "centros": [
+            {
+                "id": str(c.id),
+                "nombre": c.nombre,
+                "tutor_hospital_email": c.tutor_hospital.email if c.tutor_hospital else "",
+                "tutor_universidad_email": c.tutor_universidad.email if c.tutor_universidad else "",
+            }
+            for c in centros
+        ],
+    }
+
+
+@router.post("/solicitar-siguiente-rotacion")
+def solicitar_siguiente_rotacion(
+    datos: schemas.RotacionAutomaticaCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "estudiante":
+        raise HTTPException(status_code=403, detail="Solo alumnos")
+
+    alumno = (
+        db.query(models.Alumno)
+        .filter(models.Alumno.usuario_id == current_user.id)
+        .first()
+    )
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+
+    tiene_activas = (
+        db.query(models.Rotacion)
+        .filter(
+            models.Rotacion.alumno_id == alumno.id,
+            models.Rotacion.completada == False,
+        )
+        .first()
+    )
+    if tiene_activas:
+        raise HTTPException(
+            status_code=400,
+            detail="Primero debes completar tu rotación activa actual",
+        )
+
+    especialidad = (
+        db.query(models.Especialidad)
+        .filter(models.Especialidad.id == datos.especialidad_id)
+        .first()
+    )
+    if not especialidad:
+        raise HTTPException(status_code=404, detail="Especialidad no encontrada")
+
+    centro = _obtener_centro_valido(db, datos.centro_practicas_id)
+    nueva_rotacion = _crear_rotacion_desde_centro(
+        db=db,
+        alumno=alumno,
+        curso=datos.curso,
+        numero_rotacion=datos.numero_rotacion,
+        periodo_academico=datos.periodo_academico,
+        especialidad_id=datos.especialidad_id,
+        centro=centro,
+    )
+
+    return {"mensaje": "Nueva rotación solicitada correctamente", "rotacion_id": str(nueva_rotacion.id)}
 
 
 @router.post("/importar-rotaciones-excel", response_model=schemas.ImportRotacionesResponse)
@@ -820,21 +1013,21 @@ def importar_rotaciones_excel(
             if not especialidad:
                 raise ValueError("La especialidad indicada no existe")
 
-            key = (str(alumno.id), numero_rotacion, periodo_academico)
+            key = (str(alumno.id), numero_rotacion, curso)
             if key in seen_keys:
-                raise ValueError("Duplicado dentro del Excel para el mismo alumno, rotación y periodo")
+                raise ValueError("Duplicado dentro del Excel para el mismo alumno, rotación y curso")
 
             existe = (
                 db.query(models.Rotacion)
                 .filter(
                     models.Rotacion.alumno_id == alumno.id,
                     models.Rotacion.numero_rotacion == numero_rotacion,
-                    models.Rotacion.periodo_academico == periodo_academico,
+                    models.Rotacion.curso == curso,
                 )
                 .first()
             )
             if existe:
-                raise ValueError("El alumno ya tiene esa rotación en ese periodo académico")
+                raise ValueError("El alumno ya tiene esa rotación para ese curso")
 
             rotacion = _crear_rotacion_alumno(
                 db=db,
@@ -941,7 +1134,10 @@ def eliminar_alumno_completo(
     rotaciones_ids = [r.id for r in alumno.rotaciones]
 
     db.query(models.RegistroAsistencia).filter(
-        models.RegistroAsistencia.rotacion_id.in_(rotaciones_ids)
+        or_(
+            models.RegistroAsistencia.alumno_id == alumno_id,
+            models.RegistroAsistencia.rotacion_id.in_(rotaciones_ids),
+        )
     ).delete(synchronize_session=False)
     db.query(models.AsignacionTutor).filter(
         models.AsignacionTutor.rotacion_id.in_(rotaciones_ids)
@@ -990,14 +1186,120 @@ def obtener_historial_asistencia_alumno(
     for f in fichajes:
         fecha_str = str(f.fecha).split(" ")[0].split("T")[0] if f.fecha else ""
         email_firmante = f.tutor.email if f.tutor else "Tutor Desconocido"
+        fecha_rec_str = str(f.fecha_recuperada).split(" ")[0] if getattr(f, "fecha_recuperada", None) else None
 
         registros_limpios.append(
             {
                 "id": str(f.id),
                 "fecha": fecha_str,
                 "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
-                "firmado_por": email_firmante,  # <-- NUEVO CAMPO
+                "firmado_por": email_firmante,
+                "fecha_recuperada": fecha_rec_str
             }
         )
 
     return registros_limpios
+
+
+@router.post("/rotaciones/{rotacion_id}/tutor-campo")
+def añadir_tutor_campo(
+    rotacion_id: UUID,
+    datos: schemas.TutorCampoCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "estudiante":
+        raise HTTPException(status_code=403, detail="Solo los alumnos pueden añadir un tutor de campo")
+
+    alumno = db.query(models.Alumno).filter(models.Alumno.usuario_id == current_user.id).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+
+    rotacion = db.query(models.Rotacion).filter(
+        models.Rotacion.id == rotacion_id,
+        models.Rotacion.alumno_id == alumno.id
+    ).first()
+    
+    if not rotacion:
+        raise HTTPException(status_code=404, detail="Rotación no encontrada o no pertenece al alumno")
+
+    if rotacion.completada:
+        raise HTTPException(status_code=400, detail="No se puede añadir tutor a una rotación completada")
+
+    # Comprobar si ya existe una asignación de tutor de campo
+    asignacion_existente = db.query(models.AsignacionTutor).filter(
+        models.AsignacionTutor.rotacion_id == rotacion.id,
+        models.AsignacionTutor.tipo_tutor == "campo"
+    ).first()
+
+    if asignacion_existente:
+        raise HTTPException(status_code=400, detail="Ya existe un tutor de campo asignado a esta rotación")
+
+    # Buscar usuario existente o crearlo
+    tutor_usuario = db.query(models.Usuario).filter(models.Usuario.email == datos.email).first()
+    
+    es_nuevo = False
+    if not tutor_usuario:
+        es_nuevo = True
+        import secrets
+        tutor_usuario = models.Usuario(
+            email=datos.email,
+            password_hash=security.get_password_hash(secrets.token_urlsafe(16)),
+            rol="profesor",
+            tipo_tutor="campo",
+            registro_completado=False,
+            activo=True
+        )
+        db.add(tutor_usuario)
+        db.flush()
+
+    # Asignar a la rotación
+    nueva_asignacion = models.AsignacionTutor(
+        tutor_id=tutor_usuario.id,
+        rotacion_id=rotacion.id,
+        tipo_tutor="campo"
+    )
+    db.add(nueva_asignacion)
+    db.flush()
+
+    alumno_nombre = f"{security.descifrar_dato(alumno.nombre_cifrado)} {security.descifrar_dato(alumno.apellidos_cifrado)}"
+    especialidad_nombre = rotacion.especialidad.nombre if rotacion.especialidad else "Sin especialidad"
+
+    # Enviar invitación al tutor de campo
+    if es_nuevo:
+        import secrets
+        from datetime import datetime, timezone, timedelta
+        import os
+        token_hex = secrets.token_urlsafe(32)
+        nuevo_token = models.TokenRecuperacion(
+            usuario_id=tutor_usuario.id,
+            token=token_hex,
+            expira_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+        )
+        db.add(nuevo_token)
+        
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        enlace = f"{frontend_url}/restablecer-password?token={token_hex}"
+        
+        from ..utils.email_utils import enviar_invitacion_tutor_campo
+        enviar_invitacion_tutor_campo(datos.email, alumno_nombre, especialidad_nombre, enlace)
+    else:
+        from ..utils.email_utils import enviar_aviso_asignacion_tutor_existente
+        enviar_aviso_asignacion_tutor_existente(datos.email, alumno_nombre, especialidad_nombre)
+
+    db.commit()
+
+    # Notificar a los otros tutores
+    from ..utils.email_utils import enviar_aviso_nuevo_tutor_campo
+    tutores_emails = []
+    asignaciones_existentes = db.query(models.AsignacionTutor).filter(
+        models.AsignacionTutor.rotacion_id == rotacion.id,
+        models.AsignacionTutor.tipo_tutor.in_(["hospital", "universidad"])
+    ).all()
+    for asig in asignaciones_existentes:
+        tutores_emails.append(asig.tutor.email)
+
+    if tutores_emails:
+        enviar_aviso_nuevo_tutor_campo(tutores_emails, alumno_nombre, especialidad_nombre, datos.email)
+
+    return {"mensaje": "Tutor de campo añadido correctamente"}

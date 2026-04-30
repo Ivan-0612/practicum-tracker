@@ -94,8 +94,8 @@ export default function ImportarAlumnosExcel() {
               <p className="text-xs font-black uppercase tracking-widest text-ufv-rosa-oscuro mb-2">Importación masiva</p>
               <h1 className="text-3xl font-black text-ufv-azul-oscuro">Subir alumnos desde Excel</h1>
               <p className="text-sm text-gray-500 mt-2 max-w-2xl">
-                Sube la plantilla de alumnos y el sistema intentará crear cada fila de forma independiente.
-                Si una fila está mal, se saltará y quedará reflejada en el resumen final.
+                Sube la plantilla de alumnos (solo columna de correo) y el sistema pre-registrará cada fila de forma independiente.
+                El resto de datos se completan después desde la pantalla de Registro del alumno.
               </p>
             </div>
           </div>
@@ -108,7 +108,7 @@ export default function ImportarAlumnosExcel() {
                 </div>
                 <h2 className="text-lg font-black text-gray-900">Selecciona el archivo XLSX</h2>
                 <p className="text-sm text-gray-500 mt-2">
-                  Usa la plantilla de alumnos con las columnas necesarias para nombre, apellidos, correos, curso, rotación, especialidad, tutores y contraseña.
+                  Usa la plantilla de alumnos con una única columna de correo institucional.
                 </p>
                 <input
                   type="file"
@@ -122,8 +122,8 @@ export default function ImportarAlumnosExcel() {
                 <p className="font-bold text-gray-800 mb-2">Comprobaciones automáticas</p>
                 <ul className="space-y-2 list-disc pl-5">
                   <li>Si un email ya existe, esa fila no se crea.</li>
-                  <li>Las filas con columnas vacías o mal formateadas se saltan sin cortar la importación.</li>
-                  <li>Curso y rotación se limpian para quedarse solo con el número.</li>
+                  <li>Las filas con correo vacío o mal formateado se saltan sin cortar la importación.</li>
+                  <li>No se crean datos académicos en este paso, solo acceso pendiente.</li>
                   <li>Al final verás un resumen de creados, duplicados y fallos.</li>
                 </ul>
               </div>

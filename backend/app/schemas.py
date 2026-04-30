@@ -17,6 +17,17 @@ class UsuarioCreate(UsuarioBase):
     password: str = Field(..., min_length=8)  # Contraseña provisional sencilla
     tipo_tutor: Optional[str] = None
 
+    @field_validator("password")
+    @classmethod
+    def validar_password_fuerte(cls, v: str) -> str:
+        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+        if not re.match(patron, v):
+            raise ValueError(
+                "La contraseña debe tener al menos una mayúscula, "
+                "una minúscula, un número y un carácter especial (@$!%*?&)"
+            )
+        return v
+
 
 class UsuarioResponse(UsuarioBase):
     id: UUID
@@ -25,6 +36,11 @@ class UsuarioResponse(UsuarioBase):
 
     class Config:
         from_attributes = True
+
+
+class AlumnoPreRegistroCreate(BaseModel):
+    email: EmailStr
+    curso: Optional[int] = Field(default=None, ge=2, le=4)
 
 
 # ==========================================
@@ -46,6 +62,76 @@ class EspecialidadResponse(EspecialidadBase):
 
     class Config:
         from_attributes = True
+
+
+class CentroPracticasBase(BaseModel):
+    nombre: str
+    tutor_hospital_email: EmailStr
+    tutor_universidad_email: EmailStr
+
+
+class CentroPracticasCreate(CentroPracticasBase):
+    pass
+
+
+class CentroPracticasUpdate(CentroPracticasBase):
+    activo: bool = True
+
+
+class CentroPracticasResponse(BaseModel):
+    id: UUID
+    nombre: str
+    tutor_hospital_email: EmailStr
+    tutor_universidad_email: EmailStr
+    activo: bool
+
+
+class RegistroVerificarEmailRequest(BaseModel):
+    email: EmailStr
+
+
+class RegistroCompletarRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    nombre: str
+    apellidos: str
+    grupo: str
+    email_personal: Optional[EmailStr] = None
+    curso: int = Field(..., ge=2, le=4)
+    numero_rotacion: int = Field(..., ge=1, le=3)
+    periodo_academico: str = "2025/26"
+    especialidad_id: UUID
+    centro_practicas_id: UUID
+
+    @field_validator("password")
+    @classmethod
+    def validar_password_fuerte(cls, v: str) -> str:
+        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+        if not re.match(patron, v):
+            raise ValueError(
+                "La contraseña debe tener al menos una mayúscula, "
+                "una minúscula, un número y un carácter especial (@$!%*?&)"
+            )
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validar_password_fuerte(cls, v: str) -> str:
+        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+        if not re.match(patron, v):
+            raise ValueError(
+                "La contraseña debe tener al menos una mayúscula, "
+                "una minúscula, un número y un carácter especial (@$!%*?&)"
+            )
+        return v
+
+
+class RotacionAutomaticaCreate(BaseModel):
+    curso: int = Field(..., ge=2, le=4)
+    numero_rotacion: int = Field(..., ge=1, le=3)
+    periodo_academico: str = "2025/26"
+    especialidad_id: UUID
+    centro_practicas_id: UUID
 
 
 # ==========================================
@@ -192,6 +278,7 @@ class RespuestaResponse(RespuestaBase):
 class AsistenciaCreate(BaseModel):
     rotacion_id: UUID
     fecha: date
+    fecha_recuperada: Optional[date] = None
 
 
 class AsistenciaResponse(BaseModel):
@@ -220,6 +307,9 @@ class CambioPassword(BaseModel):
             )
         return v
 
+
+class TutorCampoCreate(BaseModel):
+    email: EmailStr
 
 class SolicitarRecuperacion(BaseModel):
     email: EmailStr

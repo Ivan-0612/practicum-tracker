@@ -26,6 +26,8 @@ class Usuario(Base):
     
     # Campo nuevo que añadimos antes
     tipo_tutor = Column(String, nullable=True) 
+    registro_completado = Column(Boolean, nullable=False, default=True)
+    curso_pendiente = Column(Integer, nullable=True)
     
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
@@ -40,6 +42,16 @@ class Usuario(Base):
     
     asignaciones_rotaciones = relationship(
         "AsignacionTutor", back_populates="tutor", cascade="all, delete-orphan"
+    )
+    centros_hospital = relationship(
+        "CentroPracticas",
+        foreign_keys="CentroPracticas.tutor_hospital_id",
+        back_populates="tutor_hospital",
+    )
+    centros_universidad = relationship(
+        "CentroPracticas",
+        foreign_keys="CentroPracticas.tutor_universidad_id",
+        back_populates="tutor_universidad",
     )
 
 
@@ -84,6 +96,27 @@ class Especialidad(Base):
 
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
     rotaciones = relationship("Rotacion", back_populates="especialidad")
+
+
+class CentroPracticas(Base):
+    __tablename__ = "centros_practicas"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nombre = Column(String, nullable=False)
+    tutor_hospital_id = Column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False
+    )
+    tutor_universidad_id = Column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False
+    )
+    activo = Column(Boolean, default=True)
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+
+    tutor_hospital = relationship("Usuario", foreign_keys=[tutor_hospital_id], back_populates="centros_hospital")
+    tutor_universidad = relationship("Usuario", foreign_keys=[tutor_universidad_id], back_populates="centros_universidad")
+
+    __table_args__ = (
+        UniqueConstraint("nombre", name="_centro_nombre_uc"),
+    )
 
 
 class PlantillaExcelMappingGlobal(Base):
@@ -191,6 +224,7 @@ class RegistroAsistencia(Base):
     fecha = Column(Date, nullable=False) # El día del calendario
     firmado_en = Column(DateTime(timezone=True), server_default=func.now())
     firmado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False)
+    fecha_recuperada = Column(Date, nullable=True) # Si la asistencia fue recuperada otro día
 
     rotacion = relationship("Rotacion")
     alumno = relationship("Alumno")

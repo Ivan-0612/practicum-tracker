@@ -28,6 +28,34 @@ router = APIRouter(prefix="/api/v1/admin", tags=["Administración"])
 UPLOAD_DIR = "cuadernillos"
 
 
+@router.get("/alumnos/pendientes")
+def listar_alumnos_pendientes(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    query = db.query(models.Usuario).filter(
+        models.Usuario.rol == "estudiante",
+        models.Usuario.registro_completado == False,
+    )
+
+    pendientes = query.order_by(models.Usuario.creado_en.desc()).all()
+
+    return {
+        "total": len(pendientes),
+        "resultados": [
+            {
+                "id": str(u.id),
+                "email": u.email,
+                "creado_en": u.creado_en.isoformat() if u.creado_en else None,
+            }
+            for u in pendientes
+        ],
+    }
+
+
 @router.post("/profesores", response_model=schemas.UsuarioResponse)
 def crear_profesor(profesor_in: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     existe = (
@@ -38,11 +66,18 @@ def crear_profesor(profesor_in: schemas.UsuarioCreate, db: Session = Depends(get
     if existe:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
 
+    tipo_tutor = (profesor_in.tipo_tutor or "").strip().lower()
+    if tipo_tutor not in ["hospital", "universidad"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Debes indicar un tipo_tutor válido: 'hospital' o 'universidad'",
+        )
+
     nuevo_profesor = models.Usuario(
         email=profesor_in.email,
         password_hash=security.get_password_hash(profesor_in.password),
         rol="profesor",
-        tipo_tutor=profesor_in.tipo_tutor,  # <-- GUARDAMOS EL TIPO
+        tipo_tutor=tipo_tutor,
     )
     db.add(nuevo_profesor)
     db.commit()
@@ -491,7 +526,12 @@ def obtener_estadisticas_usuarios(
 
     # Contamos los profesores
     total_profesores = (
-        db.query(models.Usuario).filter(models.Usuario.rol == "profesor").count()
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.rol == "profesor",
+            models.Usuario.activo == True,
+        )
+        .count()
     )
 
     # Contamos los alumnos (estudiantes)
@@ -519,7 +559,14 @@ def listar_profesores(
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
 
-    profesores = db.query(models.Usuario).filter(models.Usuario.rol == "profesor").all()
+    profesores = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.rol == "profesor",
+            models.Usuario.activo == True,
+        )
+        .all()
+    )
 
     resultado = []
     for p in profesores:
@@ -537,6 +584,197 @@ def listar_profesores(
         )
 
     return resultado
+
+
+@router.put("/profesores/{profesor_id}/tipo")
+def actualizar_tipo_profesor(
+    profesor_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    tipo_tutor = str(payload.get("tipo_tutor", "")).strip().lower()
+    if tipo_tutor not in ["hospital", "universidad"]:
+        raise HTTPException(
+            status_code=400,
+            detail="tipo_tutor debe ser 'hospital' o 'universidad'",
+        )
+
+    profesor = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.id == profesor_id, models.Usuario.rol == "profesor")
+        .first()
+    )
+    if not profesor:
+        raise HTTPException(status_code=404, detail="Profesor no encontrado")
+
+    profesor.tipo_tutor = tipo_tutor
+    db.commit()
+    return {"mensaje": "Tipo de tutor actualizado", "tipo_tutor": tipo_tutor}
+
+
+def _resolver_tutor_por_email(db: Session, email: str, tipo_esperado: str):
+    tutor = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.email == email,
+            models.Usuario.rol == "profesor",
+            models.Usuario.activo == True,
+        )
+        .first()
+    )
+    if not tutor:
+        raise HTTPException(status_code=404, detail=f"No existe el tutor: {email}")
+
+    tipo_real = (tutor.tipo_tutor or "").strip().lower()
+    if tipo_esperado == "hospital" and "hosp" not in tipo_real:
+        raise HTTPException(status_code=400, detail=f"{email} no es tutor hospital")
+    if tipo_esperado == "universidad" and "uni" not in tipo_real:
+        raise HTTPException(status_code=400, detail=f"{email} no es tutor universidad")
+
+    return tutor
+
+
+@router.get("/centros", response_model=List[schemas.CentroPracticasResponse])
+def listar_centros_practicas(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    centros = (
+        db.query(models.CentroPracticas)
+        .order_by(models.CentroPracticas.nombre)
+        .all()
+    )
+    return [
+        {
+            "id": c.id,
+            "nombre": c.nombre,
+            "tutor_hospital_email": c.tutor_hospital.email if c.tutor_hospital else "",
+            "tutor_universidad_email": c.tutor_universidad.email if c.tutor_universidad else "",
+            "activo": c.activo,
+        }
+        for c in centros
+    ]
+
+
+@router.post("/centros", response_model=schemas.CentroPracticasResponse)
+def crear_centro_practicas(
+    datos: schemas.CentroPracticasCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    tutor_hospital = _resolver_tutor_por_email(db, datos.tutor_hospital_email, "hospital")
+    tutor_universidad = _resolver_tutor_por_email(db, datos.tutor_universidad_email, "universidad")
+
+    centro = models.CentroPracticas(
+        nombre=datos.nombre.strip(),
+        tutor_hospital_id=tutor_hospital.id,
+        tutor_universidad_id=tutor_universidad.id,
+        activo=True,
+    )
+    db.add(centro)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Ya existe un centro con ese nombre",
+        )
+    db.refresh(centro)
+
+    return {
+        "id": centro.id,
+        "nombre": centro.nombre,
+        "tutor_hospital_email": tutor_hospital.email,
+        "tutor_universidad_email": tutor_universidad.email,
+        "activo": centro.activo,
+    }
+
+
+@router.put("/centros/{centro_id}", response_model=schemas.CentroPracticasResponse)
+def actualizar_centro_practicas(
+    centro_id: str,
+    datos: schemas.CentroPracticasUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    centro = (
+        db.query(models.CentroPracticas)
+        .filter(models.CentroPracticas.id == centro_id)
+        .first()
+    )
+    if not centro:
+        raise HTTPException(status_code=404, detail="Centro no encontrado")
+
+    tutor_hospital = _resolver_tutor_por_email(db, datos.tutor_hospital_email, "hospital")
+    tutor_universidad = _resolver_tutor_por_email(db, datos.tutor_universidad_email, "universidad")
+
+    centro.nombre = datos.nombre.strip()
+    centro.tutor_hospital_id = tutor_hospital.id
+    centro.tutor_universidad_id = tutor_universidad.id
+    centro.activo = datos.activo
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Ya existe un centro con ese nombre",
+        )
+
+    return {
+        "id": centro.id,
+        "nombre": centro.nombre,
+        "tutor_hospital_email": tutor_hospital.email,
+        "tutor_universidad_email": tutor_universidad.email,
+        "activo": centro.activo,
+    }
+
+
+@router.delete("/centros/{centro_id}")
+def eliminar_centro_practicas(
+    centro_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    centro = (
+        db.query(models.CentroPracticas)
+        .filter(models.CentroPracticas.id == centro_id)
+        .first()
+    )
+    if not centro:
+        raise HTTPException(status_code=404, detail="Centro no encontrado")
+
+    uso_activo = (
+        db.query(models.Rotacion)
+        .filter(models.Rotacion.centro_practicas == centro.nombre)
+        .first()
+    )
+    if uso_activo:
+        centro.activo = False
+        db.commit()
+        return {"mensaje": "Centro desactivado por tener histórico"}
+
+    db.delete(centro)
+    db.commit()
+    return {"mensaje": "Centro eliminado correctamente"}
 
 
 @router.delete("/profesores/{profesor_id}")
@@ -557,9 +795,46 @@ def eliminar_profesor(
     if not profesor:
         raise HTTPException(status_code=404, detail="Profesor no encontrado")
 
+    asistencias_firmadas = (
+        db.query(models.RegistroAsistencia)
+        .filter(models.RegistroAsistencia.firmado_por == profesor.id)
+        .count()
+    )
+    cuadernillos_firmados = (
+        db.query(models.CuadernilloRespuesta)
+        .filter(models.CuadernilloRespuesta.rellenado_por == profesor.id)
+        .count()
+    )
+
+    # Si existe historial, no podemos (ni debemos) romper trazabilidad.
+    if asistencias_firmadas > 0 or cuadernillos_firmados > 0:
+        if not profesor.activo:
+            return {
+                "mensaje": "El profesor ya estaba desactivado y se conserva por historial.",
+                "borrado_fisico": False,
+            }
+
+        profesor.activo = False
+        db.commit()
+        return {
+            "mensaje": "Profesor desactivado: se conserva en base de datos por historial académico.",
+            "borrado_fisico": False,
+        }
+
+    # Sin historial: podemos borrar físicamente limpiando relaciones operativas.
+    db.query(models.AsignacionTutor).filter(
+        models.AsignacionTutor.tutor_id == profesor.id
+    ).delete(synchronize_session=False)
+    db.query(models.IntentoLogin).filter(
+        models.IntentoLogin.usuario_id == profesor.id
+    ).delete(synchronize_session=False)
+
     db.delete(profesor)
     db.commit()
-    return {"mensaje": "Profesor eliminado correctamente"}
+    return {
+        "mensaje": "Profesor eliminado definitivamente de la base de datos.",
+        "borrado_fisico": True,
+    }
 
 
 @router.get("/rotaciones/{rotacion_id}/descargar-excel")
@@ -717,3 +992,66 @@ def exportar_evaluaciones_alumnos_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="evaluaciones_alumnos.xlsx"'},
     )
+
+
+@router.delete("/usuarios/{usuario_id}")
+def eliminar_usuario(
+    usuario_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    usuario = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.id == usuario_id)
+        .first()
+    )
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Si es un alumno con registro completado, hay que tener cuidado.
+    # Pero para la lista de "pendientes" (donde registro_completado es False), es seguro.
+    if usuario.registro_completado and usuario.rol == "estudiante":
+         # Ver si tiene rotaciones
+         alumno = db.query(models.Alumno).filter(models.Alumno.usuario_id == usuario.id).first()
+         if alumno:
+             tiene_rotaciones = db.query(models.Rotacion).filter(models.Rotacion.alumno_id == alumno.id).first()
+             if tiene_rotaciones:
+                 raise HTTPException(status_code=400, detail="No se puede eliminar un alumno con historial de rotaciones")
+
+    # Limpiar tokens de recuperación e intentos de login
+    db.query(models.TokenRecuperacion).filter(models.TokenRecuperacion.usuario_id == usuario.id).delete()
+    db.query(models.IntentoLogin).filter(models.IntentoLogin.usuario_id == usuario.id).delete()
+    
+    db.delete(usuario)
+    db.commit()
+    return {"mensaje": "Usuario eliminado correctamente"}
+
+
+@router.delete("/rotaciones/{rotacion_id}/tutores/campo")
+def eliminar_tutor_campo_rotacion(
+    rotacion_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    asignacion = (
+        db.query(models.AsignacionTutor)
+        .filter(
+            models.AsignacionTutor.rotacion_id == rotacion_id,
+            models.AsignacionTutor.tipo_tutor == "campo"
+        )
+        .first()
+    )
+
+    if not asignacion:
+        raise HTTPException(status_code=404, detail="No hay tutor de campo asignado a esta rotación")
+
+    db.delete(asignacion)
+    db.commit()
+
+    return {"mensaje": "Tutor de campo desasignado correctamente"}

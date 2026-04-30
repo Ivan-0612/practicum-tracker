@@ -114,7 +114,8 @@ def obtener_mis_alumnos(
                 "tutor_hospital_email": tutor_hospital_email,
                 "tutor_universidad_email": tutor_universidad_email,
                 # --- NUEVO: ENVIAMOS EL ROL ESPECÍFICO PARA ESTA ROTACIÓN ---
-                "mi_rol": asig.tipo_tutor 
+                "mi_rol": asig.tipo_tutor,
+                "nota": rotacion.final_grade_text
             }
         )
 
@@ -153,11 +154,13 @@ def obtener_asistencia_alumno(
         # Usamos la relación 'tutor' definida en el modelo RegistroAsistencia
         email_firmante = f.tutor.email if f.tutor else "Tutor Desconocido"
         
+        fecha_rec_str = str(f.fecha_recuperada).split(" ")[0] if getattr(f, "fecha_recuperada", None) else None
         registros_limpios.append({
             "id": str(f.id),
             "fecha": fecha_str,
             "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
-            "firmado_por": email_firmante  # <--- Este es el campo clave
+            "firmado_por": email_firmante,
+            "fecha_recuperada": fecha_rec_str
         })
 
     return {
@@ -186,8 +189,8 @@ def firmar_asistencia(
         models.AsignacionTutor.rotacion_id == datos.rotacion_id,
     ).first()
 
-    if not asignacion or asignacion.tipo_tutor != "hospital":
-        raise HTTPException(status_code=403, detail="Solo el Tutor del Hospital puede firmar")
+    if not asignacion or (asignacion.tipo_tutor or "").strip().lower() not in ["hospital", "campo"]:
+        raise HTTPException(status_code=403, detail="Solo el Tutor del Hospital o de Campo puede firmar")
 
     # CORRECCIÓN 3: No permitir firmar si la rotación ya está finalizada
     if asignacion.rotacion.completada:
@@ -207,7 +210,8 @@ def firmar_asistencia(
         rotacion_id=datos.rotacion_id,
         alumno_id=asignacion.rotacion.alumno_id,
         fecha=datos.fecha,
-        firmado_por=current_user.id
+        firmado_por=current_user.id,
+        fecha_recuperada=datos.fecha_recuperada
     )
     db.add(nueva_firma)
     db.commit() # Asegura el guardado físico en disco
@@ -241,11 +245,13 @@ def obtener_asistencia_alumno(
         # Obtenemos el email del usuario que firmó (si existe)
         email_firmante = f.tutor.email if f.tutor else "Tutor Desconocido"
         
+        fecha_rec_str = str(f.fecha_recuperada).split(" ")[0] if getattr(f, "fecha_recuperada", None) else None
         registros_limpios.append({
             "id": str(f.id),
             "fecha": fecha_str,
             "firmado_en": f.firmado_en.isoformat() if f.firmado_en else "",
-            "firmado_por": email_firmante # <-- NUEVO CAMPO
+            "firmado_por": email_firmante,
+            "fecha_recuperada": fecha_rec_str
         })
 
     return {

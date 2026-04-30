@@ -42,6 +42,7 @@ def _get_tutores_por_tipo(db: Session, rotacion_id: str):
     )
     tutor_hospital_email = None
     tutor_universidad_email = None
+    tutor_campo_email = None
 
     for asig in asignaciones:
         tipo_tutor = (
@@ -53,8 +54,10 @@ def _get_tutores_por_tipo(db: Session, rotacion_id: str):
             tutor_hospital_email = asig.tutor.email if asig.tutor else None
         elif "uni" in tipo_tutor:
             tutor_universidad_email = asig.tutor.email if asig.tutor else None
+        elif "campo" in tipo_tutor:
+            tutor_campo_email = asig.tutor.email if asig.tutor else None
 
-    return tutor_hospital_email, tutor_universidad_email, asignaciones
+    return tutor_hospital_email, tutor_universidad_email, tutor_campo_email, asignaciones
 
 
 @router.get("/especialidades")
@@ -163,7 +166,7 @@ def obtener_molde_cuadernillo(
 
     # Obtenemos las asignaciones y comprobamos si es tutor de universidad
     es_tutor_universidad = False
-    tutor_hospital_email, tutor_universidad_email, asignaciones = _get_tutores_por_tipo(
+    tutor_hospital_email, tutor_universidad_email, tutor_campo_email, asignaciones = _get_tutores_por_tipo(
         db, rotacion.id
     )
 
@@ -176,6 +179,21 @@ def obtener_molde_cuadernillo(
             tipo = getattr(asig, "tipo_tutor", None) or getattr(asig.tutor, "tipo_tutor", None)
             if tipo == "universidad":
                 es_tutor_universidad = True
+
+    # Obtenemos el evaluador real
+    evaluado_por_email = None
+    evaluador_rol = None
+    if db_resp and db_resp.rellenado_por:
+        evaluador = db.query(models.Usuario).filter(models.Usuario.id == db_resp.rellenado_por).first()
+        if evaluador:
+            evaluado_por_email = evaluador.email
+            # Buscamos su asignación para ver el tipo
+            asig_evaluador = db.query(models.AsignacionTutor).filter(
+                models.AsignacionTutor.rotacion_id == rotacion.id,
+                models.AsignacionTutor.tutor_id == evaluador.id
+            ).first()
+            if asig_evaluador:
+                evaluador_rol = asig_evaluador.tipo_tutor
 
     return {
         "alumno": {
@@ -196,6 +214,8 @@ def obtener_molde_cuadernillo(
         "es_tutor_universidad": es_tutor_universidad,
         "tutor_hospital_email": tutor_hospital_email,
         "tutor_universidad_email": tutor_universidad_email,
+        "evaluado_por_email": evaluado_por_email,
+        "evaluado_por_rol": evaluador_rol,
         "tutores": tutores,
         "hospital_finalize_count": rotacion.hospital_finalize_count,
         "can_finalize_again": rotacion.hospital_finalize_count < 2 and not rotacion.completada,
@@ -279,10 +299,10 @@ def finalizar_rotacion(
     if not mi_asignacion:
         raise HTTPException(status_code=403, detail="No eres tutor de esta rotación")
 
-    if (mi_asignacion.tipo_tutor or "").strip().lower() != "hospital":
+    if (mi_asignacion.tipo_tutor or "").strip().lower() not in ["hospital", "campo"]:
         raise HTTPException(
             status_code=403,
-            detail="Solo el tutor del hospital puede finalizar la evaluación",
+            detail="Solo el tutor del hospital o de campo puede finalizar la evaluación",
         )
 
     if not rotacion.especialidad:
@@ -344,7 +364,7 @@ def finalizar_rotacion(
         rotacion.final_grade_text = nota_final
         rotacion.final_grade_calculated_at = ahora
 
-        tutor_hospital_email, tutor_universidad_email, _ = _get_tutores_por_tipo(
+        tutor_hospital_email, tutor_universidad_email, tutor_campo_email, _ = _get_tutores_por_tipo(
             db, rotacion.id
         )
 
@@ -353,24 +373,37 @@ def finalizar_rotacion(
         alumno_email_real = security.descifrar_dato(rotacion.alumno.email_cifrado)
         alumno_nombre = f"{nombre_real} {apellidos_real}".strip()
 
+        # El evaluador recibe su propia evaluación en el intento 1
+        email_evaluador = current_user.email
+
         if intento_actual == 1:
             rotacion.hospital_first_finalized_at = ahora
             enviar_nota_final_email(
-                recipients=[tutor_hospital_email],
+                recipients=[email_evaluador],
                 alumno_nombre=alumno_nombre,
                 especialidad=rotacion.especialidad.nombre,
                 nota_final=nota_final,
                 intento=1,
+                evaluador_info=current_user.email,
             )
         else:
             rotacion.hospital_second_finalized_at = ahora
             rotacion.completada = True
+            
+            destinatarios_segunda_vez = []
+            if tutor_hospital_email: destinatarios_segunda_vez.append(tutor_hospital_email)
+            if tutor_universidad_email: destinatarios_segunda_vez.append(tutor_universidad_email)
+            if tutor_campo_email: destinatarios_segunda_vez.append(tutor_campo_email)
+            
+            destinatarios_segunda_vez = list(set(destinatarios_segunda_vez))
+
             enviar_nota_final_email(
-                recipients=[tutor_hospital_email, tutor_universidad_email],
+                recipients=destinatarios_segunda_vez,
                 alumno_nombre=alumno_nombre,
                 especialidad=rotacion.especialidad.nombre,
                 nota_final=nota_final,
                 intento=2,
+                evaluador_info=current_user.email,
             )
             enviar_aviso_cierre_alumno_email(
                 recipient=alumno_email_real,
@@ -748,9 +781,23 @@ def descargar_pdf_evaluacion_desde_cero(
     )
     story.append(Spacer(1, 40))
 
-    # --- CAMBIO: AÑADIMOS LAS DOS FIRMAS AL FINAL DEL DOCUMENTO ---
-    story.append(Paragraph(f"<b>Tutor/a Clínico (Hospital):</b> {tutor_hospital}", normal_style))
-    story.append(Spacer(1, 5))
+    # --- CAMBIO: AÑADIMOS LAS DOS FIRMAS Y EL EVALUADOR REAL ---
+    evaluador_real_label = "Tutor Clínico"
+    evaluador_real_email = tutor_hospital
+    
+    if db_resp and db_resp.rellenado_por:
+        evaluador_obj = db.query(models.Usuario).filter(models.Usuario.id == db_resp.rellenado_por).first()
+        if evaluador_obj:
+            evaluador_real_email = evaluador_obj.email
+            asig_ev = db.query(models.AsignacionTutor).filter(
+                models.AsignacionTutor.rotacion_id == rotacion.id,
+                models.AsignacionTutor.tutor_id == evaluador_obj.id
+            ).first()
+            if asig_ev and asig_ev.tipo_tutor == "campo":
+                evaluador_real_label = "Tutor de Campo"
+
+    story.append(Paragraph(f"<b>Evaluado y firmado por ({evaluador_real_label}):</b> {evaluador_real_email}", normal_style))
+    story.append(Spacer(1, 10))
     story.append(Paragraph(f"<b>Tutor/a Académico (Universidad):</b> {tutor_universidad}", normal_style))
     story.append(Spacer(1, 10))
     # --------------------------------------------------------------
