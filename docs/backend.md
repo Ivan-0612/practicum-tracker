@@ -35,10 +35,31 @@ Sirve la estructura de las rúbricas, los PDFs y los datos relacionados con cuad
 
 ## Seguridad y comportamiento relevante
 
-- El login bloquea a los alumnos con registro pendiente.
-- Se registra el estado activo o inactivo para mantener trazabilidad histórica.
-- La asistencia y la evaluación se relacionan con tutorías específicas.
+- Las contraseñas se guardan con hashing Argon2, no en texto plano.
+- La sesión se firma con JWT y se valida contra `SECRET_KEY`, `ALGORITHM` y el tiempo de expiración configurado.
+- Los alumnos con `registro_completado = False` no pueden iniciar sesión hasta terminar el alta.
+- El sistema aplica bloqueo temporal por intentos fallidos de acceso.
 - La API aplica rate limiting en los puntos sensibles.
+- Los datos sensibles del alumno se cifran con AES-256-GCM antes de guardarlos en base de datos.
+- El cifrado depende de `MASTER_ENCRYPTION_KEY`, que debe tener 32 bytes para AES-256.
+- Se mantiene trazabilidad histórica con estados activos/inactivos en lugar de borrar siempre físicamente.
+
+## Datos cifrados
+
+- `Alumno.nombre_cifrado`
+- `Alumno.apellidos_cifrado`
+- `Alumno.email_cifrado`
+
+Estos valores se descifran solo cuando el backend necesita mostrarlos en una vista o exportación autorizada.
+
+## Variables de entorno de seguridad
+
+- `SECRET_KEY`: clave para firmar y validar JWT.
+- `ALGORITHM`: algoritmo de firma del token, normalmente `HS256`.
+- `ACCESS_TOKEN_EXPIRE_MINUTES`: duración de la sesión.
+- `MASTER_ENCRYPTION_KEY`: clave maestra para AES-GCM.
+
+Los valores por defecto que aparecen en el código deben tratarse como fallback de desarrollo. En producción, estas variables deben definirse explícitamente en el entorno.
 
 ## Utilidades destacadas
 

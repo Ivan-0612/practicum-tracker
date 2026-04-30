@@ -12,6 +12,14 @@ Cuenta de acceso con rol, estado activo, tipo de tutor y flags de registro.
 
 Perfil académico del estudiante, con datos cifrados y relación uno a uno con usuario.
 
+Campos cifrados:
+
+- `nombre_cifrado`
+- `apellidos_cifrado`
+- `email_cifrado`
+
+Estos datos se protegen para minimizar exposición de información personal sensible.
+
 ### `Especialidad`
 
 Define la especialidad y el JSON de cuadernillo asociado.
@@ -35,6 +43,8 @@ Persistencia del borrador o evaluación en formato JSON.
 ### `RegistroAsistencia`
 
 Firma de asistencia por día, alumno y rotación.
+
+Incluye `fecha_recuperada` para marcar asistencias recuperadas en otro día.
 
 ### `PlantillaExcelMappingGlobal`
 
