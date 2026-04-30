@@ -289,5 +289,3 @@ El sistema ya contempla:
 - asistencia,
 - exportaciones Excel,
 - soporte para plantillas y mappings globales.
-
-Si quieres, el siguiente paso natural es separar esta documentacion en una carpeta `docs/` con archivos mas especificos por modulo, pero esta raiz ya deja una vista global completa del proyecto.
