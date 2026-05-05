@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import { ChevronLeft, UserPlus, Mail, KeyRound, Save, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { validarPasswordFuerte } from "@/lib/utils";
 
-export default function NuevoProfesor() {
+function NuevoProfesorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tipoInicial = searchParams.get("tipo") === "hospital" || searchParams.get("tipo") === "universidad"
@@ -179,5 +179,13 @@ export default function NuevoProfesor() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NuevoProfesor() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <NuevoProfesorContent />
+    </Suspense>
   );
 }
