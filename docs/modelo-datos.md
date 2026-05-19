@@ -46,6 +46,16 @@ Firma de asistencia por día, alumno y rotación.
 
 Incluye `fecha_recuperada` para marcar asistencias recuperadas en otro día.
 
+### `InvitacionTutorCampo`
+
+Token de invitación que el alumno genera y comparte con el enfermero del hospital. Vinculado a una rotación concreta.
+
+Campos relevantes:
+
+- `token`: cadena aleatoria única que forma parte de la URL pública.
+- `usado`: se marca `true` en cuanto el enfermero completa su registro, bloqueando cualquier intento posterior.
+- `expira_at`: fecha límite de uso, fijada a 7 días desde la generación. Si caduca, el alumno puede generar uno nuevo y el anterior se invalida automáticamente.
+
 ### `PlantillaExcelMappingGlobal`
 
 Mapping global para exportaciones Excel.
@@ -60,6 +70,7 @@ Estructura base de unidades de competencia y niveles.
 - Un alumno puede tener varias rotaciones.
 - Una rotación puede tener varios tutores.
 - Una rotación puede tener asistencia y evaluación.
+- Una rotación puede tener como máximo una invitación de tutor de campo activa en cada momento.
 
 ## Reglas relevantes
 

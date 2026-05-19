@@ -173,6 +173,9 @@ class Rotacion(Base):
     asignaciones_tutores = relationship(
         "AsignacionTutor", back_populates="rotacion", cascade="all, delete-orphan"
     )
+    invitaciones_campo = relationship(
+        "InvitacionTutorCampo", back_populates="rotacion", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -233,6 +236,22 @@ class RegistroAsistencia(Base):
     __table_args__ = (
         UniqueConstraint("rotacion_id", "alumno_id", "fecha", name="_rot_alu_fecha_uc"),
     )
+
+class InvitacionTutorCampo(Base):
+    """Token de invitación que el alumno comparte con el tutor de campo.
+    El tutor accede al enlace, introduce su email y (si es nuevo) su contraseña."""
+    __tablename__ = "invitaciones_tutor_campo"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rotacion_id = Column(
+        UUID(as_uuid=True), ForeignKey("rotaciones.id", ondelete="CASCADE"), nullable=False
+    )
+    token = Column(String, unique=True, index=True, nullable=False)
+    usado = Column(Boolean, default=False, nullable=False)
+    expira_at = Column(DateTime(timezone=True), nullable=False)
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+
+    rotacion = relationship("Rotacion", back_populates="invitaciones_campo")
+
 
 class IntentoLogin(Base):
     __tablename__ = "intentos_login"

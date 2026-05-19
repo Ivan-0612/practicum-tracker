@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from . import models
-from .routers import auth, alumnos, admin, profesores, cuadernillos
+from .routers import auth, alumnos, admin, profesores, cuadernillos, tutores_campo
 from sqlalchemy import text
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -27,6 +27,16 @@ def aplicar_migraciones_ligeras():
         "DROP INDEX IF EXISTS uq_centro_nombre_especialidad",
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_centro_nombre ON centros_practicas (nombre)",
         "ALTER TABLE centros_practicas DROP COLUMN IF EXISTS especialidad_id",
+        # Tabla de invitaciones de tutor de campo por enlace
+        """CREATE TABLE IF NOT EXISTS invitaciones_tutor_campo (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            rotacion_id UUID NOT NULL REFERENCES rotaciones(id) ON DELETE CASCADE,
+            token VARCHAR NOT NULL UNIQUE,
+            usado BOOLEAN NOT NULL DEFAULT FALSE,
+            expira_at TIMESTAMPTZ NOT NULL,
+            creado_en TIMESTAMPTZ DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_invitaciones_tutor_campo_token ON invitaciones_tutor_campo (token)",
     ]
     with engine.begin() as conn:
         for stmt in stmts:
@@ -63,6 +73,7 @@ app.include_router(alumnos.router)
 app.include_router(admin.router)
 app.include_router(profesores.router)
 app.include_router(cuadernillos.router)
+app.include_router(tutores_campo.router)
 
 
 @app.get("/")

@@ -311,6 +311,56 @@ class CambioPassword(BaseModel):
 class TutorCampoCreate(BaseModel):
     email: EmailStr
 
+
+# ==========================================
+# NUEVOS ESQUEMAS: REGISTRO TUTOR DE CAMPO POR ENLACE
+# ==========================================
+
+class EnlaceTutorCampoResponse(BaseModel):
+    """Respuesta al generar el enlace de invitación."""
+    enlace: str
+    token: str
+
+
+class VerificarTokenTutorResponse(BaseModel):
+    """Información pública del enlace para mostrar contexto al tutor."""
+    valido: bool
+    ya_usado: bool = False
+    alumno_nombre: str = ""
+    especialidad: str = ""
+
+
+class VerificarEmailTutorBody(BaseModel):
+    token: str
+    email: EmailStr
+
+
+class VerificarEmailTutorResponse(BaseModel):
+    existe: bool
+
+
+class RegistrarTutorCampoBody(BaseModel):
+    """Cuerpo para completar el registro del tutor de campo.
+    Si el usuario ya existe, password es opcional (no se usa).
+    Si es nuevo, password es obligatoria."""
+    token: str
+    email: EmailStr
+    password: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validar_password_si_presente(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+        if not re.match(patron, v):
+            raise ValueError(
+                "La contraseña debe tener al menos una mayúscula, "
+                "una minúscula, un número y un carácter especial (@$!%*?&)"
+            )
+        return v
+
+
 class SolicitarRecuperacion(BaseModel):
     email: EmailStr
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
-import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X, Building, Home, PlusCircle } from "lucide-react";
+import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X, Building, Home, PlusCircle, Copy, CheckCheck, Link2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import ModalRubrica from "@/components/ModalRubrica";
@@ -67,11 +67,12 @@ export default function AlumnoDashboard() {
     centro_practicas_id: "",
   });
 
-  // ESTADOS PARA TUTOR DE CAMPO
+  // ESTADOS PARA TUTOR DE CAMPO (nuevo flujo por enlace)
   const [showTutorCampoModal, setShowTutorCampoModal] = useState(false);
-  const [tutorCampoEmail, setTutorCampoEmail] = useState("");
   const [rotacionSeleccionadaTutor, setRotacionSeleccionadaTutor] = useState<string | null>(null);
-  const [isSavingTutorCampo, setIsSavingTutorCampo] = useState(false);
+  const [isGenerandoEnlace, setIsGenerandoEnlace] = useState(false);
+  const [enlaceGenerado, setEnlaceGenerado] = useState<string | null>(null);
+  const [enlaceCopiado, setEnlaceCopiado] = useState(false);
 
   // 1. Leer memoria al cargar
   useEffect(() => {
@@ -287,39 +288,45 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
     }
   };
 
-  const handleAñadirTutorCampo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tutorCampoEmail || !rotacionSeleccionadaTutor) return;
-
-    setIsSavingTutorCampo(true);
+  const handleGenerarEnlaceTutor = async () => {
+    if (!rotacionSeleccionadaTutor) return;
+    setIsGenerandoEnlace(true);
+    setEnlaceGenerado(null);
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/rotaciones/${rotacionSeleccionadaTutor}/tutor-campo`, {
-        method: "POST",
-        headers: { 
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify({
-          email: tutorCampoEmail
-        })
-      });
-
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/rotaciones/${rotacionSeleccionadaTutor}/generar-enlace-tutor`,
+        { method: "POST", headers: { "Authorization": `Bearer ${token}` } }
+      );
       const data = await res.json();
-
       if (res.ok) {
-        alert("Tutor de campo invitado con éxito. Se le ha enviado un correo electrónico.");
-        setShowTutorCampoModal(false);
-        setTutorCampoEmail("");
-        cargarDatos();
+        setEnlaceGenerado(data.enlace);
       } else {
-        alert(data.detail || "Error al invitar al tutor de campo");
+        alert(data.detail || "Error al generar el enlace.");
       }
-    } catch (error) {
+    } catch {
       alert("Error de conexión con el servidor.");
     } finally {
-      setIsSavingTutorCampo(false);
+      setIsGenerandoEnlace(false);
     }
+  };
+
+  const handleCopiarEnlace = async () => {
+    if (!enlaceGenerado) return;
+    try {
+      await navigator.clipboard.writeText(enlaceGenerado);
+      setEnlaceCopiado(true);
+      setTimeout(() => setEnlaceCopiado(false), 2500);
+    } catch {
+      alert("No se pudo copiar. Selecciona el texto manualmente.");
+    }
+  };
+
+  const cerrarModalTutorCampo = () => {
+    setShowTutorCampoModal(false);
+    setEnlaceGenerado(null);
+    setEnlaceCopiado(false);
+    setRotacionSeleccionadaTutor(null);
   };
 
   if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse">Cargando tu expediente...</div>;
@@ -394,10 +401,12 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                   )}
                 </span>
                 {!rot.tutores.campo && !rot.completada && (
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setRotacionSeleccionadaTutor(rot.id);
+                      setEnlaceGenerado(null);
+                      setEnlaceCopiado(false);
                       setShowTutorCampoModal(true);
                     }}
                     className="text-xs text-ufv-azul font-bold hover:underline px-2 py-1"
@@ -703,40 +712,87 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
         </div>
       )}
 
-      {/* MODAL AÑADIR TUTOR DE CAMPO */}
+      {/* MODAL TUTOR DE CAMPO — NUEVO FLUJO POR ENLACE */}
       {showTutorCampoModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border-t-4 border-emerald-500 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border-t-4 border-t-ufv-azul animate-in fade-in zoom-in duration-200">
+
+            {/* Cabecera */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-ufv-azul-oscuro">Añadir Tutor de Campo</h2>
-              <button onClick={() => { setShowTutorCampoModal(false); setTutorCampoEmail(""); }} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+              <button onClick={cerrarModalTutorCampo} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            
-            <p className="text-sm text-gray-500 mb-6 font-medium">
-              Introduce el correo electrónico del enfermero/tutor que te acompaña en el hospital. 
-              Se le enviará una invitación para acceder a la plataforma y evaluarte. Tus tutores asignados también serán notificados.
-            </p>
 
-            <form onSubmit={handleAñadirTutorCampo} className="space-y-5">
-              <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Email del Tutor</label>
-                <input 
-                  type="email" 
-                  required 
-                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-gray-900" 
-                  value={tutorCampoEmail} 
-                  onChange={(e) => setTutorCampoEmail(e.target.value)} 
-                  placeholder="ejemplo@hospital.com"
-                />
-              </div>
+            {!enlaceGenerado ? (
+              /* PASO 1: Generar enlace */
+              <>
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6 text-sm text-blue-800 font-medium leading-relaxed">
+                  <p className="font-black mb-1">¿Cómo funciona?</p>
+                  <p>Genera un enlace único y compártelo con el enfermero que te acompaña en el hospital (por WhatsApp, email, etc.).</p>
+                  <p className="mt-2">Él mismo introducirá sus datos desde ese enlace. <span className="font-black">Nunca necesitas conocer su correo.</span></p>
+                </div>
 
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => { setShowTutorCampoModal(false); setTutorCampoEmail(""); }} className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors border border-transparent">Cancelar</button>
-                <button type="submit" disabled={isSavingTutorCampo} className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md active:scale-95 transition-all border border-transparent disabled:opacity-50">
-                  {isSavingTutorCampo ? "Invitando..." : "Invitar Tutor"}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={cerrarModalTutorCampo}
+                    className="flex-1 py-3.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerarEnlaceTutor}
+                    disabled={isGenerandoEnlace}
+                    className="flex-1 py-3.5 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isGenerandoEnlace
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                      : <><Link2 className="w-4 h-4" /> Generar enlace</>
+                    }
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* PASO 2: Mostrar enlace para compartir */
+              <>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-5">
+                  <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-2">Enlace generado · válido 7 días</p>
+                  <p className="text-xs text-gray-500 font-medium break-all bg-white border border-gray-200 rounded-xl p-3 select-all">
+                    {enlaceGenerado}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCopiarEnlace}
+                  className={`w-full py-3.5 font-bold rounded-xl flex items-center justify-center gap-2 transition-all mb-3 ${
+                    enlaceCopiado
+                      ? "bg-blue-50 text-ufv-azul border border-blue-200"
+                      : "bg-ufv-azul text-white hover:bg-ufv-azul-oscuro shadow-md active:scale-95"
+                  }`}
+                >
+                  {enlaceCopiado
+                    ? <><CheckCheck className="w-4 h-4" /> ¡Copiado!</>
+                    : <><Copy className="w-4 h-4" /> Copiar enlace</>
+                  }
                 </button>
-              </div>
-            </form>
+
+                <p className="text-xs text-gray-400 text-center font-medium mb-4">
+                  Envía este enlace al enfermero por WhatsApp, email o como prefieras. Él podrá registrarse desde ahí.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={cerrarModalTutorCampo}
+                  className="w-full py-3 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors text-sm"
+                >
+                  Cerrar
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

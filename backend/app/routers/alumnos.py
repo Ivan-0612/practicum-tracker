@@ -1201,105 +1201,63 @@ def obtener_historial_asistencia_alumno(
     return registros_limpios
 
 
-@router.post("/rotaciones/{rotacion_id}/tutor-campo")
-def añadir_tutor_campo(
+@router.post("/rotaciones/{rotacion_id}/generar-enlace-tutor", response_model=schemas.EnlaceTutorCampoResponse)
+def generar_enlace_tutor_campo(
     rotacion_id: UUID,
-    datos: schemas.TutorCampoCreate,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
+    """
+    El alumno solicita un enlace de invitación para compartir con su tutor de campo.
+    El enlace contiene un token único válido 7 días.
+    Si ya existía un token activo para esta rotación, se invalida y se genera uno nuevo.
+    """
+    import secrets
+    import os
+    from datetime import datetime, timezone, timedelta
+
     if current_user.rol != "estudiante":
-        raise HTTPException(status_code=403, detail="Solo los alumnos pueden añadir un tutor de campo")
+        raise HTTPException(status_code=403, detail="Solo los alumnos pueden generar este enlace.")
 
     alumno = db.query(models.Alumno).filter(models.Alumno.usuario_id == current_user.id).first()
     if not alumno:
-        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+        raise HTTPException(status_code=404, detail="Alumno no encontrado.")
 
     rotacion = db.query(models.Rotacion).filter(
         models.Rotacion.id == rotacion_id,
-        models.Rotacion.alumno_id == alumno.id
+        models.Rotacion.alumno_id == alumno.id,
     ).first()
-    
     if not rotacion:
-        raise HTTPException(status_code=404, detail="Rotación no encontrada o no pertenece al alumno")
+        raise HTTPException(status_code=404, detail="Rotación no encontrada o no pertenece al alumno.")
 
     if rotacion.completada:
-        raise HTTPException(status_code=400, detail="No se puede añadir tutor a una rotación completada")
+        raise HTTPException(status_code=400, detail="No se puede generar enlace para una rotación completada.")
 
-    # Comprobar si ya existe una asignación de tutor de campo
+    # Comprobar si ya hay tutor de campo asignado
     asignacion_existente = db.query(models.AsignacionTutor).filter(
         models.AsignacionTutor.rotacion_id == rotacion.id,
-        models.AsignacionTutor.tipo_tutor == "campo"
+        models.AsignacionTutor.tipo_tutor == "campo",
     ).first()
-
     if asignacion_existente:
-        raise HTTPException(status_code=400, detail="Ya existe un tutor de campo asignado a esta rotación")
+        raise HTTPException(status_code=400, detail="Esta rotación ya tiene un tutor de campo asignado.")
 
-    # Buscar usuario existente o crearlo
-    tutor_usuario = db.query(models.Usuario).filter(models.Usuario.email == datos.email).first()
-    
-    es_nuevo = False
-    if not tutor_usuario:
-        es_nuevo = True
-        import secrets
-        tutor_usuario = models.Usuario(
-            email=datos.email,
-            password_hash=security.get_password_hash(secrets.token_urlsafe(16)),
-            rol="profesor",
-            tipo_tutor="campo",
-            registro_completado=False,
-            activo=True
-        )
-        db.add(tutor_usuario)
-        db.flush()
+    # Invalidar invitaciones anteriores para esta rotación
+    db.query(models.InvitacionTutorCampo).filter(
+        models.InvitacionTutorCampo.rotacion_id == rotacion.id,
+        models.InvitacionTutorCampo.usado == False,
+    ).delete(synchronize_session=False)
 
-    # Asignar a la rotación
-    nueva_asignacion = models.AsignacionTutor(
-        tutor_id=tutor_usuario.id,
+    # Crear nueva invitación
+    token_hex = secrets.token_urlsafe(32)
+    nueva_invitacion = models.InvitacionTutorCampo(
         rotacion_id=rotacion.id,
-        tipo_tutor="campo"
+        token=token_hex,
+        expira_at=datetime.now(timezone.utc) + timedelta(days=7),
     )
-    db.add(nueva_asignacion)
-    db.flush()
-
-    alumno_nombre = f"{security.descifrar_dato(alumno.nombre_cifrado)} {security.descifrar_dato(alumno.apellidos_cifrado)}"
-    especialidad_nombre = rotacion.especialidad.nombre if rotacion.especialidad else "Sin especialidad"
-
-    # Enviar invitación al tutor de campo
-    if es_nuevo:
-        import secrets
-        from datetime import datetime, timezone, timedelta
-        import os
-        token_hex = secrets.token_urlsafe(32)
-        nuevo_token = models.TokenRecuperacion(
-            usuario_id=tutor_usuario.id,
-            token=token_hex,
-            expira_at=datetime.now(timezone.utc) + timedelta(minutes=30),
-        )
-        db.add(nuevo_token)
-        
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-        enlace = f"{frontend_url}/restablecer-password?token={token_hex}"
-        
-        from ..utils.email_utils import enviar_invitacion_tutor_campo
-        enviar_invitacion_tutor_campo(datos.email, alumno_nombre, especialidad_nombre, enlace)
-    else:
-        from ..utils.email_utils import enviar_aviso_asignacion_tutor_existente
-        enviar_aviso_asignacion_tutor_existente(datos.email, alumno_nombre, especialidad_nombre)
-
+    db.add(nueva_invitacion)
     db.commit()
 
-    # Notificar a los otros tutores
-    from ..utils.email_utils import enviar_aviso_nuevo_tutor_campo
-    tutores_emails = []
-    asignaciones_existentes = db.query(models.AsignacionTutor).filter(
-        models.AsignacionTutor.rotacion_id == rotacion.id,
-        models.AsignacionTutor.tipo_tutor.in_(["hospital", "universidad"])
-    ).all()
-    for asig in asignaciones_existentes:
-        tutores_emails.append(asig.tutor.email)
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    enlace = f"{frontend_url}/tutor-campo/registro?token={token_hex}"
 
-    if tutores_emails:
-        enviar_aviso_nuevo_tutor_campo(tutores_emails, alumno_nombre, especialidad_nombre, datos.email)
-
-    return {"mensaje": "Tutor de campo añadido correctamente"}
+    return schemas.EnlaceTutorCampoResponse(enlace=enlace, token=token_hex)

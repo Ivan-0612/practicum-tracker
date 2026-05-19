@@ -33,6 +33,16 @@ Expone el seguimiento del alumnado asignado, asistencia y evaluación.
 
 Sirve la estructura de las rúbricas, los PDFs y los datos relacionados con cuadernillos.
 
+### `tutores_campo`
+
+Router público (sin autenticación requerida) que gestiona el flujo de registro del tutor de campo mediante enlace. Expone tres endpoints:
+
+- `GET /api/v1/tutores-campo/verificar-token` — Valida el token del enlace y devuelve el nombre del alumno y la especialidad para mostrarlos al enfermero antes de que introduzca sus datos.
+- `POST /api/v1/tutores-campo/verificar-email` — Comprueba si un email ya tiene cuenta en el sistema, para decidir si se pide contraseña o solo confirmación.
+- `POST /api/v1/tutores-campo/registrar` — Crea la cuenta si es nueva o vincula la existente, asigna al tutor a la rotación y marca el token como usado.
+
+El endpoint `POST /api/v1/alumnos/rotaciones/{id}/generar-enlace-tutor` (en el router `alumnos`, requiere autenticación de alumno) genera el token e invalida cualquier invitación anterior no usada para esa rotación.
+
 ## Seguridad y comportamiento relevante
 
 - Las contraseñas se guardan con hashing Argon2, no en texto plano.
