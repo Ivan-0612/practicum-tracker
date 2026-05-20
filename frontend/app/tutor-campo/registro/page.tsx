@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Mail, Lock, ShieldCheck, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, ShieldCheck, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, ArrowRight, ExternalLink } from "lucide-react";
 
 // ─── Validación de contraseña ────────────────────────────────────────────────
 function validarPassword(v: string): string | null {
@@ -30,6 +30,7 @@ function RegistroTutorCampoForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorPassword, setErrorPassword] = useState("");
 
+  const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState("");
 
@@ -179,6 +180,37 @@ function RegistroTutorCampoForm() {
                   </div>
                 </div>
 
+                {/* Cláusula informativa */}
+                <div className={`rounded-xl border p-4 transition-colors ${aceptaPrivacidad ? "border-ufv-azul bg-blue-50" : "border-gray-200 bg-gray-50"}`}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={aceptaPrivacidad}
+                      onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-ufv-azul shrink-0"
+                    />
+                    <span className="text-xs text-gray-600 leading-relaxed">
+                      He leído y acepto la{" "}
+                      <a
+                        href="/politica-privacidad"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-ufv-azul hover:text-ufv-azul-oscuro underline inline-flex items-center gap-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        política de privacidad
+                        <ExternalLink className="w-3 h-3" />
+                      </a>{" "}
+                      de la UFV. El responsable del tratamiento es la Universidad Francisco de Vitoria. La
+                      legitimación es el consentimiento del interesado. Los datos se conservarán cinco años.
+                      Puede ejercitar sus derechos en{" "}
+                      <a href="mailto:dpd@ufv.es" className="font-bold text-ufv-azul underline" onClick={(e) => e.stopPropagation()}>
+                        dpd@ufv.es
+                      </a>.
+                    </span>
+                  </label>
+                </div>
+
                 {errorGeneral && (
                   <p className="text-red-600 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">
                     ⚠️ {errorGeneral}
@@ -187,7 +219,7 @@ function RegistroTutorCampoForm() {
 
                 <button
                   type="submit"
-                  disabled={cargando}
+                  disabled={cargando || !aceptaPrivacidad}
                   className="w-full flex justify-center items-center gap-2 py-3 bg-ufv-azul text-white font-bold rounded-xl hover:bg-ufv-azul-oscuro shadow-md active:scale-95 transition-all disabled:opacity-50"
                 >
                   {cargando

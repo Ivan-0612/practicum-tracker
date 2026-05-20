@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Cookies from "js-cookie";
-import { ArrowLeft, ArrowRight, CheckCircle2, UserPlus, AlertCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, UserPlus, AlertCircle, ExternalLink } from "lucide-react";
 import { validarPasswordFuerte } from "@/lib/utils";
 
 type Especialidad = { id: string; nombre: string };
@@ -28,6 +28,7 @@ export default function RegistroAlumnoPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [okMsg, setOkMsg] = useState("");
+  const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
 
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [centros, setCentros] = useState<Centro[]>([]);
@@ -64,6 +65,11 @@ export default function RegistroAlumnoPage() {
 
     if (!formData.email || !formData.password || !formData.nombre || !formData.apellidos) {
       setErrorMsg("Completa todos los campos obligatorios del paso 1.");
+      return;
+    }
+
+    if (!aceptaPrivacidad) {
+      setErrorMsg("Debes aceptar la política de privacidad para continuar.");
       return;
     }
 
@@ -232,10 +238,41 @@ export default function RegistroAlumnoPage() {
                   </div>
                 </div>
 
+                {/* Cláusula informativa */}
+                <div className={`rounded-xl border p-4 transition-colors ${aceptaPrivacidad ? "border-ufv-azul bg-blue-50" : "border-gray-200 bg-gray-50"}`}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={aceptaPrivacidad}
+                      onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-ufv-azul shrink-0"
+                    />
+                    <span className="text-xs text-gray-600 leading-relaxed">
+                      He leído y acepto la{" "}
+                      <a
+                        href="/politica-privacidad"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-ufv-azul hover:text-ufv-azul-oscuro underline inline-flex items-center gap-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        política de privacidad
+                        <ExternalLink className="w-3 h-3" />
+                      </a>{" "}
+                      de la UFV. El responsable del tratamiento es la Universidad Francisco de Vitoria. La
+                      legitimación es el consentimiento del interesado. Los datos se conservarán cinco años.
+                      Puede ejercitar sus derechos en{" "}
+                      <a href="mailto:dpd@ufv.es" className="font-bold text-ufv-azul underline" onClick={(e) => e.stopPropagation()}>
+                        dpd@ufv.es
+                      </a>.
+                    </span>
+                  </label>
+                </div>
+
                 <button
                   type="button"
                   onClick={continuarPaso2}
-                  disabled={isLoading}
+                  disabled={isLoading || !aceptaPrivacidad}
                   className="w-full py-3.5 rounded-xl font-bold text-white bg-ufv-azul hover:bg-ufv-azul-oscuro disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <ArrowRight className="w-5 h-5" /> {isLoading ? "Verificando..." : "Continuar"}

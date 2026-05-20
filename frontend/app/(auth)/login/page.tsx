@@ -214,6 +214,17 @@ export default function LoginPage() {
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
+
+              {/* Política de privacidad */}
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => router.push("/politica-privacidad")}
+                  className="text-xs text-gray-400 hover:text-ufv-azul transition-colors underline underline-offset-2"
+                >
+                  Política de privacidad
+                </button>
+              </div>
             </>
           )}
 
