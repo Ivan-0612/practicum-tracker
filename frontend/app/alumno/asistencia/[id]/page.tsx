@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { 
-  ChevronLeft, 
+import Breadcrumb from "@/components/Breadcrumb";
+import {
+  ChevronLeft,
   ChevronRight,
   CalendarDays, 
   CheckCircle2, 
@@ -94,12 +95,10 @@ export default function CalendarioAsistenciaAlumno() {
       <div className="max-w-6xl mx-auto pb-20">
         
         {/* BOTÓN VOLVER */}
-        <button 
-          onClick={() => router.push("/alumno/dashboard")}
-          className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Volver a mis rotaciones
-        </button>
+        <Breadcrumb items={[
+          { label: "Dashboard", href: "/alumno/dashboard" },
+          { label: "Registro de asistencia" },
+        ]} />
 
         {/* CABECERA CORPORATIVA Y CONTENEDOR PRINCIPAL */}
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul mb-8">

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { AlertCircle, CheckCircle2, ChevronLeft, FileSpreadsheet, Loader2, Upload, UserX } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, Upload, UserX } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
 
 type ResultadoImportacion = {
   total_filas: number;
@@ -79,13 +80,11 @@ export default function ImportarAlumnosExcel() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
-        <button
-          type="button"
-          onClick={() => router.push("/admin/alumnos")}
-          className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Volver a Alumnos
-        </button>
+        <Breadcrumb items={[
+          { label: "Panel", href: "/admin/panel" },
+          { label: "Alumnos", href: "/admin/alumnos" },
+          { label: "Importar Excel" },
+        ]} />
 
         <div className="bg-white shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6 border-b border-gray-100 pb-8 mb-8">

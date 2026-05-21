@@ -114,17 +114,6 @@ class RegistroCompletarRequest(BaseModel):
             )
         return v
 
-    @field_validator("password")
-    @classmethod
-    def validar_password_fuerte(cls, v: str) -> str:
-        patron = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
-        if not re.match(patron, v):
-            raise ValueError(
-                "La contraseña debe tener al menos una mayúscula, "
-                "una minúscula, un número y un carácter especial (@$!%*?&)"
-            )
-        return v
-
 
 class RotacionAutomaticaCreate(BaseModel):
     curso: int = Field(..., ge=2, le=4)
@@ -328,6 +317,7 @@ class VerificarTokenTutorResponse(BaseModel):
     ya_usado: bool = False
     alumno_nombre: str = ""
     especialidad: str = ""
+    centro_practicas: str = ""
 
 
 class VerificarEmailTutorBody(BaseModel):

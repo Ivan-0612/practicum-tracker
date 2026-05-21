@@ -2,36 +2,137 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Variables de color ──────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-page:    #f9fafb;   /* gray-50  */
+  --bg-card:    #ffffff;
+  --bg-subtle:  #f3f4f6;   /* gray-100 */
+  --border:     #e5e7eb;   /* gray-200 */
+  --text-main:  #111827;   /* gray-900 */
+  --text-muted: #6b7280;   /* gray-500 */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --bg-page:    #0f172a;   /* slate-900 */
+  --bg-card:    #1e293b;   /* slate-800 */
+  --bg-subtle:  #334155;   /* slate-700 */
+  --border:     #334155;
+  --text-main:  #f1f5f9;   /* slate-100 */
+  --text-muted: #94a3b8;   /* slate-400 */
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  background-color: var(--bg-page);
+  color: var(--text-main);
   font-family: var(--font-main), "Segoe UI", sans-serif;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading), var(--font-main), "Segoe UI", sans-serif;
   letter-spacing: -0.01em;
 }
 
+/* ── Dark mode: sobreescritura de clases Tailwind comunes ────────────────── */
+
+/* ·· Fondos estructurales ·· */
+.dark .bg-white,
+.dark .bg-ufv-blanco              { background-color: #1e293b !important; }
+.dark .bg-gray-50                 { background-color: #0f172a !important; }
+.dark .bg-gray-100                { background-color: #1e293b !important; }
+.dark .bg-gray-200                { background-color: #334155 !important; }
+.dark .hover\:bg-gray-50:hover    { background-color: #1e293b !important; }
+.dark .hover\:bg-gray-100:hover   { background-color: #334155 !important; }
+.dark .hover\:bg-white:hover      { background-color: #293548 !important; }
+
+/* ·· Azules suaves ·· */
+.dark .bg-blue-50,
+.dark .bg-blue-100                { background-color: #172554 !important; }
+.dark .hover\:bg-blue-50:hover,
+.dark .hover\:bg-blue-100:hover   { background-color: #1e3a6e !important; }
+
+/* ·· Colores de estado ·· */
+.dark .bg-red-50                  { background-color: #2d0d0d !important; }
+.dark .bg-rose-50                 { background-color: #2d0d0d !important; }
+.dark .bg-pink-50,
+.dark .bg-pink-100                { background-color: #2d0d1e !important; }
+.dark .bg-amber-50,
+.dark .bg-amber-100               { background-color: #1c1500 !important; }
+.dark .bg-green-50,
+.dark .bg-emerald-50              { background-color: #052e16 !important; }
+.dark .bg-indigo-50               { background-color: #1e1b4b !important; }
+
+/* ·· Bordes ·· */
+.dark .border-gray-100,
+.dark .border-gray-200            { border-color: #334155 !important; }
+.dark .border-blue-100,
+.dark .border-blue-200            { border-color: #1e40af !important; }
+.dark .border-red-100,
+.dark .border-red-200             { border-color: #7f1d1d !important; }
+.dark .border-green-200           { border-color: #166534 !important; }
+.dark .border-amber-200           { border-color: #92400e !important; }
+.dark .divide-gray-100 > * + *    { border-color: #334155 !important; }
+
+/* ·· Textos grises — jerarquía clara ·· */
+.dark .text-gray-900              { color: #f1f5f9 !important; }   /* slate-100 */
+.dark .text-gray-800              { color: #e2e8f0 !important; }   /* slate-200 */
+.dark .text-gray-700              { color: #cbd5e1 !important; }   /* slate-300 */
+.dark .text-gray-600              { color: #94a3b8 !important; }   /* slate-400 */
+.dark .text-gray-500              { color: #94a3b8 !important; }   /* slate-400 */
+.dark .text-gray-400              { color: #64748b !important; }   /* slate-500 */
+.dark .text-gray-300              { color: #475569 !important; }   /* slate-600 */
+
+/* ·· Colores de estado en texto ·· */
+.dark .text-green-700             { color: #4ade80 !important; }
+.dark .text-red-600               { color: #f87171 !important; }
+.dark .text-red-700               { color: #f87171 !important; }
+.dark .text-amber-700             { color: #fbbf24 !important; }
+.dark .text-blue-800              { color: #93c5fd !important; }
+.dark .text-indigo-700            { color: #a5b4fc !important; }
+.dark .text-emerald-700           { color: #34d399 !important; }
+.dark .text-pink-700              { color: #f472b6 !important; }
+
+/* ·· Colores UFV en texto — los más importantes ·· */
+/* #001a33 y #003866 son casi negros, invisibles en dark */
+.dark .text-ufv-azul-oscuro       { color: #bfdbfe !important; }   /* blue-200 */
+.dark .text-ufv-azul              { color: #93c5fd !important; }   /* blue-300 */
+.dark .text-ufv-azul-claro        { color: #60a5fa !important; }   /* blue-400 */
+.dark .text-ufv-rosa-oscuro       { color: #fda4af !important; }   /* rose-300 */
+.dark .text-ufv-rosa-claro        { color: #fb7185 !important; }   /* rose-400 */
+/* Hover variants */
+.dark .hover\:text-ufv-azul:hover       { color: #93c5fd !important; }
+.dark .hover\:text-ufv-azul-oscuro:hover { color: #bfdbfe !important; }
+
+/* ·· Inputs ·· */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder       { color: #475569 !important; }
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus              { background-color: #1e293b !important; }
+
+/* ·· Sombras ·· */
+.dark .shadow-sm                  { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5) !important; }
+.dark .shadow-xl                  { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.6) !important; }
+.dark .shadow-md                  { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5) !important; }
+
+/* ·· Tarjeta "Total Cuentas" del panel admin ·· */
+.stats-total-card {
+  background: linear-gradient(to right, #eff6ff, #eef2ff);
+}
+.dark .stats-total-card {
+  background: linear-gradient(to right, #172554, #1e1b4b) !important;
+  border-color: #1e40af !important;
+}
+.dark .stats-total-card .bg-white {
+  background-color: #334155 !important;
+}
+
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }

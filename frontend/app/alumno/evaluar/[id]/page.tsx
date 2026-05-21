@@ -15,10 +15,13 @@ import {
   Download,
   Mail
 } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
+import { useToast } from "@/components/ToastProvider";
 
 export default function VistaEvaluacionAlumno() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const rotacionId = params.id as string;
 
   const [datos, setDatos] = useState<any>(null);
@@ -71,7 +74,7 @@ export default function VistaEvaluacionAlumno() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert("❌ Error al descargar el PDF: " + err.message);
+      toast.error("Error al descargar el PDF: " + (err.message || ""));
     }
   };
 
@@ -122,9 +125,10 @@ export default function VistaEvaluacionAlumno() {
 
       {/* CABECERA FLOTANTE SUPERIOR */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm px-4 py-4 md:px-8 flex items-center justify-between">
-        <button onClick={() => router.push("/alumno/dashboard")} className="flex items-center gap-2 text-gray-500 hover:text-ufv-azul transition-colors font-bold text-sm md:text-base">
-          <ChevronLeft className="w-5 h-5" /> <span className="hidden md:inline">Volver a mis rotaciones</span>
-        </button>
+        <Breadcrumb className="" items={[
+          { label: "Dashboard", href: "/alumno/dashboard" },
+          { label: "Evaluación" },
+        ]} />
 
         <div className="flex items-center gap-3">
           {rotacion_completada ? (

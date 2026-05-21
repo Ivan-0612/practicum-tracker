@@ -5,12 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, AlertCircle, PenTool, Lock, Eye } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
+import { useToast } from "@/components/ToastProvider";
 
 interface Fichaje { id: string; fecha: string; firmado_en: string; firmado_por: string; fecha_recuperada?: string; }
 
 export default function CalendarioProfesor() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const rotacionId = params.id as string;
 
   const [fichajes, setFichajes] = useState<Fichaje[]>([]);
@@ -48,17 +51,17 @@ export default function CalendarioProfesor() {
     if (!diaSeleccionado || esTutorUni || rotacionCerrada) return;
 
     if (diaSeleccionado > hoyStr) {
-      alert("⚠️ No puedes firmar un día que aún no ha pasado.");
+      toast.warning("No puedes firmar un día que aún no ha pasado.");
       return;
     }
 
     if (esRecuperada && !fechaRecuperacionInput) {
-      alert("⚠️ Debes seleccionar la fecha de recuperación.");
+      toast.warning("Debes seleccionar la fecha de recuperación.");
       return;
     }
 
     if (esRecuperada && fechaRecuperacionInput > hoyStr) {
-      alert("⚠️ No puedes usar una fecha de recuperación en el futuro.");
+      toast.warning("No puedes usar una fecha de recuperación en el futuro.");
       return;
     }
 
@@ -77,12 +80,12 @@ export default function CalendarioProfesor() {
       if (res.ok) {
         await cargarAsistencia();
         setFechaRecuperacionInput("");
-        alert("✅ Jornada firmada correctamente.");
+        toast.success("Jornada firmada correctamente.");
       } else {
         const err = await res.json();
-        alert(`❌ ${err.detail}`);
+        toast.error(err.detail || "No se pudo firmar la jornada.");
       }
-    } catch (error) { alert("Error de conexión."); } finally { setFirmando(false); }
+    } catch { toast.error("Error de conexión."); } finally { setFirmando(false); }
   };
 
   const añoActual = fechaBase.getFullYear();
@@ -107,9 +110,10 @@ export default function CalendarioProfesor() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-5xl mx-auto pb-20">
-        <button onClick={() => router.push("/profesor/dashboard")} className="mb-6 text-gray-500 font-bold flex items-center gap-2 hover:text-ufv-azul transition-colors">
-          <ChevronLeft className="w-4 h-4" /> Volver al Panel
-        </button>
+        <Breadcrumb items={[
+          { label: "Dashboard", href: "/profesor/dashboard" },
+          { label: "Registro de asistencia" },
+        ]} />
 
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
           <div className="flex items-center gap-6 border-b border-gray-100 pb-8 mb-8">

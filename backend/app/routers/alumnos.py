@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import and_, exists, or_
 from ..database import get_db
 from .. import models, schemas, security
 import secrets
@@ -639,18 +639,79 @@ def obtener_mi_evaluacion(
 
 @router.get("/")
 def listar_alumnos_por_email(
+    page: int = 1,
+    page_size: int = 20,
+    busqueda: str | None = None,
+    curso: int | None = None,
+    periodo_academico: str | None = None,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
 
-    estudiantes = (
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
+
+    alumnos_query = (
         db.query(models.Usuario, models.Alumno)
         .join(models.Alumno, models.Alumno.usuario_id == models.Usuario.id)
         .filter(models.Usuario.rol == "estudiante")
+    )
+
+    if busqueda:
+        alumnos_query = alumnos_query.filter(
+            models.Usuario.email.ilike(f"%{busqueda.strip()}%")
+        )
+
+    if curso is not None:
+        curso_match = exists().where(
+            and_(
+                models.Rotacion.alumno_id == models.Alumno.id,
+                models.Rotacion.curso == curso,
+            )
+        )
+        alumnos_query = alumnos_query.filter(
+            or_(models.Alumno.curso == curso, curso_match)
+        )
+
+    if periodo_academico and periodo_academico.lower() != "todos":
+        periodo_match = exists().where(
+            and_(
+                models.Rotacion.alumno_id == models.Alumno.id,
+                models.Rotacion.periodo_academico == periodo_academico,
+            )
+        )
+        alumnos_query = alumnos_query.filter(periodo_match)
+
+    total = alumnos_query.count()
+    estudiantes = (
+        alumnos_query.order_by(models.Usuario.email.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
         .all()
     )
+
+    if not estudiantes:
+        periodos_disponibles = [
+            normalizar_periodo_academico(valor)
+            for (valor,) in (
+                db.query(models.Rotacion.periodo_academico)
+                .filter(models.Rotacion.periodo_academico.isnot(None))
+                .distinct()
+                .all()
+            )
+            if normalizar_periodo_academico(valor)
+        ]
+        periodos_disponibles = list(dict.fromkeys(periodos_disponibles))
+        periodos_disponibles.sort(reverse=True)
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "periodos_disponibles": periodos_disponibles,
+            "resultados": [],
+        }
 
     resultado = []
     for usuario, alumno in estudiantes:
@@ -706,7 +767,26 @@ def listar_alumnos_por_email(
             }
         )
 
-    return resultado
+    periodos_disponibles = [
+        normalizar_periodo_academico(valor)
+        for (valor,) in (
+            db.query(models.Rotacion.periodo_academico)
+            .filter(models.Rotacion.periodo_academico.isnot(None))
+            .distinct()
+            .all()
+        )
+        if normalizar_periodo_academico(valor)
+    ]
+    periodos_disponibles = list(dict.fromkeys(periodos_disponibles))
+    periodos_disponibles.sort(reverse=True)
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "periodos_disponibles": periodos_disponibles,
+        "resultados": resultado,
+    }
 
 
 @router.post("/asignar-rotacion")

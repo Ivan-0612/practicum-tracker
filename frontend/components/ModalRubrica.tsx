@@ -102,6 +102,11 @@ export default function ModalRubrica({
   const [errorMolde, setErrorMolde] = useState("");
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
+  // Blob URL del PDF — evita que X-Frame-Options/CSP de Supabase bloqueen el iframe en producción.
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfCargando, setPdfCargando] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -117,6 +122,34 @@ export default function ModalRubrica({
     setMoldeActual(moldeEspecialidad || null);
     setNombreActual(especialidadNombre);
   }, [isOpen, especialidadInicial, especialidadNombre, especialidadesDisponibles, moldeEspecialidad]);
+
+  // Carga el PDF como blob cuando se abre el modal (solo una vez por sesión de modal).
+  useEffect(() => {
+    if (!isOpen) return;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_PDF_URL;
+    if (!url || pdfBlobUrl) return;
+
+    setPdfCargando(true);
+    setPdfError(false);
+
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("fetch failed");
+        return res.blob();
+      })
+      .then((blob) => {
+        setPdfBlobUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => setPdfError(true))
+      .finally(() => setPdfCargando(false));
+  }, [isOpen]);
+
+  // Libera la blob URL al desmontar para no acumular memoria.
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
 
   const cargarMolde = async (nombre: string, especialidadId?: string, rotacionId?: string) => {
     try {
@@ -219,11 +252,38 @@ export default function ModalRubrica({
               </div>
 
               <div className="h-full w-full rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-200">
-                <iframe 
-                  src={`${process.env.NEXT_PUBLIC_SUPABASE_PDF_URL}#toolbar=0`}
-                  className="w-full h-full min-h-[600px]"
-                  title="Manual PDF"
-                />
+                {pdfCargando ? (
+                  <div className="flex flex-col items-center justify-center min-h-[600px] gap-3 text-gray-500">
+                    <Loader2 className="w-7 h-7 animate-spin text-ufv-azul" />
+                    <span className="text-sm font-medium">Cargando PDF...</span>
+                  </div>
+                ) : pdfError || !pdfBlobUrl ? (
+                  <div className="flex flex-col items-center justify-center min-h-[600px] gap-3 text-gray-500">
+                    <AlertCircle className="w-8 h-8 text-amber-400" />
+                    <p className="text-sm font-bold text-center">
+                      No se pudo cargar el PDF del manual.
+                      {!process.env.NEXT_PUBLIC_SUPABASE_PDF_URL && (
+                        <span className="block text-xs font-normal mt-1 text-red-400">Variable NEXT_PUBLIC_SUPABASE_PDF_URL no configurada.</span>
+                      )}
+                    </p>
+                    {process.env.NEXT_PUBLIC_SUPABASE_PDF_URL && (
+                      <a
+                        href={process.env.NEXT_PUBLIC_SUPABASE_PDF_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-ufv-azul underline font-bold"
+                      >
+                        Abrir en nueva pestaña
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <iframe
+                    src={`${pdfBlobUrl}#toolbar=0`}
+                    className="w-full h-full min-h-[600px]"
+                    title="Manual PDF"
+                  />
+                )}
               </div>
             </div>
           )}

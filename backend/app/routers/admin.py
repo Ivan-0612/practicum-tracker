@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from ..database import get_db
 from .. import models, schemas, security
 from typing import List
@@ -553,18 +554,41 @@ def obtener_estadisticas_usuarios(
 
 @router.get("/profesores")
 def listar_profesores(
+    page: int = 1,
+    page_size: int = 20,
+    busqueda: str | None = None,
+    tipo_tutor: str | None = None,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
 
-    profesores = (
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
+
+    query = (
         db.query(models.Usuario)
         .filter(
             models.Usuario.rol == "profesor",
             models.Usuario.activo == True,
         )
+    )
+
+    if busqueda:
+        query = query.filter(models.Usuario.email.ilike(f"%{busqueda.strip()}%"))
+
+    if tipo_tutor and tipo_tutor.lower() != "todos":
+        query = query.filter(
+            func.lower(func.coalesce(models.Usuario.tipo_tutor, ""))
+            == tipo_tutor.strip().lower()
+        )
+
+    total = query.count()
+    profesores = (
+        query.order_by(models.Usuario.email.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
         .all()
     )
 
@@ -583,7 +607,12 @@ def listar_profesores(
             }
         )
 
-    return resultado
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "resultados": resultado,
+    }
 
 
 @router.put("/profesores/{profesor_id}/tipo")
@@ -1028,6 +1057,146 @@ def eliminar_usuario(
     db.delete(usuario)
     db.commit()
     return {"mensaje": "Usuario eliminado correctamente"}
+
+
+@router.get("/estadisticas")
+def obtener_estadisticas(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    from sqlalchemy import func as sqlfunc, distinct, not_, exists
+
+    # Base: solo rotaciones cuyo alumno existe en la tabla alumnos
+    # (filtra huérfanas de cascades fallidos)
+    rot_validas = (
+        db.query(models.Rotacion)
+        .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(models.Usuario.activo == True)
+    )
+
+    total_rotaciones = rot_validas.count()
+    rotaciones_activas = rot_validas.filter(models.Rotacion.completada == False).count()
+    rotaciones_completadas = rot_validas.filter(models.Rotacion.completada == True).count()
+
+    # % evaluaciones completadas: cuadernillos guardados sobre rotaciones válidas
+    rot_validas_ids = (
+        db.query(models.Rotacion.id)
+        .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(models.Usuario.activo == True)
+        .subquery()
+    )
+    rotaciones_con_cuadernillo = (
+        db.query(models.CuadernilloRespuesta)
+        .filter(models.CuadernilloRespuesta.rotacion_id.in_(db.query(rot_validas_ids)))
+        .count()
+    )
+    pct_evaluaciones = round(
+        (rotaciones_con_cuadernillo / total_rotaciones * 100) if total_rotaciones > 0 else 0, 1
+    )
+
+    # Alumnos activos sin rotación
+    total_alumnos = (
+        db.query(models.Alumno)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(models.Usuario.activo == True)
+        .count()
+    )
+    alumnos_con_rotacion = (
+        db.query(models.Alumno)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(
+            models.Usuario.activo == True,
+            exists().where(models.Rotacion.alumno_id == models.Alumno.id),
+        )
+        .count()
+    )
+    alumnos_sin_rotacion = total_alumnos - alumnos_con_rotacion
+
+    # Rotaciones activas (válidas) sin tutor asignado
+    rot_activas_validas_ids = (
+        db.query(models.Rotacion.id)
+        .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(models.Usuario.activo == True, models.Rotacion.completada == False)
+        .subquery()
+    )
+    rot_activas_con_tutor = (
+        db.query(models.AsignacionTutor.rotacion_id)
+        .filter(models.AsignacionTutor.rotacion_id.in_(db.query(rot_activas_validas_ids)))
+        .distinct()
+        .subquery()
+    )
+    alumnos_sin_tutor = (
+        db.query(models.Rotacion)
+        .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(
+            models.Usuario.activo == True,
+            models.Rotacion.completada == False,
+            ~models.Rotacion.id.in_(db.query(rot_activas_con_tutor)),
+        )
+        .count()
+    )
+
+    # Centros más usados: trim + agrupación sobre rotaciones válidas (top 6)
+    centros_raw = (
+        db.query(
+            sqlfunc.trim(models.Rotacion.centro_practicas).label("centro"),
+            sqlfunc.count(models.Rotacion.id).label("n"),
+        )
+        .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(
+            models.Usuario.activo == True,
+            models.Rotacion.centro_practicas != None,
+            sqlfunc.trim(models.Rotacion.centro_practicas) != "",
+        )
+        .group_by(sqlfunc.trim(models.Rotacion.centro_practicas))
+        .order_by(sqlfunc.count(models.Rotacion.id).desc())
+        .limit(6)
+        .all()
+    )
+    centros_mas_usados = [{"nombre": c[0], "total": c[1]} for c in centros_raw]
+
+    # Distribución por especialidad (top 5), solo rotaciones válidas
+    especialidades_raw = (
+        db.query(
+            models.Especialidad.nombre,
+            sqlfunc.count(models.Rotacion.id).label("n"),
+        )
+        .outerjoin(
+            models.Rotacion,
+            (models.Rotacion.especialidad_id == models.Especialidad.id)
+            & models.Rotacion.alumno_id.in_(
+                db.query(models.Alumno.id)
+                .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+                .filter(models.Usuario.activo == True)
+                .subquery()
+            ),
+        )
+        .group_by(models.Especialidad.nombre)
+        .order_by(sqlfunc.count(models.Rotacion.id).desc())
+        .limit(5)
+        .all()
+    )
+    distribucion_especialidades = [{"nombre": e[0], "total": e[1]} for e in especialidades_raw]
+
+    return {
+        "total_rotaciones": total_rotaciones,
+        "rotaciones_activas": rotaciones_activas,
+        "rotaciones_completadas": rotaciones_completadas,
+        "pct_evaluaciones_completadas": pct_evaluaciones,
+        "total_alumnos": total_alumnos,
+        "alumnos_sin_rotacion": alumnos_sin_rotacion,
+        "alumnos_sin_tutor": alumnos_sin_tutor,
+        "centros_mas_usados": centros_mas_usados,
+        "distribucion_especialidades": distribucion_especialidades,
+    }
 
 
 @router.delete("/rotaciones/{rotacion_id}/tutores/campo")

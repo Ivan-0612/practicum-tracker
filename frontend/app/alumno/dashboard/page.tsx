@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
 import { BookOpen, LogOut, Folder, Lock, CheckCircle, Users, Loader2, CalendarDays, X, Building, Home, PlusCircle, Copy, CheckCheck, Link2 } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
+import { useToast } from "@/components/ToastProvider";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import ModalRubrica from "@/components/ModalRubrica";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { validarPasswordFuerte } from "@/lib/utils";
 
 interface EspecialidadDisponible {
@@ -33,6 +36,7 @@ const obtenerPeriodoActual = () => {
 
 export default function AlumnoDashboard() {
   const router = useRouter();
+  const { toast } = useToast();
   const [datos, setDatos] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mostrarPasadas, setMostrarPasadas] = useState(false);
@@ -41,6 +45,7 @@ export default function AlumnoDashboard() {
 
   // ESTADOS PARA CAMBIO DE CONTRASEÑA
   const [showPassModal, setShowPassModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [passFormData, setPassFormData] = useState({ actual: "", nueva: "", confirmar: "" });
   const [passStatus, setPassStatus] = useState({ type: "", msg: "" });
   const [isRubricaOpen, setIsRubricaOpen] = useState(false);
@@ -140,6 +145,10 @@ export default function AlumnoDashboard() {
   };
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const doLogout = () => {
     Cookies.remove("practicum_token");
     sessionStorage.removeItem("alumno_memoria_navegacion");
     router.push("/login");
@@ -174,13 +183,13 @@ export default function AlumnoDashboard() {
       await cargarOpcionesNuevaRotacion();
       setShowNuevaRotacionModal(true);
     } catch (error: any) {
-      alert(error.message || "Error cargando opciones");
+      toast.error(error.message || "Error cargando opciones");
     }
-  };
+};
 
   const solicitarNuevaRotacion = async () => {
     if (!nuevaRotacionForm.especialidad_id || !nuevaRotacionForm.centro_practicas_id) {
-      alert("Selecciona especialidad y centro");
+      toast.warning("Selecciona especialidad y centro antes de continuar.");
       return;
     }
 
@@ -199,11 +208,11 @@ export default function AlumnoDashboard() {
       if (!res.ok) {
         throw new Error(data.detail || "No se pudo solicitar la rotación");
       }
-      alert("Nueva rotación solicitada correctamente");
+      toast.success("Nueva rotación solicitada correctamente.");
       setShowNuevaRotacionModal(false);
       cargarDatos();
     } catch (error: any) {
-      alert(error.message || "Error al solicitar nueva rotación");
+      toast.error(error.message || "Error al solicitar nueva rotación");
     } finally {
       setIsSavingNuevaRotacion(false);
     }
@@ -302,10 +311,10 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
       if (res.ok) {
         setEnlaceGenerado(data.enlace);
       } else {
-        alert(data.detail || "Error al generar el enlace.");
+        toast.error(data.detail || "Error al generar el enlace.");
       }
     } catch {
-      alert("Error de conexión con el servidor.");
+      toast.error("Error de conexión con el servidor.");
     } finally {
       setIsGenerandoEnlace(false);
     }
@@ -318,7 +327,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
       setEnlaceCopiado(true);
       setTimeout(() => setEnlaceCopiado(false), 2500);
     } catch {
-      alert("No se pudo copiar. Selecciona el texto manualmente.");
+      toast.warning("No se pudo copiar automáticamente. Selecciona el texto manualmente.");
     }
   };
 
@@ -347,7 +356,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
   const puedeAbrirRubrica = especialidadesDisponibles.length > 0;
   const rotacionesActivas = (datos?.rotaciones || []).filter((rot: any) => !rot.completada);
   const rotacionesPasadas = (datos?.rotaciones || []).filter((rot: any) => rot.completada);
-  const puedeSolicitarNuevaRotacion = rotacionesActivas.length === 0 && rotacionesPasadas.length > 0;
+  const puedeSolicitarNuevaRotacion = rotacionesActivas.length === 0;
   const centrosFiltradosNuevaRotacion = opcionesCentros;
 
   const TarjetaRotacion = ({ rot }: { rot: any }) => (
@@ -472,6 +481,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
             <button onClick={() => setShowPassModal(true)} className="flex items-center gap-2 bg-white text-ufv-azul px-4 py-2.5 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm active:scale-95">
               <Lock className="w-4 h-4"/> Cambiar Contraseña
             </button>
+            <ThemeToggle />
             <button onClick={handleLogout} className="flex items-center gap-2 bg-white text-red-600 px-4 py-2.5 rounded-xl font-bold border border-red-200 hover:bg-red-50 transition-all shadow-sm active:scale-95">
               <LogOut className="w-4 h-4"/> Cerrar Sesión
             </button>
@@ -711,6 +721,19 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="Cerrar sesión"
+        message="¿Estás seguro de que quieres cerrar sesión? Tendrás que iniciar sesión de nuevo para continuar."
+        confirmLabel="Cerrar sesión"
+        variant="warning"
+        onConfirm={() => {
+          doLogout();
+          setShowLogoutConfirm(false);
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
 
       {/* MODAL TUTOR DE CAMPO — NUEVO FLUJO POR ENLACE */}
       {showTutorCampoModal && (

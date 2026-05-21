@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { ChevronLeft, Mail, Save, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Mail, Save, AlertCircle, CheckCircle2 } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
 
 export default function NuevoAlumno() {
   const router = useRouter();
@@ -50,13 +51,11 @@ export default function NuevoAlumno() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
-        <button
-          type="button"
-          onClick={() => router.push("/admin/panel")}
-          className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Volver al Panel
-        </button>
+        <Breadcrumb items={[
+          { label: "Panel", href: "/admin/panel" },
+          { label: "Alumnos", href: "/admin/alumnos" },
+          { label: "Nuevo alumno" },
+        ]} />
 
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
           <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6">
@@ -69,7 +68,7 @@ export default function NuevoAlumno() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-gray-700">
-              Desde ahora, el alta administrativa solo guarda el correo. El resto de datos del alumno se completan en su propio flujo de registro en dos pasos.
+              El alta administrativa solo guarda el correo. El resto de datos del alumno se completan en su propio flujo de registro en dos pasos.
             </div>
 
             <div>

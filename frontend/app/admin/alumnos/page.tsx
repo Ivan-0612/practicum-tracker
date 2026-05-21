@@ -6,8 +6,11 @@ import Cookies from "js-cookie";
 import Image from "next/image";
 import ModalNuevaRotacion from "@/components/ModalNuevaRotacion";
 import ModalTipoAltaAlumno from "@/components/ModalTipoAltaAlumno";
-import { 
-  Trash2, Mail, GraduationCap, ChevronLeft, Filter, 
+import Breadcrumb from "@/components/Breadcrumb";
+import { useToast } from "@/components/ToastProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import {
+  Trash2, Mail, GraduationCap, Filter,
   Briefcase, UserPlus, Calendar, ChevronDown, ChevronUp, Building, Download, FileSpreadsheet, XCircle
 } from "lucide-react";
 
@@ -38,36 +41,54 @@ interface Alumno {
 
 export default function ListaAlumnosAdmin() {
   const router = useRouter();
+  const { toast } = useToast();
   const PAGE_SIZE = 20;
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [totalAlumnos, setTotalAlumnos] = useState(0);
   const [busqueda, setBusqueda] = useState("");
   const [filtroCurso, setFiltroCurso] = useState("todos");
   const [filtroAño, setFiltroAño] = useState("todos");
+  const [periodosDisponibles, setPeriodosDisponibles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // --- ESTADO PARA LOS DESPLEGABLES DE ROTACIONES ---
   const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
+
+  // --- ESTADOS PARA CONFIRMACIONES ---
+  type ConfirmState =
+    | { tipo: "rotacion"; id: string }
+    | { tipo: "alumno";   id: string; email: string }
+    | { tipo: "tutor";    rotacionId: string; email: string }
+    | null;
+  const [confirmPendiente, setConfirmPendiente] = useState<ConfirmState>(null);
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState({ id: "", email: "" });
   const [modalAltaAlumnoAbierto, setModalAltaAlumnoAbierto] = useState(false);
   const [paginaActual, setPaginaActual] = useState(1);
 
-  useEffect(() => {
-    cargarAlumnos();
-  }, []);
-
   const cargarAlumnos = async () => {
     setLoading(true);
     try {
       const token = Cookies.get("practicum_token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/`, { 
+      const params = new URLSearchParams({
+        page: String(paginaActual),
+        page_size: String(PAGE_SIZE),
+      });
+
+      if (busqueda.trim()) params.set("busqueda", busqueda.trim());
+      if (filtroCurso !== "todos") params.set("curso", filtroCurso);
+      if (filtroAño !== "todos") params.set("periodo_academico", filtroAño);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/?${params.toString()}`, { 
         headers: { "Authorization": `Bearer ${token}` }
       });
       
       if (res.ok) {
         const data = await res.json();
-        setAlumnos(Array.isArray(data) ? data : data.alumnos || []); 
+        setAlumnos(Array.isArray(data.resultados) ? data.resultados : []);
+        setTotalAlumnos(Number(data.total || 0));
+        setPeriodosDisponibles(Array.isArray(data.periodos_disponibles) ? data.periodos_disponibles : []);
       }
     } catch (error) {
       console.error("Error al cargar alumnos", error);
@@ -76,32 +97,37 @@ export default function ListaAlumnosAdmin() {
     }
   };
 
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroCurso, filtroAño]);
+
+  useEffect(() => {
+    cargarAlumnos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, busqueda, filtroCurso, filtroAño]);
+
   const handleEliminarRotacion = async (rotacionId: string) => {
-    if (!window.confirm("¿Borrar evaluación?")) return;
     try {
       const token = Cookies.get("practicum_token");
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/rotacion/${rotacionId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (res.ok) cargarAlumnos();
-    } catch (error) {
-      alert("Error de conexión.");
-    }
+      if (res.ok) { toast.success("Rotación eliminada."); cargarAlumnos(); }
+      else { const err = await res.json(); toast.error(err.detail || "No se pudo borrar la rotación."); }
+    } catch { toast.error("Error de conexión."); }
   };
 
-  const handleEliminarAlumno = async (alumnoId: string, email: string) => {
-    if (!window.confirm(`¿Borrar permanentemente a ${email}?`)) return;
+  const handleEliminarAlumno = async (alumnoId: string) => {
     try {
       const token = Cookies.get("practicum_token");
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/${alumnoId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (res.ok) cargarAlumnos();
-    } catch (error) {
-      alert("Error de conexión.");
-    }
+      if (res.ok) { toast.success("Alumno eliminado."); cargarAlumnos(); }
+      else { const err = await res.json(); toast.error(err.detail || "No se pudo borrar el alumno."); }
+    } catch { toast.error("Error de conexión."); }
   };
 
   const abrirModalRotacion = (id: string, email: string) => {
@@ -119,7 +145,7 @@ export default function ListaAlumnosAdmin() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(`❌ ${err.detail || "No se pudo descargar el Excel"}`);
+        toast.error(err.detail || "No se pudo descargar el Excel");
         return;
       }
 
@@ -133,7 +159,7 @@ export default function ListaAlumnosAdmin() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      alert("❌ Error de conexión al descargar el Excel.");
+      toast.error("Error de conexión al descargar el Excel.");
     }
   };
 
@@ -147,7 +173,7 @@ export default function ListaAlumnosAdmin() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(`❌ ${err.detail || "No se pudo descargar el informe"}`);
+        toast.error(err.detail || "No se pudo descargar el informe");
         return;
       }
 
@@ -161,12 +187,11 @@ export default function ListaAlumnosAdmin() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      alert("❌ Error de conexión al descargar el informe de evaluaciones.");
+      toast.error("Error de conexión al descargar el informe de evaluaciones.");
     }
   };
 
-  const handleEliminarTutorCampo = async (rotacionId: string, emailTutor: string) => {
-    if (!window.confirm(`¿Seguro que quieres quitar el acceso al tutor de campo (${emailTutor}) de esta rotación?`)) return;
+  const handleEliminarTutorCampo = async (rotacionId: string) => {
     try {
       const token = Cookies.get("practicum_token");
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/rotaciones/${rotacionId}/tutores/campo`, {
@@ -174,14 +199,14 @@ export default function ListaAlumnosAdmin() {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
-        alert("✅ Tutor de campo desasignado.");
+        toast.success("Tutor de campo desasignado correctamente.");
         cargarAlumnos();
       } else {
         const err = await res.json();
-        alert(`❌ ${err.detail || "No se pudo desasignar"}`);
+        toast.error(err.detail || "No se pudo desasignar.");
       }
     } catch {
-      alert("❌ Error de conexión.");
+      toast.error("Error de conexión.");
     }
   };
 
@@ -193,40 +218,19 @@ export default function ListaAlumnosAdmin() {
     }));
   };
 
-  const periodosBrutos = alumnos.flatMap(a => a.rotaciones.map(r => r.periodo_academico)).filter(Boolean) as string[];
-  const periodosDisponibles = Array.from(new Set(periodosBrutos)).sort().reverse();
-
-  const alumnosFiltrados = alumnos.filter(a => {
-    const coincideEmail = a.email?.toLowerCase().includes(busqueda.toLowerCase());
-    
-    const tieneRotacionEnCurso = a.rotaciones.some(r => r.curso.toString() === filtroCurso);
-    const esCursoBase = a.curso_actual.toString() === filtroCurso;
-    const coincideCurso = filtroCurso === "todos" || tieneRotacionEnCurso || esCursoBase;
-
-    const coincideAño = filtroAño === "todos" || a.rotaciones.some(r => r.periodo_academico === filtroAño);
-
-    return coincideEmail && coincideCurso && coincideAño;
-  });
-
-  useEffect(() => {
-    setPaginaActual(1);
-  }, [busqueda, filtroCurso, filtroAño, alumnos.length]);
-
-  const totalPaginas = Math.max(1, Math.ceil(alumnosFiltrados.length / PAGE_SIZE));
+  const totalPaginas = Math.max(1, Math.ceil(totalAlumnos / PAGE_SIZE));
   const paginaSegura = Math.min(paginaActual, totalPaginas);
   const inicioPagina = (paginaSegura - 1) * PAGE_SIZE;
-  const alumnosPaginados = alumnosFiltrados.slice(inicioPagina, inicioPagina + PAGE_SIZE);
+  const alumnosPaginados = alumnos;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         
-        <button 
-          onClick={() => router.push("/admin/panel")} 
-          className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Volver al Panel
-        </button>
+        <Breadcrumb items={[
+          { label: "Panel", href: "/admin/panel" },
+          { label: "Alumnos" },
+        ]} />
 
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
           
@@ -302,13 +306,13 @@ export default function ListaAlumnosAdmin() {
             </div>
           ) : (
             <>
-            <div className="overflow-hidden rounded-2xl border border-gray-200">
-              <table className="w-full text-left table-fixed">
+            <div className="overflow-x-auto rounded-2xl border border-gray-200">
+              <table className="w-full min-w-[640px] text-left">
                 <thead>
                   <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-bold">
-                    <th className="p-5 w-[58%]">Alumno y Rotaciones por Año</th>
-                    <th className="p-5 w-[18%]">Perfil Base</th>
-                    <th className="p-5 w-[24%] text-right">Acciones</th>
+                    <th className="p-5">Alumno y Rotaciones por Año</th>
+                    <th className="p-5 hidden sm:table-cell">Perfil Base</th>
+                    <th className="p-5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -387,7 +391,7 @@ export default function ListaAlumnosAdmin() {
                                                 </span>
                                                 {rot.tutores.campo && (
                                                   <button 
-                                                    onClick={() => handleEliminarTutorCampo(rot.id, rot.tutores.campo!)}
+                                                    onClick={() => setConfirmPendiente({ tipo: "tutor", rotacionId: rot.id, email: rot.tutores.campo! })}
                                                     className="opacity-0 group-hover/tutor:opacity-100 text-red-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-all"
                                                     title="Eliminar tutor de campo"
                                                   >
@@ -397,7 +401,7 @@ export default function ListaAlumnosAdmin() {
                                               </div>
                                             </div>
                                           </div>
-                                          <button onClick={() => handleEliminarRotacion(rot.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">
+                                          <button onClick={() => setConfirmPendiente({ tipo: "rotacion", id: rot.id })} className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-600 transition-all">
                                             <Trash2 className="w-4 h-4" />
                                           </button>
                                           {rot.completada && (
@@ -426,7 +430,7 @@ export default function ListaAlumnosAdmin() {
                         </div>
                       </td>
                       
-                      <td className="p-5 align-top">
+                      <td className="p-5 align-top hidden sm:table-cell">
                         <div className="flex flex-col gap-1 mt-1">
                           <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Inscripción Original</span>
                           <span className="text-ufv-azul-oscuro font-bold flex items-center gap-2">
@@ -439,7 +443,7 @@ export default function ListaAlumnosAdmin() {
                       <td className="p-5 align-top">
                         <div className="flex flex-col gap-2 items-center">
                           <button 
-                            onClick={() => handleEliminarAlumno(alumno.id, alumno.email)} 
+                            onClick={() => setConfirmPendiente({ tipo: "alumno", id: alumno.id, email: alumno.email })}
                             className="bg-white text-red-500 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-50 border border-red-200 w-full max-w-[12rem] flex items-center justify-center gap-2 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" /> Borrar Alumno
@@ -455,7 +459,7 @@ export default function ListaAlumnosAdmin() {
 
             <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-1">
               <p className="text-xs font-medium text-gray-500">
-                Mostrando {alumnosFiltrados.length === 0 ? 0 : inicioPagina + 1} - {Math.min(inicioPagina + PAGE_SIZE, alumnosFiltrados.length)} de {alumnosFiltrados.length} alumnos
+                Mostrando {alumnosPaginados.length === 0 ? 0 : inicioPagina + 1} - {Math.min(inicioPagina + alumnosPaginados.length, totalAlumnos)} de {totalAlumnos} alumnos
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -497,6 +501,29 @@ export default function ListaAlumnosAdmin() {
         onClose={() => setModalAltaAlumnoAbierto(false)}
         onManual={() => router.push("/admin/alumnos/nuevo")}
         onExcel={() => router.push("/admin/alumnos/importar")}
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmPendiente}
+        title={
+          confirmPendiente?.tipo === "alumno"   ? "Borrar alumno permanentemente" :
+          confirmPendiente?.tipo === "rotacion" ? "Borrar evaluación" :
+          "Quitar tutor de campo"
+        }
+        message={
+          confirmPendiente?.tipo === "alumno"   ? `¿Borrar permanentemente a ${confirmPendiente.email}?\n\nEsta acción eliminará todas sus rotaciones y evaluaciones.` :
+          confirmPendiente?.tipo === "rotacion" ? "¿Seguro que quieres borrar esta evaluación? Se perderán todos los datos asociados." :
+          `¿Quitar el acceso al tutor de campo (${confirmPendiente?.tipo === "tutor" ? confirmPendiente.email : ""}) de esta rotación?`
+        }
+        confirmLabel="Sí, borrar"
+        onConfirm={() => {
+          if (!confirmPendiente) return;
+          if (confirmPendiente.tipo === "alumno")   handleEliminarAlumno(confirmPendiente.id);
+          if (confirmPendiente.tipo === "rotacion") handleEliminarRotacion(confirmPendiente.id);
+          if (confirmPendiente.tipo === "tutor")    handleEliminarTutorCampo(confirmPendiente.rotacionId);
+          setConfirmPendiente(null);
+        }}
+        onCancel={() => setConfirmPendiente(null)}
       />
 
     </div>

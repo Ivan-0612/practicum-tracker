@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Sora } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ToastProvider";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -15,8 +17,15 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "Portal UFV - Prácticas",
-  description: "Plataforma de gestión de la Universidad Francisco de Vitoria",
+  title: {
+    default: "Practicum Tracker · UFV",
+    template: "%s · Practicum Tracker",
+  },
+  description: "Plataforma de gestión de prácticas clínicas de la Universidad Francisco de Vitoria",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -25,12 +34,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className={`${plusJakartaSans.variable} ${sora.variable} ${plusJakartaSans.className} bg-gray-50 text-gray-900 min-h-screen flex flex-col`}>
-        {/* Solo dejamos el main para que renderice tus páginas sin estorbar */}
-        <main className="flex-grow flex flex-col w-full">
-          {children}
-        </main>
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        {/* Evita el flash de tema incorrecto antes de que React hidrate */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body className={`${plusJakartaSans.variable} ${sora.variable} ${plusJakartaSans.className} bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200`}>
+        <ThemeProvider>
+          <ToastProvider>
+            <main className="flex-grow flex flex-col w-full">
+              {children}
+            </main>
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

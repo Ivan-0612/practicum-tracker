@@ -15,10 +15,14 @@ import {
   Eye,
   CheckSquare
 } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
+import { useToast } from "@/components/ToastProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function PantallaEvaluacion() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const rotacionId = params.id as string;
 
   const [datos, setDatos] = useState<any>(null);
@@ -28,6 +32,7 @@ export default function PantallaEvaluacion() {
   const [respuestas, setRespuestas] = useState<Record<string, any>>({});
   const [guardando, setGuardando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  const [showConfirmFinalizar, setShowConfirmFinalizar] = useState(false);
 
   const [esSoloLectura, setEsSoloLectura] = useState(false);
 
@@ -141,30 +146,25 @@ export default function PantallaEvaluacion() {
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (res.ok) alert("✅ Borrador guardado correctamente.");
-      else { const errData = await res.json(); alert(`❌ Error al guardar: ${errData.detail}`); }
-    } catch (err) { alert("❌ Error de conexión al guardar."); }
+      if (res.ok) toast.success("Borrador guardado correctamente.");
+      else { const errData = await res.json(); toast.error(`Error al guardar: ${errData.detail}`); }
+    } catch { toast.error("Error de conexión al guardar."); }
     finally { setGuardando(false); }
   };
 
-  const finalizarEvaluacion = async () => {
+  const finalizarEvaluacion = () => {
     if (esSoloLectura) return;
-
     if (respondidasCount < totalCount) {
-      alert(
-        `⚠️ No puedes finalizar todavía.\n\n` +
-        `Has completado ${respondidasCount} de ${totalCount} indicadores.\n` +
-        `Es obligatorio calificar todos los puntos antes de cerrar la evaluación.`
+      toast.warning(
+        `Completa todos los indicadores antes de finalizar (${respondidasCount}/${totalCount}).`
       );
       return;
     }
+    setShowConfirmFinalizar(true);
+  };
 
-    const mensajeConfirmacion = esUltimaOportunidad
-      ? "⚠️ Esta es la SEGUNDA y última confirmación.\n\nSe bloqueará la evaluación y se enviará la nota final al tutor hospital y al tutor universidad.\n\n¿Deseas continuar?"
-      : "⚠️ Esta es la PRIMERA confirmación.\n\nSe enviará la nota final al tutor hospital, pero podrás seguir editando antes de la confirmación final.\n\n¿Deseas continuar?";
-
-    if (!confirm(mensajeConfirmacion)) return;
-
+  const doFinalizarEvaluacion = async () => {
+    setShowConfirmFinalizar(false);
     setFinalizando(true);
     try {
       const token = Cookies.get("practicum_token");
@@ -183,17 +183,17 @@ export default function PantallaEvaluacion() {
       if (res.ok) {
         const data = await res.json();
         if (data.bloqueada) {
-          alert("✅ Evaluación cerrada definitivamente. Se envió la nota final a ambos tutores.");
+          toast.success("Evaluación cerrada definitivamente. Se envió la nota final a ambos tutores.");
           router.push("/profesor/dashboard");
           return;
         }
-        alert("✅ Primera confirmación registrada. Se envió la nota al tutor hospital. Puedes seguir editando antes del cierre final.");
+        toast.success("Primera confirmación registrada. Se envió la nota al tutor hospital.");
         await cargarCuadernillo();
       } else {
         const errorData = await res.json();
-        alert(`❌ No se pudo finalizar:\n${errorData.detail}`);
+        toast.error(`No se pudo finalizar: ${errorData.detail}`);
       }
-    } catch (err) { alert("❌ Error de conexión al finalizar."); }
+    } catch { toast.error("Error de conexión al finalizar."); }
     finally { setFinalizando(false); }
   };
 
@@ -213,7 +213,7 @@ export default function PantallaEvaluacion() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) { alert("❌ Hubo un problema al descargar el PDF."); }
+    } catch { toast.error("Hubo un problema al descargar el PDF."); }
   };
 
   // --- ESTADOS DE CARGA ---
@@ -241,14 +241,38 @@ export default function PantallaEvaluacion() {
   const esUltimaPagina = paginaActual === totalPaginas - 1;
   const esPrimeraPagina = paginaActual === 0;
 
+  const resumenBloques = paginas.map((pagina, idx) => {
+    const elementos = pagina.datos?.elementos || [];
+    const totalBloque = elementos.length;
+    const completadasBloque = elementos.filter((item: any) => {
+      const respuesta = respuestas[item.id];
+      return pagina.tipo === "sinon"
+        ? respuesta?.valor_sinon !== undefined && respuesta?.valor_sinon !== null
+        : respuesta?.valor_nivel !== undefined && respuesta?.valor_nivel !== null;
+    }).length;
+
+    return {
+      idx,
+      tipo: pagina.tipo,
+      titulo: pagina.tipo === "sinon" ? "Actividades Específicas (NIC)" : `Unidad ${pagina.datos?.numero || idx + 1}`,
+      subtitulo: pagina.tipo === "sinon" ? pagina.datos?.titulo || "Bloque inicial" : pagina.datos?.titulo || "Bloque competencial",
+      totalBloque,
+      completadasBloque,
+      porcentaje: totalBloque > 0 ? Math.round((completadasBloque / totalBloque) * 100) : 0,
+    };
+  });
+
+  const progresoGlobalBloques = totalCount > 0 ? Math.round((respondidasCount / totalCount) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-28 md:pb-32">
 
       {/* CABECERA FLOTANTE SUPERIOR */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm px-4 py-4 md:px-8 flex items-center justify-between">
-        <button onClick={() => router.push("/profesor/dashboard")} className="flex items-center gap-2 text-gray-500 hover:text-ufv-azul transition-colors font-bold text-sm md:text-base">
-          <ChevronLeft className="w-5 h-5" /> <span className="hidden md:inline">Volver a mis alumnos</span>
-        </button>
+        <Breadcrumb className="" items={[
+          { label: "Dashboard", href: "/profesor/dashboard" },
+          { label: "Evaluación" },
+        ]} />
 
         <div className="flex items-center gap-3">
           {datos.rotacion_completada ? (
@@ -557,50 +581,66 @@ export default function PantallaEvaluacion() {
               </div>
             ) : (
               /* MODO EDICIÓN */
-              <>
-                {/* Botón Guardar */}
+              <div className="w-full flex flex-wrap items-center gap-2">
+
+                {/* Guardar — izquierda en desktop, fila inferior izquierda en móvil */}
                 <button
                   onClick={guardarBorrador}
                   disabled={guardando || finalizando}
-                  className="px-4 py-2.5 bg-blue-50 text-ufv-azul border border-blue-200 text-sm font-bold rounded-xl flex items-center gap-2 hover:bg-blue-100 transition-all disabled:opacity-50 whitespace-nowrap"
+                  className="order-2 sm:order-1 flex-1 sm:flex-none px-4 py-2.5 bg-blue-50 text-ufv-azul border border-blue-200 text-sm font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-blue-100 transition-all disabled:opacity-50"
                 >
                   {guardando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  <span className="hidden sm:inline">Guardar</span>
+                  Guardar
                 </button>
 
-                {/* Navegación Anterior / Siguiente */}
-                <div className="flex items-center gap-2 flex-1 justify-center">
+                {/* Navegación — fila superior completa en móvil, centro en desktop */}
+                <div className="order-1 sm:order-2 w-full sm:w-auto sm:flex-1 flex items-center gap-2 justify-center">
                   <button
                     disabled={esPrimeraPagina || guardando || finalizando}
                     onClick={() => setPaginaActual(p => p - 1)}
-                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm disabled:opacity-30 hover:bg-gray-50 transition-all flex items-center gap-1"
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm disabled:opacity-30 hover:bg-gray-50 transition-all flex items-center justify-center gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" /> Anterior
                   </button>
                   <button
                     disabled={esUltimaPagina || guardando || finalizando}
                     onClick={() => setPaginaActual(p => p + 1)}
-                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm disabled:opacity-30 hover:bg-gray-50 transition-all flex items-center gap-1"
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm disabled:opacity-30 hover:bg-gray-50 transition-all flex items-center justify-center gap-1"
                   >
                     Siguiente <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Botón Finalizar (siempre visible) */}
+                {/* Finalizar — derecha en desktop, fila inferior derecha en móvil */}
                 <button
                   onClick={finalizarEvaluacion}
                   disabled={guardando || finalizando}
-                  className="px-5 py-2.5 bg-green-600 text-white text-sm font-black rounded-xl shadow-md flex items-center gap-2 hover:bg-green-700 transition-all disabled:opacity-50 active:scale-95 whitespace-nowrap"
+                  className="order-3 flex-1 sm:flex-none px-5 py-2.5 bg-green-600 text-white text-sm font-black rounded-xl shadow-md flex items-center justify-center gap-2 hover:bg-green-700 transition-all disabled:opacity-50 active:scale-95"
                 >
                   {finalizando ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   {esUltimaOportunidad ? "CERRAR (2/2)" : "FINALIZAR (1/2)"}
                 </button>
-              </>
+
+              </div>
             )}
 
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showConfirmFinalizar}
+        variant={esUltimaOportunidad ? "danger" : "warning"}
+        title={esUltimaOportunidad ? "Segunda confirmación — Cierre definitivo" : "Primera confirmación"}
+        message={
+          esUltimaOportunidad
+            ? "Esta es la SEGUNDA y última confirmación.\n\nSe bloqueará la evaluación y se enviará la nota final al tutor hospital y al tutor universidad."
+            : "Esta es la PRIMERA confirmación.\n\nSe enviará la nota final al tutor hospital, pero podrás seguir editando antes del cierre definitivo."
+        }
+        confirmLabel={esUltimaOportunidad ? "Cerrar evaluación (2/2)" : "Confirmar (1/2)"}
+        onConfirm={doFinalizarEvaluacion}
+        onCancel={() => setShowConfirmFinalizar(false)}
+      />
 
     </div>
   );

@@ -53,11 +53,13 @@ def verificar_token(token: str, db: Session = Depends(get_db)):
         alumno_nombre = "Alumno"
 
     especialidad = rotacion.especialidad.nombre if rotacion.especialidad else "Sin especialidad"
+    centro_practicas = rotacion.centro_practicas or "Centro no especificado"
 
     return schemas.VerificarTokenTutorResponse(
         valido=True,
         alumno_nombre=alumno_nombre,
         especialidad=especialidad,
+        centro_practicas=centro_practicas,
     )
 
 
@@ -143,6 +145,14 @@ def registrar_tutor_campo(datos: schemas.RegistrarTutorCampoBody, db: Session = 
         )
         db.add(tutor_usuario)
         db.flush()
+    else:
+        # Si la cuenta existe pero está desactivada (ej. fue borrada por admin),
+        # la reactivamos para que pueda volver a acceder.
+        if not tutor_usuario.activo:
+            tutor_usuario.activo = True
+        # Aseguramos que el rol y tipo son correctos por si fue modificado
+        tutor_usuario.rol = "profesor"
+        tutor_usuario.tipo_tutor = "campo"
 
     # 4. Asignar a la rotación
     nueva_asignacion = models.AsignacionTutor(

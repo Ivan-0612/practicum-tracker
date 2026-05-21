@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Mail, Lock, ShieldCheck, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, ArrowRight, ExternalLink } from "lucide-react";
+import { Mail, Lock, ShieldCheck, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, ArrowRight, ExternalLink, Building2 } from "lucide-react";
 
 // ─── Validación de contraseña ────────────────────────────────────────────────
 function validarPassword(v: string): string | null {
@@ -23,7 +23,7 @@ function RegistroTutorCampoForm() {
   const token = searchParams.get("token") || "";
 
   const [paso, setPaso] = useState<Paso>("cargando");
-  const [contexto, setContexto] = useState({ alumno_nombre: "", especialidad: "", ya_usado: false });
+  const [contexto, setContexto] = useState({ alumno_nombre: "", especialidad: "", centro_practicas: "", ya_usado: false });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,7 +45,7 @@ function RegistroTutorCampoForm() {
           setContexto(c => ({ ...c, ya_usado: data.ya_usado || false }));
           setPaso("token_invalido");
         } else {
-          setContexto({ alumno_nombre: data.alumno_nombre, especialidad: data.especialidad, ya_usado: false });
+          setContexto({ alumno_nombre: data.alumno_nombre, especialidad: data.especialidad, centro_practicas: data.centro_practicas || "", ya_usado: false });
           setPaso("email");
         }
       })
@@ -157,6 +157,12 @@ function RegistroTutorCampoForm() {
                 <p className="text-sm text-gray-500 font-medium">
                   Has sido invitado a evaluar a <span className="font-bold text-gray-700">{contexto.alumno_nombre}</span> en la especialidad de <span className="font-bold text-gray-700">{contexto.especialidad}</span>.
                 </p>
+                {contexto.centro_practicas && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-500 font-medium">
+                    <Building2 className="w-4 h-4 text-ufv-rosa-oscuro shrink-0" />
+                    <span>Centro: <span className="font-bold text-gray-700">{contexto.centro_practicas}</span></span>
+                  </div>
+                )}
               </div>
 
               <form onSubmit={handleSubmitEmail} className="space-y-5">

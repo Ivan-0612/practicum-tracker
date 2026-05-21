@@ -4,10 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { 
-  ChevronLeft, Trash2, Users, Search, Loader2, 
-  UserPlus, Filter, GraduationCap, Briefcase 
+import {
+  Trash2, Users, Search, Loader2,
+  UserPlus, Filter, GraduationCap, Briefcase, Stethoscope
 } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
+import { useToast } from "@/components/ToastProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 // Definimos la interfaz para saber qué datos esperamos
 interface Profesor {
@@ -18,24 +21,38 @@ interface Profesor {
 
 export default function ListaProfesores() {
   const router = useRouter();
+  const { toast } = useToast();
+  const PAGE_SIZE = 20;
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [confirmEliminar, setConfirmEliminar] = useState<{ id: string; email: string } | null>(null);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [totalProfesores, setTotalProfesores] = useState(0);
+
   // Estados para filtros
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("todos"); // <-- NUEVO ESTADO PARA EL FILTRO
 
-  const fetchProfesores = async () => {
+  const fetchProfesores = async (page = paginaActual) => {
     setIsLoading(true);
     const token = Cookies.get("practicum_token");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores`, {
+      const params = new URLSearchParams({
+        page: String(page),
+        page_size: String(PAGE_SIZE),
+      });
+
+      if (busqueda.trim()) params.set("busqueda", busqueda.trim());
+      if (filtroTipo !== "todos") params.set("tipo_tutor", filtroTipo);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores?${params.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` },
         cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
-        setProfesores(data);
+        setProfesores(Array.isArray(data.resultados) ? data.resultados : []);
+        setTotalProfesores(Number(data.total || 0));
       }
     } catch (error) {
       console.error("Error al cargar profesores", error);
@@ -45,12 +62,15 @@ export default function ListaProfesores() {
   };
 
   useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroTipo]);
+
+  useEffect(() => {
     fetchProfesores();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, busqueda, filtroTipo]);
 
-  const handleEliminar = async (id: string, email: string) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar la cuenta de profesor:\n${email}?`)) return;
-
+  const handleEliminar = async (id: string) => {
     const token = Cookies.get("practicum_token");
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores/${id}`, {
@@ -60,14 +80,14 @@ export default function ListaProfesores() {
 
       if (res.ok) {
         const data = await res.json();
-        alert(`✅ ${data?.mensaje || "Operación completada."}`);
-        fetchProfesores(); 
+        toast.success(data?.mensaje || "Cuenta eliminada correctamente.");
+        fetchProfesores();
       } else {
         const errorData = await res.json();
-        alert(`❌ Error: ${errorData.detail || "No se pudo eliminar al profesor"}`);
+        toast.error(errorData.detail || "No se pudo eliminar al profesor.");
       }
     } catch (error) {
-      alert("❌ Error de conexión con el servidor.");
+      toast.error("Error de conexión con el servidor.");
     }
   };
 
@@ -88,34 +108,22 @@ export default function ListaProfesores() {
       }
       fetchProfesores();
     } catch (error: any) {
-      alert(`❌ ${error.message || "Error al actualizar el tipo"}`);
+      toast.error(error.message || "Error al actualizar el tipo de tutor.");
     }
   };
 
-  // --- LÓGICA DE FILTRADO COMBINADO ---
-  const profesoresFiltrados = profesores.filter(prof => {
-    const coincideBusqueda = prof.email.toLowerCase().includes(busqueda.toLowerCase());
-    
-    // Si el filtro es "todos", pasa. Si no, debe coincidir con el tipo_tutor del profesor.
-    // Manejamos el caso en que tipo_tutor sea null/undefined para profesores antiguos.
-    const tipoReal = prof.tipo_tutor || "no_especificado"; 
-    const coincideTipo = filtroTipo === "todos" || tipoReal === filtroTipo;
-
-    return coincideBusqueda && coincideTipo;
-  });
+  const profesoresFiltrados = profesores;
+  const totalPaginas = Math.max(1, Math.ceil(totalProfesores / PAGE_SIZE));
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         
-        {/* BOTÓN VOLVER */}
-        <button 
-            type="button" 
-            onClick={() => router.push("/admin/panel")} 
-            className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Volver al Panel
-        </button>
+        <Breadcrumb items={[
+          { label: "Panel", href: "/admin/panel" },
+          { label: "Tutores" },
+        ]} />
 
         {/* TARJETA PRINCIPAL */}
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
@@ -160,6 +168,7 @@ export default function ListaProfesores() {
                     <option value="todos">Todos los roles</option>
                     <option value="hospital">Tutor Hospital</option>
                     <option value="universidad">Tutor Universidad</option>
+                    <option value="campo">Tutor de Campo</option>
                   </select>
                   {/* Flechita personalizada para el select */}
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -171,9 +180,9 @@ export default function ListaProfesores() {
 
               {/* GRUPO 2: BOTONES DE ACCIÓN */}
               <div className="flex gap-3 shrink-0">
-                <button 
-                  onClick={() => router.push("/admin/profesores/nuevo")} 
-                  className="h-14 px-6 bg-ufv-azul text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm"
+                <button
+                  onClick={() => router.push("/admin/profesores/nuevo")}
+                  className="w-full xl:w-auto h-14 px-6 bg-ufv-azul text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm"
                 >
                   <UserPlus className="w-5 h-5 shrink-0" />
                   <span className="whitespace-nowrap">+ Nuevo Tutor</span>
@@ -213,18 +222,21 @@ export default function ListaProfesores() {
                           <div>
                             <p className="font-bold text-gray-800 text-lg leading-tight">{profesor.email}</p>
                             
-                            {/* --- NUEVO: ETIQUETA VISUAL DEL ROL --- */}
+                            {/* --- ETIQUETA VISUAL DEL ROL --- */}
                             <div className="flex items-center gap-2 mt-1.5">
                               {profesor.tipo_tutor === "universidad" ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-blue-100 text-ufv-azul border border-blue-200">
-                                  <GraduationCap className="w-3.5 h-3.5" /> Tutor Universidad 
+                                  <GraduationCap className="w-3.5 h-3.5" /> Tutor Universidad
                                 </span>
-                              ) : profesor.tipo_tutor === "hospital" && (
+                              ) : profesor.tipo_tutor === "hospital" ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-pink-100 text-ufv-rosa-oscuro border border-pink-200">
-                                  <Briefcase className="w-3.5 h-3.5" /> Tutor Hospital 
+                                  <Briefcase className="w-3.5 h-3.5" /> Tutor Hospital
                                 </span>
-                              )}
-                              {!profesor.tipo_tutor && (
+                              ) : profesor.tipo_tutor === "campo" ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                  <Stethoscope className="w-3.5 h-3.5" /> Tutor de Campo
+                                </span>
+                              ) : (
                                 <div className="flex items-center gap-2">
                                   <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-200">
                                     Sin tipo
@@ -250,8 +262,8 @@ export default function ListaProfesores() {
                           </div>
                         </div>
                         
-                        <button 
-                          onClick={() => handleEliminar(profesor.id, profesor.email)}
+                        <button
+                          onClick={() => setConfirmEliminar({ id: profesor.id, email: profesor.email })}
                           className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all font-bold text-sm shadow-sm"
                         >
                           <Trash2 className="w-4 h-4" /> Eliminar
@@ -262,11 +274,47 @@ export default function ListaProfesores() {
                   </div>
                 )}
               </div>
+
+              <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-1">
+                <p className="text-xs font-medium text-gray-500">
+                  Mostrando {profesoresFiltrados.length === 0 ? 0 : (paginaSegura - 1) * PAGE_SIZE + 1} - {Math.min((paginaSegura - 1) * PAGE_SIZE + profesoresFiltrados.length, totalProfesores)} de {totalProfesores} tutores
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                    disabled={paginaSegura <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Anterior
+                  </button>
+                  <span className="text-xs font-bold text-gray-500 px-2">
+                    Página {paginaSegura} de {totalPaginas}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
+                    disabled={paginaSegura >= totalPaginas}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
             </section>
           </div>
           
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmEliminar}
+        title="Eliminar cuenta de tutor"
+        message={`¿Seguro que quieres eliminar la cuenta de:\n${confirmEliminar?.email}\n\nEsta acción desactivará su acceso al sistema.`}
+        confirmLabel="Sí, eliminar"
+        onConfirm={() => { if (confirmEliminar) { handleEliminar(confirmEliminar.id); setConfirmEliminar(null); } }}
+        onCancel={() => setConfirmEliminar(null)}
+      />
     </div>
   );
 }

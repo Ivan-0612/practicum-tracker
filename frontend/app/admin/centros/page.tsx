@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import { ChevronLeft, Save, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
+import { useToast } from "@/components/ToastProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 type Profesor = { id: string; email: string; tipo_tutor: string };
 type Centro = {
@@ -16,10 +19,12 @@ type Centro = {
 
 export default function CentrosAdminPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [centros, setCentros] = useState<Centro[]>([]);
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [confirmEliminar, setConfirmEliminar] = useState<{ id: string } | null>(null);
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -70,14 +75,13 @@ export default function CentrosAdminPage() {
       setFormData({ ...formData, nombre: "" });
       cargarDatos();
     } catch (error: any) {
-      alert(error.message || "Error guardando centro");
+      toast.error(error.message || "Error guardando centro");
     } finally {
       setGuardando(false);
     }
   };
 
   const eliminarCentro = async (centroId: string) => {
-    if (!confirm("¿Eliminar/desactivar este centro?")) return;
     const token = Cookies.get("practicum_token");
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/centros/${centroId}`, {
       method: "DELETE",
@@ -85,9 +89,10 @@ export default function CentrosAdminPage() {
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.detail || "No se pudo eliminar el centro");
+      toast.error(data.detail || "No se pudo eliminar el centro");
       return;
     }
+    toast.success("Centro eliminado correctamente.");
     cargarDatos();
   };
 
@@ -97,13 +102,10 @@ export default function CentrosAdminPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <button
-          type="button"
-          onClick={() => router.push("/admin/panel")}
-          className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Volver al Panel
-        </button>
+        <Breadcrumb items={[
+          { label: "Panel", href: "/admin/panel" },
+          { label: "Centros" },
+        ]} />
 
         <div className="bg-white rounded-3xl border-t-4 border-ufv-azul shadow-xl p-6 md:p-10">
           <h1 className="text-3xl font-black text-ufv-azul-oscuro mb-6">Centros y Tutores</h1>
@@ -150,8 +152,8 @@ export default function CentrosAdminPage() {
           {loading ? (
             <div className="text-sm text-gray-500">Cargando centros...</div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-gray-200">
+              <table className="w-full min-w-[700px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left">
                     <th className="p-3">Centro</th>
@@ -171,7 +173,7 @@ export default function CentrosAdminPage() {
                       <td className="p-3 text-right">
                         <button
                           type="button"
-                          onClick={() => eliminarCentro(c.id)}
+                          onClick={() => setConfirmEliminar({ id: c.id })}
                           className="inline-flex items-center gap-1 text-red-600 font-bold"
                         >
                           <Trash2 className="w-4 h-4" /> Eliminar
@@ -185,6 +187,15 @@ export default function CentrosAdminPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmEliminar}
+        title="Eliminar centro"
+        message="¿Seguro que quieres eliminar este centro de prácticas? Esta acción lo desactivará del sistema."
+        confirmLabel="Sí, eliminar"
+        onConfirm={() => { if (confirmEliminar) { eliminarCentro(confirmEliminar.id); setConfirmEliminar(null); } }}
+        onCancel={() => setConfirmEliminar(null)}
+      />
     </div>
   );
 }

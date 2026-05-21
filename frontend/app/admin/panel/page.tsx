@@ -5,19 +5,19 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import ModalTipoAltaAlumno from "@/components/ModalTipoAltaAlumno";
-import { 
-  LogOut, 
-  FileJson, 
-  Users, 
-  UserPlus, 
-  GraduationCap, 
-  Settings, 
-  Loader2, 
+import {
+  LogOut,
+  FileJson,
+  Users,
+  UserPlus,
+  GraduationCap,
+  Settings,
+  Loader2,
   Tag,
   Trash2,
   Eye,
   X,
-  Clapperboard, 
+  Clapperboard,
   Code2,
   Save,
   Search,
@@ -33,8 +33,17 @@ import {
   Edit3,
   Zap,
   ArrowLeft,
-  BookOpen
+  BookOpen,
+  Activity,
+  BarChart2,
+  UserX,
+  Building2,
+  ClipboardCheck,
+  RotateCcw,
 } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
+import { useToast } from "@/components/ToastProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const PLANTILLA_EXCEL_ALUMNOS_URL =
   "https://hlwthmqvspeunagmzdju.supabase.co/storage/v1/object/public/plantillas/alumnos/plantilla_nuevos_alumnos.xlsx";
@@ -183,6 +192,49 @@ export default function AdminPanel() {
   const [isLoadingPendientes, setIsLoadingPendientes] = useState(false);
   const [alumnosPendientes, setAlumnosPendientes] = useState<any[]>([]);
   const [busquedaPendientes, setBusquedaPendientes] = useState("");
+  const [confirmPendiente, setConfirmPendiente] = useState<{ tipo: "invitacion" | "especialidad"; id: string; label: string } | { tipo: "logout" } | null>(null);
+
+  // PANEL TABS + ESTADÍSTICAS GENERALES
+  const [panelTab, setPanelTab] = useState<"resumen" | "gestion">("resumen");
+  const [isInitialized, setIsInitialized] = useState(false);
+  interface EstadisticasData {
+    total_rotaciones: number; rotaciones_activas: number; rotaciones_completadas: number;
+    pct_evaluaciones_completadas: number; total_alumnos: number;
+    alumnos_sin_rotacion: number; alumnos_sin_tutor: number;
+    centros_mas_usados: { nombre: string; total: number }[];
+    distribucion_especialidades: { nombre: string; total: number }[];
+  }
+  const [estadisticas, setEstadisticas] = useState<EstadisticasData | null>(null);
+  const [isLoadingEstadisticas, setIsLoadingEstadisticas] = useState(true);
+
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const memoria = sessionStorage.getItem("admin_panel_memoria_navegacion");
+    if (memoria) {
+      try {
+        const estadoGuardado = JSON.parse(memoria);
+        if (estadoGuardado.panelTab === "resumen" || estadoGuardado.panelTab === "gestion") {
+          setPanelTab(estadoGuardado.panelTab);
+        }
+        if (estadoGuardado.usuariosTab === "gestion" || estadoGuardado.usuariosTab === "pendientes") {
+          setUsuariosTab(estadoGuardado.usuariosTab);
+        }
+      } catch (e) {
+        console.error("Error leyendo memoria del panel admin", e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    if (isInitialized) {
+      sessionStorage.setItem(
+        "admin_panel_memoria_navegacion",
+        JSON.stringify({ panelTab, usuariosTab })
+      );
+    }
+  }, [isInitialized, panelTab, usuariosTab]);
 
   const fetchUcGlobal = async () => {
     setIsLoadingUcGlobal(true);
@@ -209,7 +261,7 @@ export default function AdminPanel() {
     try {
       ucObj = JSON.parse(ucGlobalJson);
     } catch {
-      alert("⚠️ El JSON de UC global no es válido.");
+      toast.warning("El JSON de UC global no es válido.");
       return;
     }
 
@@ -224,14 +276,14 @@ export default function AdminPanel() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(`❌ ${err.detail || "No se pudo guardar UC global"}`);
+        toast.error(err.detail || "No se pudo guardar UC global.");
         return;
       }
 
-      alert("✅ Plantilla UC global guardada correctamente.");
+      toast.success("Plantilla UC global guardada correctamente.");
       fetchUcGlobal();
     } catch {
-      alert("❌ Error de conexión al guardar UC global.");
+      toast.error("Error de conexión al guardar UC global.");;
     } finally {
       setIsSavingUcGlobal(false);
     }
@@ -239,7 +291,7 @@ export default function AdminPanel() {
 
   const subirArchivoUcGlobal = async () => {
     if (!archivoUcGlobal) {
-      alert("⚠️ Selecciona un archivo JSON de UC global.");
+      toast.warning("Selecciona un archivo JSON de UC global.");
       return;
     }
 
@@ -258,15 +310,15 @@ export default function AdminPanel() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(`❌ ${err.detail || "No se pudo subir UC global"}`);
+        toast.error(err.detail || "No se pudo subir UC global.");
         return;
       }
 
-      alert("✅ Archivo UC global subido correctamente.");
+      toast.success("Archivo UC global subido correctamente.");
       setArchivoUcGlobal(null);
       fetchUcGlobal();
     } catch {
-      alert("❌ Error leyendo/subiendo archivo UC global.");
+      toast.error("Error leyendo/subiendo archivo UC global.");
     } finally {
       setIsSavingUcGlobal(false);
     }
@@ -339,8 +391,11 @@ export default function AdminPanel() {
     }
   };
 
-  const handleEliminarPendiente = async (id: string, email: string) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar la invitación de "${email}"?`)) return;
+  const handleEliminarPendiente = (id: string, email: string) => {
+    setConfirmPendiente({ tipo: "invitacion", id, label: email });
+  };
+
+  const doEliminarPendiente = async (id: string) => {
     const token = Cookies.get("practicum_token");
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/usuarios/${id}`, {
@@ -348,16 +403,26 @@ export default function AdminPanel() {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
-        alert("✅ Registro eliminado.");
+        toast.success("Registro eliminado.");
         fetchAlumnosPendientes();
         fetchStatsUsuarios();
       } else {
         const errorData = await res.json();
-        alert(`❌ Error: ${errorData.detail || "No se pudo eliminar el registro"}`);
+        toast.error(errorData.detail || "No se pudo eliminar el registro.");
       }
-    } catch (error) {
-      alert("❌ Error de conexión con el servidor.");
-    }
+    } catch { toast.error("Error de conexión con el servidor."); }
+  };
+
+  const fetchEstadisticas = async () => {
+    setIsLoadingEstadisticas(true);
+    const token = Cookies.get("practicum_token");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/estadisticas`, {
+        headers: { "Authorization": `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (res.ok) setEstadisticas(await res.json());
+    } catch { /* silencioso */ } finally { setIsLoadingEstadisticas(false); }
   };
 
   useEffect(() => {
@@ -366,17 +431,23 @@ export default function AdminPanel() {
     fetchMappingGlobal();
     fetchUcGlobal();
     fetchAlumnosPendientes();
+    fetchEstadisticas();
   }, []);
 
   const handleLogout = () => {
+    setConfirmPendiente({ tipo: "logout" });
+  };
+
+  const doLogout = () => {
     Cookies.remove("practicum_token");
     Cookies.remove("practicum_rol");
+    sessionStorage.removeItem("admin_panel_memoria_navegacion");
     router.push("/login");
   };
 
   const handleCrearEspecialidad = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombreEspecialidad || !archivoJSON) { alert("⚠️ Debes introducir un nombre y seleccionar un archivo JSON."); return; }
+    if (!nombreEspecialidad || !archivoJSON) { toast.warning("Debes introducir un nombre y seleccionar un archivo JSON."); return; }
     setIsUploading(true);
     const formData = new FormData();
     formData.append("nombre", nombreEspecialidad);
@@ -389,26 +460,29 @@ export default function AdminPanel() {
         body: formData,
       });
       if (res.ok) {
-        alert("✅ Especialidad y Rúbrica creadas correctamente.");
+        toast.success("Especialidad y Rúbrica creadas correctamente.");
         setNombreEspecialidad(""); setArchivoJSON(null); fetchEspecialidades();
       } else {
         const errorData = await res.json();
-        alert(`❌ Error: ${errorData.detail || "No se pudo crear la especialidad"}`);
+        toast.error(errorData.detail || "No se pudo crear la especialidad.");
       }
-    } catch (err) { alert("❌ Error de conexión con el backend."); } finally { setIsUploading(false); }
+    } catch (err) { toast.error("Error de conexión con el backend."); } finally { setIsUploading(false); }
   };
 
-  const handleEliminarEspecialidad = async (id: string, nombre: string) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar "${nombre}"?`)) return;
+  const handleEliminarEspecialidad = (id: string, nombre: string) => {
+    setConfirmPendiente({ tipo: "especialidad", id, label: nombre });
+  };
+
+  const doEliminarEspecialidad = async (id: string) => {
     const token = Cookies.get("practicum_token");
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/especialidades/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (res.ok) { alert("✅ Especialidad eliminada."); fetchEspecialidades(); } 
-      else { const errorData = await res.json(); alert(`❌ Error: ${errorData.detail || "No se pudo eliminar la especialidad"}`); }
-    } catch (error) { alert("❌ Error de conexión con el servidor."); }
+      if (res.ok) { toast.success("Especialidad eliminada."); fetchEspecialidades(); }
+      else { const errorData = await res.json(); toast.error(errorData.detail || "No se pudo eliminar la especialidad."); }
+    } catch { toast.error("Error de conexión con el servidor."); }
   };
 
   const handleVerPreview = async (id: string, nombre: string) => {
@@ -423,8 +497,8 @@ export default function AdminPanel() {
         const data = await res.json();
         setJsonPreview(data.contenido_json);
         setRawText(JSON.stringify(data.contenido_json, null, 2)); 
-      } else { alert("❌ No se pudo cargar el archivo."); setIsModalOpen(false); }
-    } catch (error) { alert("❌ Error de conexión."); setIsModalOpen(false); } finally { setIsLoadingPreview(false); }
+      } else { toast.error("No se pudo cargar el archivo."); setIsModalOpen(false); }
+    } catch (error) { toast.error("Error de conexión."); setIsModalOpen(false); } finally { setIsLoadingPreview(false); }
   };
 
   const handleGuardarJSON = async () => {
@@ -438,13 +512,13 @@ export default function AdminPanel() {
         body: JSON.stringify(jsonValidado)
       });
       if (res.ok) {
-        alert("✅ Archivo JSON actualizado.");
+        toast.success("Archivo JSON actualizado.");
         setJsonPreview(jsonValidado);
       } else {
         const err = await res.json();
-        alert(`❌ ${err.detail || "Error al guardar"}`);
+        toast.error(err.detail || "Error al guardar.");
       }
-    } catch (error) { alert("⚠️ Formato JSON Inválido."); } finally { setIsSavingJSON(false); }
+    } catch (error) { toast.warning("Formato JSON Inválido."); } finally { setIsSavingJSON(false); }
   };
 
   const parseFilaFromMappingValue = (value: string): string => {
@@ -499,14 +573,14 @@ export default function AdminPanel() {
         body: JSON.stringify(mappingObj)
       });
       if (res.ok) {
-        alert("✅ Mapping global guardado correctamente.");
+        toast.success("Mapping global guardado correctamente.");
         fetchMappingGlobal();
       } else {
         const err = await res.json();
-        alert(`❌ ${err.detail || "No se pudo guardar el mapping"}`);
+        toast.error(err.detail || "No se pudo guardar el mapping.");
       }
     } catch {
-      alert("⚠️ El JSON de mapeo no es válido.");
+      toast.warning("El JSON de mapeo no es válido.");
     } finally {
       setIsSavingMappingGlobal(false);
     }
@@ -546,7 +620,7 @@ export default function AdminPanel() {
       }
     } catch (error) {
       console.error("Error al cargar especialidad para wizard", error);
-      alert("❌ No se pudo cargar la especialidad");
+      toast.error("No se pudo cargar la especialidad.");
     } finally {
       setIsLoadingWizardData(false);
     }
@@ -593,15 +667,15 @@ export default function AdminPanel() {
       });
 
       if (res.ok) {
-        alert("✅ Mapping guardado correctamente");
+        toast.success("Mapping guardado correctamente.");
         setMappingGlobalJson(JSON.stringify(mappingFinal, null, 2));
         resetWizard();
       } else {
         const err = await res.json();
-        alert(`❌ ${err.detail || "No se pudo guardar el mapping"}`);
+        toast.error(err.detail || "No se pudo guardar el mapping.");
       }
     } catch (error) {
-      alert(`❌ Error: ${error}`);
+      toast.error(`Error: ${error}`);
     } finally {
       setIsSavingWizardMapping(false);
     }
@@ -609,7 +683,7 @@ export default function AdminPanel() {
 
   const handleSubirPlantillaExcel = async () => {
     if (!wizardEspecialidadId || !archivoExcelWizard) {
-      alert("⚠️ Selecciona especialidad y archivo");
+      toast.warning("Selecciona especialidad y archivo.");
       return;
     }
     setIsSavingWizardMapping(true);
@@ -628,15 +702,15 @@ export default function AdminPanel() {
       );
 
       if (res.ok) {
-        alert("✅ Plantilla Excel guardada correctamente");
+        toast.success("Plantilla Excel guardada correctamente.");
         setExcelTemplateStatus(prev => ({ ...prev, [wizardEspecialidadId]: true }));
         setArchivoExcelWizard(null);
       } else {
         const err = await res.json();
-        alert(`❌ Error: ${err.detail || "No se pudo subir la plantilla"}`);
+        toast.error(err.detail || "No se pudo subir la plantilla.");
       }
     } catch {
-      alert("❌ Error de conexión");
+      toast.error("Error de conexión.");
     } finally {
       setIsSavingWizardMapping(false);
     }
@@ -655,7 +729,7 @@ export default function AdminPanel() {
 
   const handleSubirPlantillaYMappingEnSecuencia = async () => {
     if (!wizardEspecialidadId || !archivoExcelWizard) {
-      alert("⚠️ Selecciona especialidad y archivo");
+      toast.warning("Selecciona especialidad y archivo.");
       return;
     }
 
@@ -699,12 +773,12 @@ export default function AdminPanel() {
         throw new Error(err.detail || "No se pudo guardar el mapping");
       }
 
-      alert("✅ Plantilla y mapping guardados correctamente");
+      toast.success("Plantilla y mapping guardados correctamente.");
       setExcelTemplateStatus(prev => ({ ...prev, [wizardEspecialidadId]: true }));
       setMappingGlobalJson(JSON.stringify(mappingFinal, null, 2));
       resetWizard();
     } catch (error) {
-      alert(`❌ Error: ${error}`);
+      toast.error(`Error: ${error}`);
     } finally {
       setIsSavingWizardMapping(false);
     }
@@ -749,10 +823,172 @@ export default function AdminPanel() {
               <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">Universidad Francisco de Vitoria</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 bg-white text-red-600 px-5 py-2.5 rounded-xl font-bold border border-red-200 hover:bg-red-50 transition-all shadow-sm active:scale-95"><LogOut className="w-4 h-4" /> Cerrar sesión</button>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <button onClick={handleLogout} className="flex items-center gap-2 bg-white text-red-600 px-5 py-2.5 rounded-xl font-bold border border-red-200 hover:bg-red-50 transition-all shadow-sm active:scale-95"><LogOut className="w-4 h-4" /> Cerrar sesión</button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        {/* PESTAÑAS DEL PANEL */}
+        <div className="mb-6 bg-white border border-gray-200 rounded-2xl p-1 flex gap-1 shadow-sm">
+          <button
+            onClick={() => setPanelTab("resumen")}
+            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${panelTab === "resumen" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            <Activity className="w-4 h-4" /> Resumen del Sistema
+          </button>
+          <button
+            onClick={() => setPanelTab("gestion")}
+            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${panelTab === "gestion" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            <Settings className="w-4 h-4" /> Gestión
+          </button>
+        </div>
+
+        {/* PANEL DE ESTADÍSTICAS (pestaña Resumen) */}
+        <div className={`mb-8 ${panelTab !== "resumen" ? "hidden" : ""}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-50 p-2 rounded-xl text-ufv-azul"><Activity className="w-5 h-5" /></div>
+              <h2 className="text-xl font-black text-ufv-azul-oscuro">Resumen del Sistema</h2>
+            </div>
+            <button onClick={fetchEstadisticas} disabled={isLoadingEstadisticas}
+              className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-ufv-azul transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-50 border border-transparent hover:border-blue-100">
+              <RotateCcw className={`w-3.5 h-3.5 ${isLoadingEstadisticas ? "animate-spin" : ""}`} /> Actualizar
+            </button>
+          </div>
+
+          {isLoadingEstadisticas ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 animate-pulse">
+                  <div className="h-3 bg-gray-200 rounded w-2/3 mb-3"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-2 bg-gray-100 rounded w-full"></div>
+                </div>
+              ))}
+            </div>
+          ) : estadisticas ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Rotaciones Activas</span>
+                    <div className="bg-blue-50 p-1.5 rounded-lg"><Activity className="w-4 h-4 text-ufv-azul" /></div>
+                  </div>
+                  <p className="text-3xl font-black text-ufv-azul-oscuro">{estadisticas.rotaciones_activas}</p>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">{estadisticas.total_rotaciones} en total</p>
+                  {estadisticas.total_rotaciones > 0 && (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[10px] text-gray-400 font-bold mb-1">
+                        <span>Activas</span>
+                        <span>{Math.round(estadisticas.rotaciones_activas / estadisticas.total_rotaciones * 100)}%</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-ufv-azul rounded-full" style={{ width: `${Math.round(estadisticas.rotaciones_activas / estadisticas.total_rotaciones * 100)}%` }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Evaluaciones</span>
+                    <div className="bg-emerald-50 p-1.5 rounded-lg"><ClipboardCheck className="w-4 h-4 text-emerald-600" /></div>
+                  </div>
+                  <p className="text-3xl font-black text-emerald-600">{estadisticas.pct_evaluaciones_completadas}%</p>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">rotaciones completadas</p>
+                  <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${estadisticas.pct_evaluaciones_completadas}%` }} />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Sin Rotación</span>
+                    <div className="bg-amber-50 p-1.5 rounded-lg"><UserX className="w-4 h-4 text-amber-600" /></div>
+                  </div>
+                  <p className={`text-3xl font-black ${estadisticas.alumnos_sin_rotacion > 0 ? "text-amber-600" : "text-gray-400"}`}>{estadisticas.alumnos_sin_rotacion}</p>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">de {estadisticas.total_alumnos} alumnos</p>
+                  {estadisticas.total_alumnos > 0 && (
+                    <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.round(estadisticas.alumnos_sin_rotacion / estadisticas.total_alumnos * 100)}%` }} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Sin Tutor</span>
+                    <div className="bg-red-50 p-1.5 rounded-lg"><Users className="w-4 h-4 text-red-500" /></div>
+                  </div>
+                  <p className={`text-3xl font-black ${estadisticas.alumnos_sin_tutor > 0 ? "text-red-500" : "text-gray-400"}`}>{estadisticas.alumnos_sin_tutor}</p>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">rotaciones activas sin tutor</p>
+                  <div className="mt-3">
+                    {estadisticas.alumnos_sin_tutor > 0
+                      ? <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md uppercase tracking-wider"><AlertCircle className="w-3 h-3" /> Requiere atención</span>
+                      : <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md uppercase tracking-wider"><CheckCircle className="w-3 h-3" /> Todo asignado</span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              {(estadisticas.centros_mas_usados.length > 0 || estadisticas.distribucion_especialidades.length > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {estadisticas.centros_mas_usados.length > 0 && (
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="bg-pink-50 p-1.5 rounded-lg"><Building2 className="w-4 h-4 text-ufv-rosa-oscuro" /></div>
+                        <h3 className="text-sm font-black text-ufv-azul-oscuro uppercase tracking-widest">Centros más usados</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {(() => { const mx = Math.max(...estadisticas.centros_mas_usados.map(c => c.total), 1); return estadisticas.centros_mas_usados.map((c, i) => (
+                          <div key={i}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-sm font-bold text-gray-700 truncate max-w-[70%]">{c.nombre}</span>
+                              <span className="text-xs font-black text-gray-400 shrink-0 ml-2">{c.total} rot.</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${c.total / mx * 100}%`, backgroundColor: `hsl(${210 + i * 15},70%,${50 + i * 4}%)` }} />
+                            </div>
+                          </div>
+                        )); })()}
+                      </div>
+                    </div>
+                  )}
+                  {estadisticas.distribucion_especialidades.length > 0 && (
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="bg-blue-50 p-1.5 rounded-lg"><BarChart2 className="w-4 h-4 text-ufv-azul" /></div>
+                        <h3 className="text-sm font-black text-ufv-azul-oscuro uppercase tracking-widest">Por especialidad</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {(() => { const mx = Math.max(...estadisticas.distribucion_especialidades.map(e => e.total), 1); return estadisticas.distribucion_especialidades.map((e, i) => (
+                          <div key={i}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-sm font-bold text-gray-700 truncate max-w-[70%]">{e.nombre}</span>
+                              <span className="text-xs font-black text-gray-400 shrink-0 ml-2">{e.total} rot.</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: e.total > 0 ? `${e.total / mx * 100}%` : "4px", backgroundColor: `hsl(${195 + i * 20},65%,${48 + i * 3}%)` }} />
+                            </div>
+                          </div>
+                        )); })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm border border-gray-100">
+              <BarChart2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="font-medium text-sm">No se pudieron cargar las estadísticas.</p>
+            </div>
+          )}
+        </div>
+
+        <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 items-start ${panelTab !== "gestion" ? "hidden" : ""}`}>
           {/* GESTIÓN DE ESPECIALIDADES */}
           <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative flex flex-col">
             <div className="flex items-center gap-3 mb-4">
@@ -1121,7 +1357,7 @@ export default function AdminPanel() {
                           if (archivoExcelWizard) {
                             setWizardStep(4);
                           } else {
-                            alert("⚠️ Selecciona un archivo");
+                            toast.warning("Selecciona un archivo.");
                           }
                         }}
                         className="w-full p-3 bg-ufv-azul text-white rounded-xl font-bold hover:bg-ufv-azul-oscuro transition-all"
@@ -1357,7 +1593,7 @@ export default function AdminPanel() {
             {usuariosTab === "gestion" && (
             <>
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
+              <div className="bg-white border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
                 <GraduationCap className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
                 <span className="text-3xl font-black text-gray-800">
                   {isLoadingStats ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /> : statsUsuarios.alumnos}
@@ -1365,7 +1601,7 @@ export default function AdminPanel() {
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Alumnos</span>
               </div>
               
-              <div className="bg-gray-50/80 border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
+              <div className="bg-white border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
                 <UserPlus className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
                 <span className="text-3xl font-black text-gray-800">
                   {isLoadingStats ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /> : statsUsuarios.profesores}
@@ -1373,7 +1609,7 @@ export default function AdminPanel() {
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Profesores</span>
               </div>
 
-              <div className="col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-2xl flex items-center justify-between px-6">
+              <div className="col-span-2 stats-total-card border border-blue-100 p-4 rounded-2xl flex items-center justify-between px-6">
                 <div className="flex items-center gap-3">
                   <div className="bg-white p-2 rounded-xl text-ufv-azul shadow-sm"><Users className="w-5 h-5" /></div>
                   <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Total Cuentas Activas</span>
@@ -1551,6 +1787,26 @@ export default function AdminPanel() {
         onClose={() => setModalAltaAlumnoAbierto(false)}
         onManual={() => router.push("/admin/alumnos/nuevo")}
         onExcel={() => router.push("/admin/alumnos/importar")}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmPendiente !== null}
+        title={confirmPendiente?.tipo === "logout" ? "Cerrar sesión" : confirmPendiente?.tipo === "invitacion" ? "Eliminar invitación" : "Eliminar especialidad"}
+        message={confirmPendiente?.tipo === "logout"
+          ? "¿Estás seguro de que quieres cerrar sesión? Tendrás que iniciar sesión de nuevo para continuar."
+          : confirmPendiente?.tipo === "invitacion"
+            ? `¿Estás seguro de que quieres eliminar la invitación de "${confirmPendiente?.label}"?`
+            : `¿Estás seguro de que quieres eliminar "${confirmPendiente?.label}"?`}
+        confirmLabel={confirmPendiente?.tipo === "logout" ? "Cerrar sesión" : "Eliminar"}
+        variant={confirmPendiente?.tipo === "logout" ? "warning" : "danger"}
+        onConfirm={() => {
+          if (!confirmPendiente) return;
+          if (confirmPendiente.tipo === "logout") doLogout();
+          else if (confirmPendiente.tipo === "invitacion") doEliminarPendiente(confirmPendiente.id);
+          else doEliminarEspecialidad(confirmPendiente.id);
+          setConfirmPendiente(null);
+        }}
+        onCancel={() => setConfirmPendiente(null)}
       />
     </div>
   );

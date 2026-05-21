@@ -4,7 +4,8 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
 import Image from "next/image";
-import { ChevronLeft, UserPlus, Mail, KeyRound, Save, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { UserPlus, Mail, KeyRound, Save, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import Breadcrumb from "@/components/Breadcrumb";
 import { validarPasswordFuerte } from "@/lib/utils";
 
 function NuevoProfesorContent() {
@@ -63,13 +64,11 @@ function NuevoProfesorContent() {
       <div className="max-w-2xl mx-auto">
 
         {/* BOTÓN VOLVER */}
-        <button
-          type="button"
-          onClick={() => router.push("/admin/panel")}
-          className="mb-6 text-gray-500 hover:text-ufv-azul font-bold flex items-center gap-2 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Volver al Panel
-        </button>
+        <Breadcrumb items={[
+          { label: "Panel", href: "/admin/panel" },
+          { label: "Tutores", href: "/admin/profesores" },
+          { label: "Nuevo tutor" },
+        ]} />
 
         <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
 
