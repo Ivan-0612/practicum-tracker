@@ -22,37 +22,25 @@ interface Profesor {
 export default function ListaProfesores() {
   const router = useRouter();
   const { toast } = useToast();
-  const PAGE_SIZE = 20;
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [confirmEliminar, setConfirmEliminar] = useState<{ id: string; email: string } | null>(null);
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [totalProfesores, setTotalProfesores] = useState(0);
 
   // Estados para filtros
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("todos"); // <-- NUEVO ESTADO PARA EL FILTRO
 
-  const fetchProfesores = async (page = paginaActual) => {
+  const fetchProfesores = async () => {
     setIsLoading(true);
     const token = Cookies.get("practicum_token");
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        page_size: String(PAGE_SIZE),
-      });
-
-      if (busqueda.trim()) params.set("busqueda", busqueda.trim());
-      if (filtroTipo !== "todos") params.set("tipo_tutor", filtroTipo);
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores?${params.toString()}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores`, {
         headers: { "Authorization": `Bearer ${token}` },
         cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
-        setProfesores(Array.isArray(data.resultados) ? data.resultados : []);
-        setTotalProfesores(Number(data.total || 0));
+        setProfesores(data);
       }
     } catch (error) {
       console.error("Error al cargar profesores", error);
@@ -62,13 +50,8 @@ export default function ListaProfesores() {
   };
 
   useEffect(() => {
-    setPaginaActual(1);
-  }, [busqueda, filtroTipo]);
-
-  useEffect(() => {
     fetchProfesores();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paginaActual, busqueda, filtroTipo]);
+  }, []);
 
   const handleEliminar = async (id: string) => {
     const token = Cookies.get("practicum_token");
@@ -112,82 +95,78 @@ export default function ListaProfesores() {
     }
   };
 
-  const profesoresFiltrados = profesores;
-  const totalPaginas = Math.max(1, Math.ceil(totalProfesores / PAGE_SIZE));
-  const paginaSegura = Math.min(paginaActual, totalPaginas);
+  // --- LÓGICA DE FILTRADO COMBINADO ---
+  const profesoresFiltrados = profesores.filter(prof => {
+    const coincideBusqueda = prof.email.toLowerCase().includes(busqueda.toLowerCase());
+    
+    // Si el filtro es "todos", pasa. Si no, debe coincidir con el tipo_tutor del profesor.
+    // Manejamos el caso en que tipo_tutor sea null/undefined para profesores antiguos.
+    const tipoReal = prof.tipo_tutor || "no_especificado"; 
+    const coincideTipo = filtroTipo === "todos" || tipoReal === filtroTipo;
+
+    return coincideBusqueda && coincideTipo;
+  });
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
-        
+
         <Breadcrumb items={[
           { label: "Panel", href: "/admin/panel" },
           { label: "Tutores" },
         ]} />
 
-        {/* TARJETA PRINCIPAL */}
-        <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
-          
-          {/* CABECERA CON LOGO */}
-          <div className="flex flex-col md:flex-row items-start md:items-center mb-10 gap-6 border-b border-gray-100 pb-8">
-            <Image src="/logo-ufv.png" alt="Logo UFV" width={56} height={56} className="object-contain" />
-            <div>
-              <h1 className="text-3xl font-black text-ufv-azul-oscuro">Gestión de Tutores</h1>
-              <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">Universidad Francisco de Vitoria</p>
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 md:p-8">
+
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-xl text-ufv-azul">
+              <Users className="w-6 h-6" />
             </div>
+            <h1 className="text-2xl font-black text-ufv-azul-oscuro dark:text-white">Gestión de Tutores</h1>
           </div>
 
           <div className="space-y-8">
             
             {/* BARRA DE ACCIONES Y FILTROS */}
-            <section className="flex flex-col xl:flex-row gap-4 w-full">
-              
-              {/* GRUPO 1: BÚSQUEDA Y FILTRO */}
-              <div className="flex flex-col md:flex-row gap-4 flex-1">
-                
-                {/* Buscador */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input 
-                    type="text" 
-                    placeholder="Buscar tutor por correo electrónico..." 
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    className="w-full pl-12 pr-4 h-14 bg-gray-50 border border-gray-200 rounded-2xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul focus:bg-white outline-none transition-all text-gray-700 font-medium shadow-sm"
-                  />
-                </div>
+            <section className="flex flex-wrap items-center gap-2">
 
-                {/* Filtro Desplegable */}
-                <div className="relative w-full md:w-64 shrink-0">
-                  <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <select 
-                    value={filtroTipo} 
-                    onChange={(e) => setFiltroTipo(e.target.value)} 
-                    className="w-full pl-12 pr-10 h-14 bg-gray-50 border border-gray-200 rounded-2xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none appearance-none transition-all text-gray-700 font-bold cursor-pointer shadow-sm"
-                  >
-                    <option value="todos">Todos los roles</option>
-                    <option value="hospital">Tutor Hospital</option>
-                    <option value="universidad">Tutor Universidad</option>
-                    <option value="campo">Tutor de Campo</option>
-                  </select>
-                  {/* Flechita personalizada para el select */}
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="m6 9 6 6 6-6"/></svg>
-                  </div>
-                </div>
-                
+              {/* Buscador */}
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Buscar tutor por correo electrónico..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul focus:bg-white outline-none transition-all text-sm text-gray-700 dark:text-gray-300 font-medium shadow-sm hover:border-gray-300 dark:hover:border-gray-500"
+                />
               </div>
 
-              {/* GRUPO 2: BOTONES DE ACCIÓN */}
-              <div className="flex gap-3 shrink-0">
-                <button
-                  onClick={() => router.push("/admin/profesores/nuevo")}
-                  className="w-full xl:w-auto h-14 px-6 bg-ufv-azul text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm"
+              {/* Filtro rol */}
+              <div className="relative">
+                <select
+                  value={filtroTipo}
+                  onChange={(e) => setFiltroTipo(e.target.value)}
+                  className="pl-3 pr-8 py-2 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none appearance-none transition-all text-sm font-bold text-gray-700 dark:text-gray-300 shadow-sm hover:border-gray-300 dark:hover:border-gray-500"
                 >
-                  <UserPlus className="w-5 h-5 shrink-0" />
-                  <span className="whitespace-nowrap">+ Nuevo Tutor</span>
-                </button>
+                  <option value="todos">Todos los roles</option>
+                  <option value="hospital">Tutor Hospital</option>
+                  <option value="universidad">Tutor Universidad</option>
+                  <option value="campo">Tutor de Campo</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
               </div>
+
+              {/* Botón nuevo tutor */}
+              <button
+                onClick={() => router.push("/admin/profesores/nuevo")}
+                className="ml-auto px-5 py-2 bg-ufv-azul text-white rounded-xl font-bold flex items-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm text-sm shrink-0"
+              >
+                <UserPlus className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">+ Nuevo Tutor</span>
+              </button>
 
             </section>
 
@@ -273,33 +252,6 @@ export default function ListaProfesores() {
                     ))}
                   </div>
                 )}
-              </div>
-
-              <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-1">
-                <p className="text-xs font-medium text-gray-500">
-                  Mostrando {profesoresFiltrados.length === 0 ? 0 : (paginaSegura - 1) * PAGE_SIZE + 1} - {Math.min((paginaSegura - 1) * PAGE_SIZE + profesoresFiltrados.length, totalProfesores)} de {totalProfesores} tutores
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
-                    disabled={paginaSegura <= 1}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Anterior
-                  </button>
-                  <span className="text-xs font-bold text-gray-500 px-2">
-                    Página {paginaSegura} de {totalPaginas}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
-                    disabled={paginaSegura >= totalPaginas}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Siguiente
-                  </button>
-                </div>
               </div>
             </section>
           </div>

@@ -361,7 +361,7 @@ export default function ProfesorDashboard() {
 
   // Componente de Tarjeta de Alumno
   const TarjetaAlumno = ({ item }: { item: AlumnoAsignado }) => (
-    <div className="bg-white rounded-3xl shadow-sm border border-gray-200 border-t-4 border-t-ufv-azul overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col">
+    <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-300 group flex flex-col">
       <div className="p-6 flex-grow">
         <div className="flex justify-between items-start mb-6 gap-2">
           <div className="flex flex-wrap gap-2">
@@ -386,7 +386,7 @@ export default function ProfesorDashboard() {
         <h3 className="text-xl font-black text-ufv-azul-oscuro mb-1 group-hover:text-ufv-azul transition-colors">{item.nombre_completo}</h3>
         <p className="text-xs font-bold text-gray-500 mb-3">{item.especialidad} (Rotación {item.numero_rotacion})</p>
 
-        <div className="mt-4 space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+        <div className="mt-4 space-y-3 p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700">
           <div className="flex items-center text-sm text-gray-500 font-medium">
             <Briefcase className="w-4 h-4 mr-3 text-ufv-rosa-oscuro shrink-0" />
             <span className="truncate text-gray-700 font-bold" title={item.centro_practicas || "Centro clínico no especificado"}>
@@ -412,7 +412,7 @@ export default function ProfesorDashboard() {
         </div>
       </div>
 
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 mt-auto flex flex-col gap-2">
+      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-100 dark:border-gray-700 mt-auto flex flex-col gap-2">
         {item.estado_evaluacion === "Completada" ? (
           <button onClick={() => router.push(`/profesor/evaluar/${item.rotacion_id}`)} className="w-full bg-green-50 border border-green-200 text-green-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-100 transition-all shadow-sm text-sm">
             <CheckCircle2 className="w-4 h-4" /> Acta Cerrada (Revisar)
@@ -434,11 +434,11 @@ export default function ProfesorDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] p-4 md:p-8">
       <div className="max-w-7xl mx-auto pb-20">
 
         {/* CABECERA PRINCIPAL */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-gray-200 pb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
             <Image src="/logo-ufv.png" alt="Logo UFV" width={56} height={56} className="object-contain" />
             <div>
@@ -477,18 +477,18 @@ export default function ProfesorDashboard() {
           </div>
         </div>
 
-        <div className="mb-8 bg-white border border-gray-200 rounded-2xl p-1 flex gap-1 shadow-sm w-full max-w-2xl">
+        <div className="mb-8 bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-gray-700 rounded-2xl p-1 flex gap-1 shadow-sm w-full max-w-2xl">
           <button
             type="button"
             onClick={() => setVistaPrincipalTab("directorio")}
-            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${vistaPrincipalTab === "directorio" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${vistaPrincipalTab === "directorio" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
           >
             <Folder className="w-4 h-4" /> Directorio de Alumnos
           </button>
           <button
             type="button"
             onClick={() => setVistaPrincipalTab("resumen")}
-            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${vistaPrincipalTab === "resumen" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${vistaPrincipalTab === "resumen" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
           >
             <BarChart2 className="w-4 h-4" /> Resumen global
           </button>
@@ -680,32 +680,39 @@ export default function ProfesorDashboard() {
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
 
                 <div className="relative w-full sm:w-52">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Calendar className="h-4 w-4 text-gray-400" /></div>
                   <select
                     value={filtroPeriodo}
                     onChange={(e) => { setFiltroPeriodo(e.target.value); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); setEstadoEvaluacionActivo(null); }}
-                    className="block w-full pl-11 pr-8 py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-ufv-azul outline-none font-bold appearance-none cursor-pointer"
+                    className="pl-3 pr-8 py-2 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none appearance-none transition-all text-sm font-bold text-gray-700 dark:text-gray-300 shadow-sm hover:border-gray-300 dark:hover:border-gray-500 w-full cursor-pointer"
                   >
                     <option value="Todos">Todos los años</option>
                     {periodosDisponibles.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </div>
                 </div>
 
-                <select
-                  value={filtroEstado}
-                  onChange={(e) => { setFiltroEstado(e.target.value); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); setEstadoEvaluacionActivo(null); }}
-                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 rounded-xl p-3.5 shadow-sm font-bold outline-none cursor-pointer"
-                >
-                  <option value="Todos">Todos los estados</option>
-                  <option value="Pendiente">⏳ Pendientes</option>
-                  <option value="En Proceso">📝 Borradores</option>
-                  <option value="Pendiente Confirmación Final">⚠️ Sin confirmar</option>
-                  <option value="Completada">✅ Evaluados</option>
-                </select>
+                <div className="relative w-full sm:w-auto">
+                  <select
+                    value={filtroEstado}
+                    onChange={(e) => { setFiltroEstado(e.target.value); setCursoActivo(null); setRotacionActiva(null); setEspecialidadActiva(null); setEstadoEvaluacionActivo(null); }}
+                    className="pl-3 pr-8 py-2 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none appearance-none transition-all text-sm font-bold text-gray-700 dark:text-gray-300 shadow-sm hover:border-gray-300 dark:hover:border-gray-500 w-full cursor-pointer"
+                  >
+                    <option value="Todos">Todos los estados</option>
+                    <option value="Pendiente">⏳ Pendientes</option>
+                    <option value="En Proceso">📝 Borradores</option>
+                    <option value="Pendiente Confirmación Final">⚠️ Sin confirmar</option>
+                    <option value="Completada">✅ Evaluados</option>
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
 
                 <div className="relative w-full sm:w-72">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
-                  <input type="text" className="block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-ufv-azul outline-none shadow-sm font-medium" placeholder="Buscar alumno..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+                  <input type="text" className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:border-gray-300 dark:hover:border-gray-500" placeholder="Buscar alumno..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
                 </div>
               </div>
             </header>
@@ -713,7 +720,7 @@ export default function ProfesorDashboard() {
             {loading ? (
               <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ufv-azul"></div></div>
             ) : alumnos.length === 0 ? (
-              <div className="bg-white border-2 border-dashed border-gray-200 rounded-[2rem] p-16 text-center">
+              <div className="bg-white dark:bg-[#0f172a] border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-16 text-center">
                 <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-gray-700">Sin alumnos</h3>
                 <p className="text-gray-500 mt-2 font-medium">No tienes alumnos asignados para los filtros seleccionados.</p>
@@ -744,18 +751,18 @@ export default function ProfesorDashboard() {
 
                       return (
                         <>
-                          <button onClick={() => setEstadoEvaluacionActivo("Evaluados")} className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group">
-                            <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                          <button onClick={() => setEstadoEvaluacionActivo("Evaluados")} className="flex items-center p-6 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-ufv-azul dark:hover:border-ufv-azul transition-all text-left group">
+                            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                             <div>
-                              <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">Evaluados</h3>
-                              <p className="text-sm font-bold text-gray-500 mt-1">{alumnosEvaluados.length} alumnos</p>
+                              <h3 className="text-xl font-black text-ufv-azul-oscuro dark:text-white group-hover:text-ufv-azul">Evaluados</h3>
+                              <p className="text-sm font-bold text-gray-400 dark:text-gray-500 mt-1">{alumnosEvaluados.length} alumnos</p>
                             </div>
                           </button>
-                          <button onClick={() => setEstadoEvaluacionActivo("No Evaluados")} className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group">
-                            <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                          <button onClick={() => setEstadoEvaluacionActivo("No Evaluados")} className="flex items-center p-6 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-ufv-azul dark:hover:border-ufv-azul transition-all text-left group">
+                            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                             <div>
-                              <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">No Evaluados</h3>
-                              <p className="text-sm font-bold text-gray-500 mt-1">{alumnosNoEvaluados.length} alumnos</p>
+                              <h3 className="text-xl font-black text-ufv-azul-oscuro dark:text-white group-hover:text-ufv-azul">No Evaluados</h3>
+                              <p className="text-sm font-bold text-gray-400 dark:text-gray-500 mt-1">{alumnosNoEvaluados.length} alumnos</p>
                             </div>
                           </button>
                         </>
@@ -765,11 +772,11 @@ export default function ProfesorDashboard() {
                 ) : !cursoActivo ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {cursosDisponibles.map(curso => (
-                      <button key={curso} onClick={() => setCursoActivo(curso)} className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group">
-                        <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                      <button key={curso} onClick={() => setCursoActivo(curso)} className="flex items-center p-6 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-ufv-azul dark:hover:border-ufv-azul transition-all text-left group">
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                         <div>
-                          <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">{curso}º Curso</h3>
-                          <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === curso).length} alumnos</p>
+                          <h3 className="text-xl font-black text-ufv-azul-oscuro dark:text-white group-hover:text-ufv-azul">{curso}º Curso</h3>
+                          <p className="text-sm font-bold text-gray-400 dark:text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === curso).length} alumnos</p>
                         </div>
                       </button>
                     ))}
@@ -777,11 +784,11 @@ export default function ProfesorDashboard() {
                 ) : !rotacionActiva ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {rotacionesDelCurso.map(rot => (
-                      <button key={rot} onClick={() => setRotacionActiva(rot)} className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group">
-                        <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                      <button key={rot} onClick={() => setRotacionActiva(rot)} className="flex items-center p-6 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-ufv-azul dark:hover:border-ufv-azul transition-all text-left group">
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                         <div>
-                          <h3 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">Rotación {rot}</h3>
-                          <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rot).length} alumnos</p>
+                          <h3 className="text-xl font-black text-ufv-azul-oscuro dark:text-white group-hover:text-ufv-azul">Rotación {rot}</h3>
+                          <p className="text-sm font-bold text-gray-400 dark:text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rot).length} alumnos</p>
                         </div>
                       </button>
                     ))}
@@ -789,11 +796,11 @@ export default function ProfesorDashboard() {
                 ) : !especialidadActiva ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {especialidadesDeLaRotacion.map(esp => (
-                      <button key={esp} onClick={() => setEspecialidadActiva(esp)} className="flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group">
-                        <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Briefcase className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                      <button key={esp} onClick={() => setEspecialidadActiva(esp)} className="flex items-center p-6 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-ufv-azul dark:hover:border-ufv-azul transition-all text-left group">
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Briefcase className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                         <div>
-                          <h3 className="text-lg font-black text-ufv-azul-oscuro group-hover:text-ufv-azul truncate max-w-[200px]">{esp}</h3>
-                          <p className="text-sm font-bold text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva && a.especialidad === esp).length} alumnos</p>
+                          <h3 className="text-lg font-black text-ufv-azul-oscuro dark:text-white group-hover:text-ufv-azul truncate max-w-[200px]">{esp}</h3>
+                          <p className="text-sm font-bold text-gray-400 dark:text-gray-500 mt-1">{alumnosPorEvaluacion.filter(a => a.curso === cursoActivo && a.numero_rotacion === rotacionActiva && a.especialidad === esp).length} alumnos</p>
                         </div>
                       </button>
                     ))}
@@ -821,26 +828,26 @@ export default function ProfesorDashboard() {
       {/* MODAL CAMBIO PASSWORD */}
       {showPassModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border-t-4 border-ufv-azul">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-xl font-black text-ufv-azul-oscuro">Cambiar Contraseña</h3>
-              <button onClick={() => setShowPassModal(false)} className="p-2 text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full"><X className="w-5 h-5" /></button>
+          <div className="bg-white dark:bg-[#0f172a] rounded-2xl w-full max-w-md overflow-hidden shadow-xl border border-gray-100 dark:border-gray-700">
+            <div className="px-6 pt-6 pb-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-black text-ufv-azul-oscuro dark:text-white">Cambiar contraseña</h3>
+              <button onClick={() => setShowPassModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleCambiarPassword} className="p-8 space-y-5">
+            <form onSubmit={handleCambiarPassword} className="p-6 space-y-5">
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Contraseña Actual</label>
-                <input type="password" required className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-ufv-azul" value={passFormData.actual} onChange={e => setPassFormData({ ...passFormData, actual: e.target.value })} />
+                <input type="password" required className="w-full p-3 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul text-sm font-medium text-gray-700 dark:text-gray-300 transition-all" value={passFormData.actual} onChange={e => setPassFormData({ ...passFormData, actual: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Nueva Contraseña</label>
-                <input type="password" required className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-ufv-azul" value={passFormData.nueva} onChange={e => setPassFormData({ ...passFormData, nueva: e.target.value })} />
+                <input type="password" required className="w-full p-3 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul text-sm font-medium text-gray-700 dark:text-gray-300 transition-all" value={passFormData.nueva} onChange={e => setPassFormData({ ...passFormData, nueva: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Confirmar Nueva Contraseña</label>
-                <input type="password" required className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-ufv-azul" value={passFormData.confirmar} onChange={e => setPassFormData({ ...passFormData, confirmar: e.target.value })} />
+                <input type="password" required className="w-full p-3 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul text-sm font-medium text-gray-700 dark:text-gray-300 transition-all" value={passFormData.confirmar} onChange={e => setPassFormData({ ...passFormData, confirmar: e.target.value })} />
               </div>
               {passStatus.msg && <div className={`p-4 rounded-xl text-sm font-bold ${passStatus.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{passStatus.msg}</div>}
-              <button type="submit" className="w-full bg-ufv-azul text-white py-4 rounded-xl font-black shadow-lg hover:bg-ufv-azul-oscuro active:scale-95 transition-all">Actualizar Contraseña</button>
+              <button type="submit" className="w-full py-2.5 bg-ufv-azul text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm text-sm">Actualizar Contraseña</button>
             </form>
           </div>
         </div>
@@ -862,10 +869,13 @@ export default function ProfesorDashboard() {
       {/* MODAL INFORME Y EXPORTACIÓN */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-8 bg-gray-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-t-4 border-emerald-500">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-              <h3 className="text-xl font-black text-ufv-azul-oscuro flex items-center gap-2"><BookOpen className="w-5 h-5 text-emerald-500" /> Informe de Calificaciones</h3>
-              <button onClick={() => setShowExportModal(false)} className="p-2 text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full"><X className="w-5 h-5" /></button>
+          <div className="bg-white dark:bg-[#0f172a] rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden shadow-xl border border-gray-100 dark:border-gray-700">
+            <div className="px-6 pt-6 pb-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-700 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="bg-emerald-50 dark:bg-emerald-900/30 p-1.5 rounded-lg"><BookOpen className="w-4 h-4 text-emerald-600" /></div>
+                <h3 className="text-lg font-black text-ufv-azul-oscuro dark:text-white">Informe de calificaciones</h3>
+              </div>
+              <button onClick={() => setShowExportModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col lg:flex-row gap-8">

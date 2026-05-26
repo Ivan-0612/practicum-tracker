@@ -644,6 +644,8 @@ def listar_alumnos_por_email(
     busqueda: str | None = None,
     curso: int | None = None,
     periodo_academico: str | None = None,
+    filtro_estado: str | None = None,
+    filtro_tutor: str | None = None,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
 ):
@@ -683,6 +685,50 @@ def listar_alumnos_por_email(
             )
         )
         alumnos_query = alumnos_query.filter(periodo_match)
+
+    if filtro_estado == "en_curso":
+        alumnos_query = alumnos_query.filter(
+            exists().where(
+                and_(
+                    models.Rotacion.alumno_id == models.Alumno.id,
+                    models.Rotacion.completada == False,
+                )
+            )
+        )
+    elif filtro_estado == "finalizada":
+        alumnos_query = alumnos_query.filter(
+            exists().where(
+                and_(
+                    models.Rotacion.alumno_id == models.Alumno.id,
+                    models.Rotacion.completada == True,
+                )
+            )
+        )
+
+    if filtro_tutor == "con_tutor":
+        alumnos_query = alumnos_query.filter(
+            exists().where(
+                and_(
+                    models.AsignacionTutor.rotacion_id == models.Rotacion.id,
+                    models.Rotacion.alumno_id == models.Alumno.id,
+                    models.AsignacionTutor.tipo_tutor == "campo",
+                )
+            )
+        )
+    elif filtro_tutor == "sin_tutor":
+        alumnos_query = alumnos_query.filter(
+            exists().where(
+                and_(
+                    models.Rotacion.alumno_id == models.Alumno.id,
+                    ~exists().where(
+                        and_(
+                            models.AsignacionTutor.rotacion_id == models.Rotacion.id,
+                            models.AsignacionTutor.tipo_tutor == "campo",
+                        )
+                    ),
+                )
+            )
+        )
 
     total = alumnos_query.count()
     estudiantes = (
@@ -1279,6 +1325,47 @@ def obtener_historial_asistencia_alumno(
         )
 
     return registros_limpios
+
+
+@router.get("/rotaciones/{rotacion_id}/enlace-tutor-activo", response_model=schemas.EnlaceTutorCampoResponse)
+def obtener_enlace_tutor_activo(
+    rotacion_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(security.get_current_user),
+):
+    """
+    Devuelve el enlace de invitación activo (no usado, no expirado) para una rotación.
+    Si no hay ninguno, devuelve 404.
+    """
+    import os
+    from datetime import datetime, timezone
+
+    if current_user.rol != "estudiante":
+        raise HTTPException(status_code=403, detail="Solo los alumnos pueden consultar este enlace.")
+
+    alumno = db.query(models.Alumno).filter(models.Alumno.usuario_id == current_user.id).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado.")
+
+    rotacion = db.query(models.Rotacion).filter(
+        models.Rotacion.id == rotacion_id,
+        models.Rotacion.alumno_id == alumno.id,
+    ).first()
+    if not rotacion:
+        raise HTTPException(status_code=404, detail="Rotación no encontrada.")
+
+    invitacion = db.query(models.InvitacionTutorCampo).filter(
+        models.InvitacionTutorCampo.rotacion_id == rotacion.id,
+        models.InvitacionTutorCampo.usado == False,
+        models.InvitacionTutorCampo.expira_at > datetime.now(timezone.utc),
+    ).first()
+
+    if not invitacion:
+        raise HTTPException(status_code=404, detail="No hay enlace activo para esta rotación.")
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    enlace = f"{frontend_url}/tutor-campo/registro?token={invitacion.token}"
+    return schemas.EnlaceTutorCampoResponse(enlace=enlace, token=invitacion.token)
 
 
 @router.post("/rotaciones/{rotacion_id}/generar-enlace-tutor", response_model=schemas.EnlaceTutorCampoResponse)

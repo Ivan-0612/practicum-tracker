@@ -78,6 +78,7 @@ export default function AlumnoDashboard() {
   const [isGenerandoEnlace, setIsGenerandoEnlace] = useState(false);
   const [enlaceGenerado, setEnlaceGenerado] = useState<string | null>(null);
   const [enlaceCopiado, setEnlaceCopiado] = useState(false);
+  const [enlaceRecuperado, setEnlaceRecuperado] = useState(false);
 
   // 1. Leer memoria al cargar
   useEffect(() => {
@@ -310,6 +311,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
       const data = await res.json();
       if (res.ok) {
         setEnlaceGenerado(data.enlace);
+        setEnlaceRecuperado(true);
       } else {
         toast.error(data.detail || "Error al generar el enlace.");
       }
@@ -335,7 +337,31 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
     setShowTutorCampoModal(false);
     setEnlaceGenerado(null);
     setEnlaceCopiado(false);
+    setEnlaceRecuperado(false);
     setRotacionSeleccionadaTutor(null);
+  };
+
+  const abrirModalTutorCampo = async (rotacionId: string) => {
+    setRotacionSeleccionadaTutor(rotacionId);
+    setEnlaceGenerado(null);
+    setEnlaceCopiado(false);
+    setEnlaceRecuperado(false);
+    setShowTutorCampoModal(true);
+    // Intentar recuperar enlace activo existente
+    try {
+      const token = Cookies.get("practicum_token");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/alumnos/rotaciones/${rotacionId}/enlace-tutor-activo`,
+        { headers: { "Authorization": `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setEnlaceGenerado(data.enlace);
+        setEnlaceRecuperado(true);
+      }
+    } catch {
+      // Sin enlace activo — el alumno puede generar uno nuevo
+    }
   };
 
   if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse">Cargando tu expediente...</div>;
@@ -360,7 +386,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
   const centrosFiltradosNuevaRotacion = opcionesCentros;
 
   const TarjetaRotacion = ({ rot }: { rot: any }) => (
-    <div className="relative bg-white p-6 rounded-3xl border border-gray-200 border-t-4 border-t-ufv-azul shadow-sm flex flex-col hover:shadow-xl transition-all duration-300">
+    <div className="relative bg-white dark:bg-[#0f172a] p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col hover:shadow-md transition-all duration-300">
       {/* ZONA SUPERIOR (Evaluación) */}
       <div onClick={() => router.push(`/alumno/evaluar/${rot.id}`)} className="cursor-pointer group mb-5">
         <div className="flex items-start gap-4 mb-4">
@@ -383,7 +409,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+        <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">
             <Users className="w-3 h-3" /> Tutores Asignados
           </div>
@@ -413,10 +439,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setRotacionSeleccionadaTutor(rot.id);
-                      setEnlaceGenerado(null);
-                      setEnlaceCopiado(false);
-                      setShowTutorCampoModal(true);
+                      abrirModalTutorCampo(rot.id);
                     }}
                     className="text-xs text-ufv-azul font-bold hover:underline px-2 py-1"
                   >
@@ -446,7 +469,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] p-4 md:p-8">
       <div className="max-w-6xl mx-auto pb-20">
         
         {/* CABECERA CORPORATIVA Y ACCIONES */}
@@ -490,7 +513,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
 
         {/* SALUDO AL ALUMNO */}
         <div className="mb-8">
-            <h2 className="text-2xl font-black text-ufv-azul-oscuro flex items-center gap-2">
+            <h2 className="text-2xl font-black text-ufv-azul-oscuro dark:text-white flex items-center gap-2">
                 Hola, {datos?.alumno.nombre} <span className="text-3xl">👋</span>
             </h2>
             <p className="text-gray-500 font-medium mt-1">Navega por tu rotación activa o consulta el historial en la carpeta de rotaciones pasadas.</p>
@@ -500,9 +523,9 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
         {!mostrarPasadas ? (
           <div className="space-y-8">
             <section>
-              <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4">Rotación Activa</h3>
+              <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Rotación Activa</h3>
               {rotacionesActivas.length === 0 ? (
-                <div className="bg-white border-2 border-dashed border-gray-200 rounded-[2rem] p-10 text-center">
+                <div className="bg-white dark:bg-[#0f172a] border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-10 text-center">
                   <h4 className="text-lg font-bold text-gray-700">Sin rotación activa</h4>
                   <p className="text-gray-500 mt-2 font-medium">Tu próxima rotación aparecerá aquí cuando esté disponible.</p>
                 </div>
@@ -516,14 +539,14 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
             </section>
 
             <section>
-              <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4">Histórico</h3>
+              <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Histórico</h3>
               <button
                 onClick={() => setMostrarPasadas(true)}
-                className="w-full md:w-auto flex items-center p-6 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-ufv-azul transition-all text-left group"
+                className="w-full md:w-auto flex items-center p-6 bg-white dark:bg-[#0f172a] rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-ufv-azul dark:hover:border-ufv-azul transition-all text-left group"
               >
-                <div className="bg-blue-50 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-2xl mr-5 group-hover:bg-ufv-azul transition-colors"><Folder className="w-8 h-8 text-ufv-azul group-hover:text-white" /></div>
                 <div>
-                  <h4 className="text-xl font-black text-ufv-azul-oscuro group-hover:text-ufv-azul">Rotaciones Pasadas</h4>
+                  <h4 className="text-xl font-black text-ufv-azul-oscuro dark:text-white group-hover:text-ufv-azul">Rotaciones Pasadas</h4>
                   <p className="text-sm font-bold text-gray-500 mt-1">{rotacionesPasadas.length} cerradas</p>
                 </div>
               </button>
@@ -531,7 +554,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
           </div>
         ) : (
           <section className="space-y-6">
-            <div className="flex flex-wrap items-center text-sm text-gray-500 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm font-medium w-fit">
+            <div className="flex flex-wrap items-center text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-[#0f172a] p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm font-medium w-fit">
               <button onClick={() => setMostrarPasadas(false)} className={`flex items-center gap-1.5 hover:text-ufv-azul px-2 ${!mostrarPasadas ? "font-bold text-ufv-azul" : ""}`}>
                 <Home className="w-4 h-4" /> Inicio
               </button>
@@ -540,7 +563,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
             </div>
 
             {rotacionesPasadas.length === 0 ? (
-              <div className="bg-white border-2 border-dashed border-gray-200 rounded-[2rem] p-10 text-center">
+              <div className="bg-white dark:bg-[#0f172a] border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-10 text-center">
                 <h4 className="text-lg font-bold text-gray-700">Sin rotaciones pasadas</h4>
                 <p className="text-gray-500 mt-2 font-medium">Cuando cierres una rotación, aparecerá aquí.</p>
               </div>
@@ -551,7 +574,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                   <select 
                     value={filtroCursoPasadas}
                     onChange={(e) => setFiltroCursoPasadas(e.target.value)}
-                    className="block w-full px-4 py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-ufv-azul outline-none font-bold appearance-none cursor-pointer"
+                    className="pl-3 pr-8 py-2 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none appearance-none transition-all text-sm font-bold text-gray-700 dark:text-gray-300 shadow-sm hover:border-gray-300 dark:hover:border-gray-500 w-full cursor-pointer"
                   >
                     <option value="Todos">Todos los cursos</option>
                     {Array.from(new Set(rotacionesPasadas.map((rot: any) => rot.curso)) as unknown as number[])
@@ -595,11 +618,12 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
 
       {showNuevaRotacionModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-xl shadow-2xl border-t-4 border-ufv-azul">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-ufv-azul-oscuro">Nueva rotación</h2>
-              <button onClick={() => setShowNuevaRotacionModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+          <div className="bg-white dark:bg-[#0f172a] rounded-2xl overflow-hidden w-full max-w-xl shadow-xl border border-gray-100 dark:border-gray-700">
+            <div className="px-6 pt-6 pb-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+              <h2 className="text-lg font-black text-ufv-azul-oscuro dark:text-white">Nueva rotación</h2>
+              <button onClick={() => setShowNuevaRotacionModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
             </div>
+            <div className="p-6">
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -607,7 +631,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                 <select
                   value={nuevaRotacionForm.curso}
                   onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, curso: Number(e.target.value) })}
-                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                  className="w-full border border-gray-200 dark:border-gray-700 p-3 rounded-xl bg-gray-50 dark:bg-[#0B1120] text-sm font-bold text-gray-700 dark:text-gray-300 outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul transition-all"
                 >
                   <option value={2}>2º</option>
                   <option value={3}>3º</option>
@@ -619,7 +643,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                 <select
                   value={nuevaRotacionForm.numero_rotacion}
                   onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, numero_rotacion: Number(e.target.value) })}
-                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                  className="w-full border border-gray-200 dark:border-gray-700 p-3 rounded-xl bg-gray-50 dark:bg-[#0B1120] text-sm font-bold text-gray-700 dark:text-gray-300 outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul transition-all"
                 >
                   <option value={1}>Rotación 1</option>
                   <option value={2}>Rotación 2</option>
@@ -634,7 +658,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                     const nuevaEspecialidad = e.target.value;
                     setNuevaRotacionForm({ ...nuevaRotacionForm, especialidad_id: nuevaEspecialidad });
                   }}
-                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                  className="w-full border border-gray-200 dark:border-gray-700 p-3 rounded-xl bg-gray-50 dark:bg-[#0B1120] text-sm font-bold text-gray-700 dark:text-gray-300 outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul transition-all"
                 >
                   {opcionesEspecialidades.map((esp) => (
                     <option key={esp.id} value={esp.id}>{esp.nombre}</option>
@@ -646,7 +670,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                 <select
                   value={nuevaRotacionForm.centro_practicas_id}
                   onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, centro_practicas_id: e.target.value })}
-                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                  className="w-full border border-gray-200 dark:border-gray-700 p-3 rounded-xl bg-gray-50 dark:bg-[#0B1120] text-sm font-bold text-gray-700 dark:text-gray-300 outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul transition-all"
                 >
                   {centrosFiltradosNuevaRotacion.map((centro) => (
                     <option key={centro.id} value={centro.id}>{centro.nombre}</option>
@@ -658,7 +682,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                 <select
                   value={nuevaRotacionForm.periodo_academico}
                   onChange={(e) => setNuevaRotacionForm({ ...nuevaRotacionForm, periodo_academico: e.target.value })}
-                  className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50"
+                  className="w-full border border-gray-200 dark:border-gray-700 p-3 rounded-xl bg-gray-50 dark:bg-[#0B1120] text-sm font-bold text-gray-700 dark:text-gray-300 outline-none focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul transition-all"
                 >
                   {periodosAcademicos.map((periodo) => (
                     <option key={periodo} value={periodo}>
@@ -680,6 +704,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                 {isSavingNuevaRotacion ? "Guardando..." : "Solicitar"}
               </button>
             </div>
+            </div>
           </div>
         </div>
       )}
@@ -687,24 +712,23 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
       {/* MODAL DE CAMBIO DE CONTRASEÑA */}
       {showPassModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border-t-4 border-ufv-azul animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-ufv-azul-oscuro">Cambiar contraseña</h2>
-              <button onClick={() => setShowPassModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+          <div className="bg-white dark:bg-[#0f172a] rounded-2xl overflow-hidden w-full max-w-md shadow-xl border border-gray-100 dark:border-gray-700">
+            <div className="px-6 pt-6 pb-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+              <h2 className="text-lg font-black text-ufv-azul-oscuro dark:text-white">Cambiar contraseña</h2>
+              <button onClick={() => setShowPassModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
             </div>
-
-            <form onSubmit={handleCambiarPassword} className="space-y-5">
+            <form onSubmit={handleCambiarPassword} className="p-6 space-y-5">
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Contraseña Actual</label>
-                <input type="password" required className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" value={passFormData.actual} onChange={(e) => setPassFormData({...passFormData, actual: e.target.value})} />
+                <input type="password" required className="w-full p-3 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all text-sm font-medium text-gray-700 dark:text-gray-300" value={passFormData.actual} onChange={(e) => setPassFormData({...passFormData, actual: e.target.value})} />
               </div>
               <div className="pt-2 border-t border-gray-100">
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Nueva Contraseña (mín. 8)</label>
-                <input type="password" required minLength={8} className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" value={passFormData.nueva} onChange={(e) => setPassFormData({...passFormData, nueva: e.target.value})} />
+                <input type="password" required minLength={8} className="w-full p-3 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all text-sm font-medium text-gray-700 dark:text-gray-300" value={passFormData.nueva} onChange={(e) => setPassFormData({...passFormData, nueva: e.target.value})} />
               </div>
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Confirmar Nueva</label>
-                <input type="password" required className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul outline-none transition-all text-gray-900" value={passFormData.confirmar} onChange={(e) => setPassFormData({...passFormData, confirmar: e.target.value})} />
+                <input type="password" required className="w-full p-3 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all text-sm font-medium text-gray-700 dark:text-gray-300" value={passFormData.confirmar} onChange={(e) => setPassFormData({...passFormData, confirmar: e.target.value})} />
               </div>
 
               {passStatus.msg && (
@@ -738,15 +762,12 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
       {/* MODAL TUTOR DE CAMPO — NUEVO FLUJO POR ENLACE */}
       {showTutorCampoModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border-t-4 border-t-ufv-azul animate-in fade-in zoom-in duration-200">
-
-            {/* Cabecera */}
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-ufv-azul-oscuro">Añadir Tutor de Campo</h2>
-              <button onClick={cerrarModalTutorCampo} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+          <div className="bg-white dark:bg-[#0f172a] rounded-2xl overflow-hidden w-full max-w-md shadow-xl border border-gray-100 dark:border-gray-700">
+            <div className="px-6 pt-6 pb-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+              <h2 className="text-lg font-black text-ufv-azul-oscuro dark:text-white">Tutor de Campo</h2>
+              <button onClick={cerrarModalTutorCampo} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
             </div>
+            <div className="p-6">
 
             {!enlaceGenerado ? (
               /* PASO 1: Generar enlace */
@@ -782,7 +803,9 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
               /* PASO 2: Mostrar enlace para compartir */
               <>
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-5">
-                  <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-2">Enlace generado · válido 7 días</p>
+                  <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-2">
+                    {enlaceRecuperado ? "Enlace activo · ya generado previamente" : "Enlace generado · válido 7 días"}
+                  </p>
                   <p className="text-xs text-gray-500 font-medium break-all bg-white border border-gray-200 rounded-xl p-3 select-all">
                     {enlaceGenerado}
                   </p>
@@ -807,6 +830,15 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                   Envía este enlace al enfermero por WhatsApp, email o como prefieras. Él podrá registrarse desde ahí.
                 </p>
 
+                {enlaceRecuperado && (
+                  <button
+                    type="button"
+                    onClick={() => { setEnlaceGenerado(null); setEnlaceRecuperado(false); }}
+                    className="w-full py-3 font-bold text-gray-400 dark:text-gray-500 hover:text-ufv-azul rounded-xl transition-colors text-xs mb-1"
+                  >
+                    Invalidar y generar un nuevo enlace
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={cerrarModalTutorCampo}
@@ -816,6 +848,7 @@ const handleCambiarPassword = async (e: React.FormEvent) => {
                 </button>
               </>
             )}
+            </div>
           </div>
         </div>
       )}

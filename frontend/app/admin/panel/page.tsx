@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
@@ -32,14 +31,13 @@ import {
   ArrowRight,
   Edit3,
   Zap,
-  ArrowLeft,
-  BookOpen,
   Activity,
   BarChart2,
   UserX,
   Building2,
   ClipboardCheck,
   RotateCcw,
+  BookOpen
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useToast } from "@/components/ToastProvider";
@@ -61,9 +59,7 @@ const RenderizadorEvaluacionCompacta = ({ data }: { data: any }) => {
       </div>
     );
   }
-
   const nivelesKeys = data.niveles ? Object.keys(data.niveles).sort() : [];
-
   return (
     <div className="space-y-6">
       <div className="bg-ufv-azul-oscuro p-5 rounded-2xl text-white shadow-md relative overflow-hidden">
@@ -135,7 +131,6 @@ const RenderizadorEvaluacionCompacta = ({ data }: { data: any }) => {
 // --- COMPONENTE PRINCIPAL ---
 export default function AdminPanel() {
   const router = useRouter();
-  
   const [isUploading, setIsUploading] = useState(false);
   const [nombreEspecialidad, setNombreEspecialidad] = useState("");
   const [archivoJSON, setArchivoJSON] = useState<File | null>(null);
@@ -144,15 +139,13 @@ export default function AdminPanel() {
 
   // ESTADO PARA EL BUSCADOR DE ESPECIALIDADES
   const [busquedaEspecialidad, setBusquedaEspecialidad] = useState("");
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [jsonPreview, setJsonPreview] = useState<any>(null);
   const [nombrePreview, setNombrePreview] = useState("");
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [modoVista, setModoVista] = useState<"compacta" | "raw">("compacta");
-  
   const [idPreview, setIdPreview] = useState<string>("");
-  const [rawText, setRawText] = useState(""); 
+  const [rawText, setRawText] = useState("");
   const [isSavingJSON, setIsSavingJSON] = useState(false);
 
   // ESTADOS PARA EL WIZARD DE PLANTILLAS EXCEL
@@ -168,7 +161,7 @@ export default function AdminPanel() {
   const [mappingExcelJson, setMappingExcelJson] = useState("{}");
   const [excelTemplateStatus, setExcelTemplateStatus] = useState<{ [id: string]: boolean }>({});
   const [especialidadesTab, setEspecialidadesTab] = useState<"json" | "excel" | "mapping">("excel");
-  
+
   // ESTADOS PARA MAPPING GLOBAL
   const [mappingGlobalJson, setMappingGlobalJson] = useState("{}");
   const [isLoadingMappingGlobal, setIsLoadingMappingGlobal] = useState(false);
@@ -177,7 +170,6 @@ export default function AdminPanel() {
   const [archivoUcGlobal, setArchivoUcGlobal] = useState<File | null>(null);
   const [isLoadingUcGlobal, setIsLoadingUcGlobal] = useState(false);
   const [isSavingUcGlobal, setIsSavingUcGlobal] = useState(false);
-
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -194,8 +186,8 @@ export default function AdminPanel() {
   const [busquedaPendientes, setBusquedaPendientes] = useState("");
   const [confirmPendiente, setConfirmPendiente] = useState<{ tipo: "invitacion" | "especialidad"; id: string; label: string } | { tipo: "logout" } | null>(null);
 
-  // PANEL TABS + ESTADÍSTICAS GENERALES
-  const [panelTab, setPanelTab] = useState<"resumen" | "gestion">("resumen");
+  // PANEL TABS + ESTADÍSTICAS GENERALES (AÑADIDO "usuarios")
+  const [panelTab, setPanelTab] = useState<"resumen" | "gestion" | "usuarios">("resumen");
   const [isInitialized, setIsInitialized] = useState(false);
   interface EstadisticasData {
     total_rotaciones: number; rotaciones_activas: number; rotaciones_completadas: number;
@@ -206,7 +198,6 @@ export default function AdminPanel() {
   }
   const [estadisticas, setEstadisticas] = useState<EstadisticasData | null>(null);
   const [isLoadingEstadisticas, setIsLoadingEstadisticas] = useState(true);
-
   const { toast } = useToast();
 
   useEffect(() => {
@@ -214,7 +205,7 @@ export default function AdminPanel() {
     if (memoria) {
       try {
         const estadoGuardado = JSON.parse(memoria);
-        if (estadoGuardado.panelTab === "resumen" || estadoGuardado.panelTab === "gestion") {
+        if (estadoGuardado.panelTab === "resumen" || estadoGuardado.panelTab === "gestion" || estadoGuardado.panelTab === "usuarios") {
           setPanelTab(estadoGuardado.panelTab);
         }
         if (estadoGuardado.usuariosTab === "gestion" || estadoGuardado.usuariosTab === "pendientes") {
@@ -283,7 +274,7 @@ export default function AdminPanel() {
       toast.success("Plantilla UC global guardada correctamente.");
       fetchUcGlobal();
     } catch {
-      toast.error("Error de conexión al guardar UC global.");;
+      toast.error("Error de conexión al guardar UC global.");
     } finally {
       setIsSavingUcGlobal(false);
     }
@@ -334,7 +325,6 @@ export default function AdminPanel() {
       if (res.ok) {
         const data = await res.json();
         setEspecialidades(data);
-        // Actualizar estado de plantillas
         const statusMap: { [id: string]: boolean } = {};
         for (const esp of data) {
           statusMap[esp.id] = esp.plantilla_excel_storage_path ? true : false;
@@ -355,7 +345,7 @@ export default function AdminPanel() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/usuarios/stats`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setStatsUsuarios(data);
@@ -496,7 +486,7 @@ export default function AdminPanel() {
       if (res.ok) {
         const data = await res.json();
         setJsonPreview(data.contenido_json);
-        setRawText(JSON.stringify(data.contenido_json, null, 2)); 
+        setRawText(JSON.stringify(data.contenido_json, null, 2));
       } else { toast.error("No se pudo cargar el archivo."); setIsModalOpen(false); }
     } catch (error) { toast.error("Error de conexión."); setIsModalOpen(false); } finally { setIsLoadingPreview(false); }
   };
@@ -531,13 +521,10 @@ export default function AdminPanel() {
   const normalizeCellRef = (value: string): string => {
     const raw = (value || "").trim().toUpperCase();
     if (!raw) return "";
-
     const fromFull = raw.match(/(?:[A-Z0-9_]+!)?([A-Z]+\d+)$/);
     if (fromFull) return fromFull[1];
-
     const onlyDigits = raw.match(/^(\d+)$/);
     if (onlyDigits) return `B${onlyDigits[1]}`;
-
     return "";
   };
 
@@ -587,7 +574,6 @@ export default function AdminPanel() {
   };
 
   // --- FUNCIONES DEL WIZARD ---
-
   const cargarWizardEspecialidad = async (especialidadId: string) => {
     setIsLoadingWizardData(true);
     const token = Cookies.get("practicum_token");
@@ -597,7 +583,6 @@ export default function AdminPanel() {
       });
       if (res.ok) {
         const data = await res.json();
-        // Extraer filas de la rúbrica para mapeo visual
         const filasExtraidas: any[] = [];
         const mappingObj = JSON.parse(mappingGlobalJson || "{}");
         if (data.contenido_json && data.contenido_json.apartados) {
@@ -615,7 +600,6 @@ export default function AdminPanel() {
           });
         }
         setWizardRows(filasExtraidas);
-        // Cargar mapping existente si hay
         setMappingExcelJson(JSON.stringify(mappingObj, null, 2));
       }
     } catch (error) {
@@ -627,7 +611,6 @@ export default function AdminPanel() {
   };
 
   const construirMappingDesdeWizard = () => {
-    // Construir mapping desde los wizardRows con ids reales de rúbrica
     const mappingObj: any = {};
     for (const row of wizardRows) {
       const key = row.id;
@@ -651,7 +634,7 @@ export default function AdminPanel() {
     try {
       setIsSavingWizardMapping(true);
       const token = Cookies.get("practicum_token");
-      
+
       let mappingFinal: any;
       if (wizardStep3Mode === "visual") {
         mappingFinal = construirMappingDesdeWizard();
@@ -659,7 +642,6 @@ export default function AdminPanel() {
         mappingFinal = parseMappingExcelJson();
       }
 
-      // Guardar mapping global
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/plantilla-excel/mapping`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -737,7 +719,6 @@ export default function AdminPanel() {
     const token = Cookies.get("practicum_token");
 
     try {
-      // 1. Subir plantilla
       const formData = new FormData();
       formData.append("file", archivoExcelWizard);
       const resPlantilla = await fetch(
@@ -754,7 +735,6 @@ export default function AdminPanel() {
         throw new Error(err.detail || "No se pudo subir la plantilla");
       }
 
-      // 2. Guardar mapping global
       let mappingFinal: any;
       if (wizardStep3Mode === "visual") {
         mappingFinal = construirMappingDesdeWizard();
@@ -790,7 +770,7 @@ export default function AdminPanel() {
     const indices = []; let match;
     while ((match = regex.exec(rawText)) !== null) { indices.push(match.index); }
     setMatches(indices); setCurrentMatch(0);
-    if (indices.length > 0) saltarAMatch(0, indices, true); 
+    if (indices.length > 0) saltarAMatch(0, indices, true);
   }, [searchTerm, rawText]);
 
   const saltarAMatch = (index: number, arrayMatches = matches, isTyping = false) => {
@@ -807,8 +787,7 @@ export default function AdminPanel() {
     setCurrentMatch(index);
   };
 
-  // FILTRO DINÁMICO DE ESPECIALIDADES
-  const especialidadesFiltradas = especialidades.filter(esp => 
+  const especialidadesFiltradas = especialidades.filter(esp =>
     esp.nombre.toLowerCase().includes(busquedaEspecialidad.toLowerCase())
   );
 
@@ -829,8 +808,8 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* PESTAÑAS DEL PANEL */}
-        <div className="mb-6 bg-white border border-gray-200 rounded-2xl p-1 flex gap-1 shadow-sm">
+        {/* PESTAÑAS DEL PANEL (AHORA CON 3 BOTONES) */}
+        <div className="mb-6 bg-white border border-gray-200 rounded-2xl p-1 flex flex-col md:flex-row gap-1 shadow-sm">
           <button
             onClick={() => setPanelTab("resumen")}
             className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${panelTab === "resumen" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
@@ -841,11 +820,17 @@ export default function AdminPanel() {
             onClick={() => setPanelTab("gestion")}
             className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${panelTab === "gestion" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
           >
-            <Settings className="w-4 h-4" /> Gestión
+            <Settings className="w-4 h-4" /> Gestión de Especialidades
+          </button>
+          <button
+            onClick={() => setPanelTab("usuarios")}
+            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${panelTab === "usuarios" ? "bg-ufv-azul text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            <Users className="w-4 h-4" /> Gestión de Usuarios
           </button>
         </div>
 
-        {/* PANEL DE ESTADÍSTICAS (pestaña Resumen) */}
+        {/* CONTENIDO 1: PANEL DE ESTADÍSTICAS (pestaña Resumen) */}
         <div className={`mb-8 ${panelTab !== "resumen" ? "hidden" : ""}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -988,9 +973,9 @@ export default function AdminPanel() {
           )}
         </div>
 
-        <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 items-start ${panelTab !== "gestion" ? "hidden" : ""}`}>
-          {/* GESTIÓN DE ESPECIALIDADES */}
-          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative flex flex-col">
+        {/* CONTENIDO 2: GESTIÓN DE ESPECIALIDADES (pestaña Gestión) */}
+        <div className={`${panelTab !== "gestion" ? "hidden" : ""}`}>
+          <div className="max-w-4xl mx-auto bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative flex flex-col">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-blue-50 p-2.5 rounded-xl text-ufv-azul"><Settings className="w-6 h-6" /></div>
               <h2 className="text-xl font-black text-ufv-azul-oscuro">Gestión de Especialidades</h2>
@@ -1557,115 +1542,108 @@ export default function AdminPanel() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* MÓDULO 2: GESTIÓN DE USUARIOS */}
-          <div className="bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-blue-50 p-2.5 rounded-xl text-ufv-azul"><Users className="w-6 h-6" /></div>
-              <h2 className="text-xl font-black text-ufv-azul-oscuro">Gestión de Usuarios</h2>
-            </div>
+        {/* CONTENIDO 3: GESTIÓN DE USUARIOS (pestaña Usuarios) */}
+        <div className={`${panelTab !== "usuarios" ? "hidden" : ""}`}>
+          <div className="max-w-4xl mx-auto bg-white dark:bg-[#0f172a] p-6 rounded-3xl shadow-xl border-t-4 border-ufv-azul flex flex-col transition-colors border-gray-100 dark:border-gray-700">
             
-            <p className="text-gray-500 font-medium mb-6 leading-relaxed">
-              Administra las cuentas de acceso al sistema. Da de alta a nuevos docentes y matricula a los estudiantes en sus rotaciones correspondientes.
-            </p>
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-xl text-ufv-azul"><Users className="w-6 h-6" /></div>
+              <div>
+                <h2 className="text-xl font-black text-ufv-azul-oscuro dark:text-white">Gestión de Usuarios</h2>
+                <p className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">Cuentas de acceso al sistema</p>
+              </div>
+            </div>
 
-            <div className="mb-6 bg-gray-50 border border-gray-200 rounded-2xl p-1 grid grid-cols-2 gap-1">
+            {/* Sub-tabs */}
+            <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl p-1 flex gap-1">
               <button
                 type="button"
                 onClick={() => setUsuariosTab("gestion")}
-                className={`py-2.5 rounded-xl text-sm font-black transition-all ${usuariosTab === "gestion" ? "bg-white text-ufv-azul shadow-sm border border-blue-100" : "text-gray-500 hover:text-gray-700"}`}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${usuariosTab === "gestion" ? "bg-white dark:bg-[#0f172a] text-ufv-azul shadow-sm border border-blue-100 dark:border-blue-900" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
               >
                 Gestión general
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setUsuariosTab("pendientes");
-                  fetchAlumnosPendientes();
-                }}
-                className={`py-2.5 rounded-xl text-sm font-black transition-all ${usuariosTab === "pendientes" ? "bg-white text-ufv-azul shadow-sm border border-blue-100" : "text-gray-500 hover:text-gray-700"}`}
+                onClick={() => { setUsuariosTab("pendientes"); fetchAlumnosPendientes(); }}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${usuariosTab === "pendientes" ? "bg-white dark:bg-[#0f172a] text-ufv-azul shadow-sm border border-blue-100 dark:border-blue-900" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
               >
                 Alumnos pendientes
               </button>
             </div>
-            
-            {/* --- PANEL DE ESTADÍSTICAS (AHORA DINÁMICO) --- */}
+
             {usuariosTab === "gestion" && (
-            <>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-white border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
-                <GraduationCap className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
-                <span className="text-3xl font-black text-gray-800">
-                  {isLoadingStats ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /> : statsUsuarios.alumnos}
-                </span>
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Alumnos</span>
-              </div>
-              
-              <div className="bg-white border border-gray-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all ">
-                <UserPlus className="w-6 h-6 text-ufv-azul mb-2 opacity-70" />
-                <span className="text-3xl font-black text-gray-800">
-                  {isLoadingStats ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /> : statsUsuarios.profesores}
-                </span>
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Profesores</span>
-              </div>
-
-              <div className="col-span-2 stats-total-card border border-blue-100 p-4 rounded-2xl flex items-center justify-between px-6">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white p-2 rounded-xl text-ufv-azul shadow-sm"><Users className="w-5 h-5" /></div>
-                  <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Total Cuentas Activas</span>
+              <>
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <GraduationCap className="w-5 h-5 text-ufv-azul mb-2 opacity-70" />
+                    <span className="text-3xl font-black text-gray-800 dark:text-white">
+                      {isLoadingStats ? <Loader2 className="w-5 h-5 animate-spin mx-auto text-gray-400" /> : statsUsuarios.alumnos}
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Alumnos</span>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <UserPlus className="w-5 h-5 text-ufv-azul mb-2 opacity-70" />
+                    <span className="text-3xl font-black text-gray-800 dark:text-white">
+                      {isLoadingStats ? <Loader2 className="w-5 h-5 animate-spin mx-auto text-gray-400" /> : statsUsuarios.profesores}
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Tutores</span>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <Users className="w-5 h-5 text-ufv-azul mb-2 opacity-70" />
+                    <span className="text-3xl font-black text-ufv-azul">
+                      {isLoadingStats ? <Loader2 className="w-5 h-5 animate-spin mx-auto text-ufv-azul" /> : statsUsuarios.total - 1}
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Total cuentas</span>
+                  </div>
                 </div>
-                <span className="text-2xl font-black text-ufv-azul-oscuro">
-                  {isLoadingStats ? <Loader2 className="w-5 h-5 animate-spin text-ufv-azul" /> : statsUsuarios.total-1}
-                </span>
-              </div>
-            </div>
-            {/* --------------------------------------------- */}
 
-            {/* --- BOTONES DE GESTIÓN DE USUARIOS --- */}
-            <div className="flex flex-col gap-3 mt-4">
-              {/* Fila 1: Botón de CREAR TUTOR */}
-              <button 
-                onClick={() => router.push("/admin/profesores/nuevo")} 
-                className="w-full bg-ufv-azul text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul-oscuro font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <UserPlus className="w-4 h-4" /> Nuevo Tutor
-              </button>
-
-              {/* Fila 2: Alumnos */}
-              <button 
-                onClick={() => setModalAltaAlumnoAbierto(true)} 
-                className="w-full bg-ufv-azul-oscuro text-white px-4 py-3.5 rounded-xl shadow-md hover:bg-ufv-azul font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <GraduationCap className="w-5 h-5" /> Nuevo Alumno
-              </button>
-
-              <a
-                href={PLANTILLA_EXCEL_ALUMNOS_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full bg-white text-ufv-azul border border-blue-100 px-4 py-3.5 rounded-xl hover:bg-blue-50 font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <FileSpreadsheet className="w-5 h-5" /> Descargar plantilla Excel
-              </a>
-              
-              {/* Fila 3: Ver Listas */}
-              <div className="flex flex-col sm:flex-row gap-3 mt-1">
-                <button onClick={() => router.push("/admin/profesores")} className="flex-1 bg-blue-50 text-ufv-azul border border-blue-100 px-4 py-3.5 rounded-xl hover:bg-blue-100 font-bold flex items-center justify-center gap-2 transition-all">
-                  <Users className="w-4 h-4" /> Ver Profesores
-                </button>
-                <button onClick={() => router.push("/admin/alumnos")} className="flex-1 bg-blue-50 text-ufv-azul border border-blue-100 px-4 py-3.5 rounded-xl hover:bg-blue-100 font-bold flex items-center justify-center gap-2 transition-all">
-                  <GraduationCap className="w-4 h-4" /> Ver Alumnos
-                </button>
-              </div>
-
-              <button
-                onClick={() => router.push("/admin/centros")}
-                className="w-full bg-blue-50 text-ufv-azul border border-blue-100 px-4 py-3.5 rounded-xl hover:bg-blue-100 font-bold flex items-center justify-center gap-2 transition-all"
-              >
-                <Settings className="w-4 h-4" /> Centros y tutores
-              </button>
-            </div>
-            </>
+                {/* Acciones en grid 2 columnas */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => router.push("/admin/profesores/nuevo")}
+                    className="px-5 py-2.5 bg-ufv-azul text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm text-sm"
+                  >
+                    <UserPlus className="w-4 h-4" /> Nuevo Tutor
+                  </button>
+                  <button
+                    onClick={() => setModalAltaAlumnoAbierto(true)}
+                    className="px-5 py-2.5 bg-ufv-azul text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm text-sm"
+                  >
+                    <GraduationCap className="w-4 h-4" /> Nuevo Alumno
+                  </button>
+                  <button
+                    onClick={() => router.push("/admin/profesores")}
+                    className="px-5 py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm text-sm"
+                  >
+                    <Users className="w-4 h-4" /> Ver Tutores
+                  </button>
+                  <button
+                    onClick={() => router.push("/admin/alumnos")}
+                    className="px-5 py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm text-sm"
+                  >
+                    <GraduationCap className="w-4 h-4" /> Ver Alumnos
+                  </button>
+                  <a
+                    href={PLANTILLA_EXCEL_ALUMNOS_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-5 py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm text-sm"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" /> Plantilla Excel
+                  </a>
+                  <button
+                    onClick={() => router.push("/admin/centros")}
+                    className="px-5 py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm text-sm"
+                  >
+                    <Settings className="w-4 h-4" /> Centros y tutores
+                  </button>
+                </div>
+              </>
             )}
 
             {usuariosTab === "pendientes" && (
@@ -1678,19 +1656,19 @@ export default function AdminPanel() {
                       placeholder="Buscar por correo..."
                       value={busquedaPendientes}
                       onChange={(e) => setBusquedaPendientes(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-ufv-azul outline-none transition-all text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:bg-white dark:focus:bg-[#0B1120] focus:border-ufv-azul outline-none transition-all text-sm dark:text-gray-300"
                     />
                   </div>
                   <button
                     onClick={() => fetchAlumnosPendientes()}
-                    className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 flex items-center justify-center gap-2 transition-all"
+                    className="px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-all text-sm"
                   >
                     <RefreshCcw className="w-4 h-4" /> Actualizar
                   </button>
                 </div>
 
-                <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-                  <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                <div className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-[#0f172a] shadow-sm">
+                  <div className="grid grid-cols-12 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     <div className="col-span-6 p-3">Email</div>
                     <div className="col-span-4 p-3">Fecha Invitación</div>
                     <div className="col-span-2 p-3 text-center">Acción</div>
@@ -1700,19 +1678,19 @@ export default function AdminPanel() {
                   ) : alumnosPendientes.filter(a => a.email.toLowerCase().includes(busquedaPendientes.toLowerCase())).length === 0 ? (
                     <div className="p-10 text-center text-sm text-gray-400 font-medium">No se encontraron resultados.</div>
                   ) : (
-                    <ul className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                    <ul className="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto">
                       {alumnosPendientes
                         .filter(a => a.email.toLowerCase().includes(busquedaPendientes.toLowerCase()))
                         .map((alumno) => (
-                          <li key={alumno.id} className="grid grid-cols-12 text-sm hover:bg-gray-50 transition-colors items-center">
-                            <div className="col-span-6 p-3 font-bold text-gray-700 truncate">{alumno.email}</div>
+                          <li key={alumno.id} className="grid grid-cols-12 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors items-center">
+                            <div className="col-span-6 p-3 font-bold text-gray-700 dark:text-gray-200 truncate">{alumno.email}</div>
                             <div className="col-span-4 p-3 text-gray-500 text-[11px] font-medium">
                               {alumno.creado_en ? new Date(alumno.creado_en).toLocaleDateString() : "-"}
                             </div>
                             <div className="col-span-2 p-3 flex justify-center">
                               <button
                                 onClick={() => handleEliminarPendiente(alumno.id, alumno.email)}
-                                className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                                 title="Eliminar invitación"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1725,7 +1703,6 @@ export default function AdminPanel() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>

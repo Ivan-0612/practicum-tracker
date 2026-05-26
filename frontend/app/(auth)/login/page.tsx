@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Eye, EyeOff, Lock, Mail, ArrowLeft, Send } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ArrowLeft, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 import Cookies from "js-cookie";
 
 type Modo = "login" | "recuperar";
@@ -78,7 +78,6 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: emailRecuperacion })
       });
-      // Respuesta siempre positiva (no revelamos si el email existe)
       setMensajeRecuperacion("Si el correo está registrado, recibirás el enlace en unos minutos. Revisa también la carpeta de spam.");
     } catch {
       setErrorRecuperacion("Error al conectar con el servidor. Inténtalo de nuevo.");
@@ -94,133 +93,130 @@ export default function LoginPage() {
     setErrorRecuperacion("");
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+  const inputClass = "w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl focus:border-ufv-azul focus:ring-1 focus:ring-ufv-azul outline-none transition-all text-sm text-gray-700 dark:text-gray-200 font-medium shadow-sm hover:border-gray-300 dark:hover:border-gray-500";
 
-      {/* CABECERA CORPORATIVA */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center text-center">
-        <Image
-          src="/logo-ufv.png"
-          alt="Logo UFV"
-          width={72}
-          height={72}
-          className="object-contain mb-4"
-        />
-        <h2 className="text-3xl font-black text-ufv-azul-oscuro tracking-tight">
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+
+      {/* CABECERA */}
+      <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center text-center mb-8">
+        <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-gray-700 rounded-2xl p-3 shadow-sm mb-5">
+          <Image
+            src="/logo-ufv.png"
+            alt="Logo UFV"
+            width={52}
+            height={52}
+            className="object-contain"
+          />
+        </div>
+        <h2 className="text-3xl font-black text-ufv-azul-oscuro dark:text-white tracking-tight">
           Practicum <span className="text-ufv-rosa-claro">Tracker</span>
         </h2>
-        <p className="mt-2 text-xs text-gray-500 font-bold uppercase tracking-widest">
+        <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">
           Universidad Francisco de Vitoria
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-ufv-blanco py-10 px-6 shadow-xl rounded-2xl sm:px-12 border-t-4 border-t-ufv-azul">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8">
 
           {/* ========================= MODO LOGIN ========================= */}
           {modo === "login" && (
             <>
-              <form className="space-y-6" onSubmit={handleSubmit}>
-
-                {/* Campo Email */}
+              <div className="flex items-center gap-3 mb-7">
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-xl text-ufv-azul">
+                  <Lock className="w-5 h-5" />
+                </div>
                 <div>
-                  <label className="block text-sm font-bold text-ufv-azul-oscuro mb-2">
+                  <h1 className="text-lg font-black text-ufv-azul-oscuro dark:text-white">Iniciar sesión</h1>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">Accede con tu cuenta</p>
+                </div>
+              </div>
+
+              <form className="space-y-5" onSubmit={handleSubmit}>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                     Email
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-gray-400" />
-                    </div>
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
-                      placeholder="Tu correo"
+                      className={inputClass}
+                      placeholder="tu@correo.ufv.es"
                     />
                   </div>
                 </div>
 
-                {/* Campo Contraseña */}
                 <div>
-                  <label className="block text-sm font-bold text-ufv-azul-oscuro mb-2">
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                     Contraseña
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-gray-400" />
-                    </div>
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                     <input
                       type={showPassword ? "text" : "password"}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
+                      className={`${inputClass} pr-10`}
                       placeholder="Tu contraseña"
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-ufv-azul transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-ufv-azul" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-gray-400 hover:text-ufv-azul" />
-                      )}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
 
-                {/* Error */}
                 {errorMensaje && (
-                  <div className="text-ufv-rosa-oscuro text-xs text-center font-bold bg-red-50 p-3 rounded-xl border border-red-100 flex items-center gap-2 justify-center">
-                    <span>⚠️ {errorMensaje}</span>
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-xs font-bold">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {errorMensaje}
                   </div>
                 )}
 
-                {/* Botón Iniciar sesión */}
-                <div className="pt-2">
+                <div className="pt-1 border-t border-gray-100 dark:border-gray-700 mt-2">
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-ufv-blanco transition-all ${
-                      isLoading
-                        ? "bg-ufv-azul-claro cursor-not-allowed"
-                        : "bg-ufv-azul hover:bg-ufv-azul-oscuro hover:-translate-y-0.5 active:translate-y-0"
-                    }`}
+                    className="w-full py-2.5 bg-ufv-azul text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm text-sm disabled:opacity-60 disabled:cursor-not-allowed mt-4"
                   >
                     {isLoading ? "Procesando..." : "Iniciar sesión"}
                   </button>
                 </div>
               </form>
 
-              {/* Links inferiores */}
-              <div className="mt-8 text-center border-t border-gray-100 pt-6 flex items-center justify-center gap-4">
+              <div className="mt-6 flex items-center justify-center gap-4 pt-5 border-t border-gray-100 dark:border-gray-700">
                 <button
                   type="button"
                   onClick={() => router.push("/registro")}
-                  className="text-sm font-bold text-ufv-azul hover:text-ufv-azul-oscuro transition-colors"
+                  className="text-xs font-bold text-ufv-azul hover:text-ufv-azul-oscuro transition-colors"
                 >
                   Crear cuenta
                 </button>
-                <span className="text-gray-300 font-bold">|</span>
+                <span className="text-gray-200 dark:text-gray-700 font-bold">|</span>
                 <button
                   type="button"
                   onClick={() => setModo("recuperar")}
-                  className="text-sm font-bold text-ufv-rosa-oscuro hover:text-ufv-rosa-claro transition-colors"
+                  className="text-xs font-bold text-gray-400 dark:text-gray-500 hover:text-ufv-azul dark:hover:text-ufv-azul transition-colors"
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
 
-              {/* Política de privacidad */}
               <div className="mt-4 text-center">
                 <button
                   type="button"
                   onClick={() => router.push("/politica-privacidad")}
-                  className="text-xs text-gray-400 hover:text-ufv-azul transition-colors underline underline-offset-2"
+                  className="text-xs text-gray-300 dark:text-gray-600 hover:text-ufv-azul dark:hover:text-ufv-azul transition-colors underline underline-offset-2"
                 >
                   Política de privacidad
                 </button>
@@ -231,83 +227,73 @@ export default function LoginPage() {
           {/* ====================== MODO RECUPERACIÓN ====================== */}
           {modo === "recuperar" && (
             <>
-              {/* Cabecera del panel */}
-              <div className="text-center mb-8">
-                <div className="mx-auto w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mb-3">
-                  <Mail className="w-6 h-6 text-ufv-rosa-oscuro" />
+              <div className="flex items-center gap-3 mb-7">
+                <div className="bg-rose-50 dark:bg-rose-900/20 p-2.5 rounded-xl text-ufv-rosa-oscuro">
+                  <Mail className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-black text-ufv-azul-oscuro">Recuperar contraseña</h3>
-                <p className="mt-1 text-xs text-gray-500 font-medium">
-                  Introduce tu email y te enviaremos un enlace para restablecerla.
-                </p>
+                <div>
+                  <h1 className="text-lg font-black text-ufv-azul-oscuro dark:text-white">Recuperar contraseña</h1>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">Te enviaremos un enlace de restablecimiento</p>
+                </div>
               </div>
 
               {mensajeRecuperacion ? (
-                /* Estado: email enviado */
-                <div className="space-y-6">
-                  <div className="bg-green-50 border border-green-200 text-green-700 text-sm font-medium p-4 rounded-xl text-center">
-                    ✅ {mensajeRecuperacion}
+                <div className="space-y-4">
+                  <div className="flex items-start gap-2.5 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-sm font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    {mensajeRecuperacion}
                   </div>
                   <button
                     type="button"
                     onClick={volverAlLogin}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
+                    className="w-full py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm text-sm"
                   >
                     <ArrowLeft className="w-4 h-4" /> Volver al inicio de sesión
                   </button>
                 </div>
               ) : (
-                /* Formulario de recuperación */
-                <form onSubmit={handleRecuperacion} className="space-y-6">
+                <form onSubmit={handleRecuperacion} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-bold text-ufv-azul-oscuro mb-2">
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                       Email institucional
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-gray-400" />
-                      </div>
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                       <input
                         type="email"
                         required
                         autoFocus
                         value={emailRecuperacion}
                         onChange={(e) => setEmailRecuperacion(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
+                        className={inputClass}
                         placeholder="tu@correo.ufv.es"
                       />
                     </div>
                   </div>
 
                   {errorRecuperacion && (
-                    <div className="text-red-600 text-xs text-center font-bold bg-red-50 p-3 rounded-xl border border-red-100">
-                      ⚠️ {errorRecuperacion}
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-xs font-bold">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      {errorRecuperacion}
                     </div>
                   )}
 
-                  <button
-                    type="submit"
-                    disabled={enviando}
-                    className={`w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white transition-all ${
-                      enviando
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-ufv-rosa-oscuro hover:brightness-90 active:scale-95"
-                    }`}
-                  >
-                    {enviando ? (
-                      "Enviando..."
-                    ) : (
-                      <><Send className="w-4 h-4" /> Enviar enlace de recuperación</>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={volverAlLogin}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all"
-                  >
-                    <ArrowLeft className="w-4 h-4" /> Volver al inicio de sesión
-                  </button>
+                  <div className="pt-1 border-t border-gray-100 dark:border-gray-700 space-y-2 mt-2">
+                    <button
+                      type="submit"
+                      disabled={enviando}
+                      className="w-full py-2.5 bg-ufv-azul text-white rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-ufv-azul-oscuro transition-all shadow-sm text-sm disabled:opacity-60 disabled:cursor-not-allowed mt-4"
+                    >
+                      {enviando ? "Enviando..." : <><Send className="w-4 h-4" /> Enviar enlace</>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={volverAlLogin}
+                      className="w-full py-2.5 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm text-sm"
+                    >
+                      <ArrowLeft className="w-4 h-4" /> Volver al inicio de sesión
+                    </button>
+                  </div>
                 </form>
               )}
             </>

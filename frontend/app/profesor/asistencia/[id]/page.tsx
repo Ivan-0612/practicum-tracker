@@ -108,18 +108,18 @@ export default function CalendarioProfesor() {
   if (loading) return <div className="p-10 text-center font-bold animate-pulse text-ufv-azul">Cargando calendario...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] p-4 md:p-8">
       <div className="max-w-5xl mx-auto pb-20">
         <Breadcrumb items={[
           { label: "Dashboard", href: "/profesor/dashboard" },
           { label: "Registro de asistencia" },
         ]} />
 
-        <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
-          <div className="flex items-center gap-6 border-b border-gray-100 pb-8 mb-8">
+        <div className="bg-white dark:bg-[#0f172a] shadow-sm rounded-2xl p-6 md:p-10 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-6 border-b border-gray-100 dark:border-gray-700 pb-8 mb-8">
             <Image src="/logo-ufv.png" alt="Logo UFV" width={56} height={56} className="object-contain" />
             <div>
-              <h1 className="text-3xl font-black text-ufv-azul-oscuro">Control de Firmas</h1>
+              <h1 className="text-3xl font-black text-ufv-azul-oscuro dark:text-white">Control de Firmas</h1>
               <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase mt-1">Universidad Francisco de Vitoria</p>
             </div>
           </div>
@@ -137,9 +137,9 @@ export default function CalendarioProfesor() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 bg-white rounded-[2rem] p-6 border border-gray-200">
+            <div className="lg:col-span-2 bg-white dark:bg-[#0B1120] rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-black text-ufv-azul-oscuro capitalize">{fechaBase.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</h2>
+                <h2 className="text-xl font-black text-ufv-azul-oscuro dark:text-white capitalize">{fechaBase.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</h2>
                 <div className="flex gap-2">
                   <button onClick={() => setFechaBase(new Date(añoActual, mesActual - 1, 1))} className="p-2 border rounded-xl hover:bg-gray-50 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
                   <button onClick={() => setFechaBase(new Date(añoActual, mesActual + 1, 1))} className="p-2 border rounded-xl hover:bg-gray-50 transition-colors"><ChevronRight className="w-5 h-5" /></button>
@@ -182,9 +182,9 @@ export default function CalendarioProfesor() {
 
             <div className="lg:col-span-1">
               {diaSeleccionado ? (
-                <div className="bg-white rounded-[2rem] p-6 border border-gray-200 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Día seleccionado</p>
-                  <h3 className="font-black text-ufv-azul-oscuro text-xl mb-6">{new Date(diaSeleccionado).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+                <div className="bg-white dark:bg-[#0f172a] rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Día seleccionado</p>
+                  <h3 className="font-black text-ufv-azul-oscuro dark:text-white text-xl mb-6">{new Date(diaSeleccionado).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
 
                   {fichajeActivo ? (
                     <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
@@ -210,9 +210,9 @@ export default function CalendarioProfesor() {
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 rounded-2xl p-5 text-center border border-dashed border-gray-200">
+                    <div className="bg-gray-50 dark:bg-[#0B1120] rounded-2xl p-5 text-center border border-dashed border-gray-200 dark:border-gray-700">
                       <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                      <p className="font-bold text-gray-600">Sin firma registrada</p>
+                      <p className="font-bold text-gray-600 dark:text-gray-300">Sin firma registrada</p>
 
                       {/* LÓGICA VISUAL ESTRICTA DEL BOTÓN */}
                       {esTutorUni ? (
@@ -231,11 +231,11 @@ export default function CalendarioProfesor() {
                             {firmando ? <span className="animate-pulse">Procesando...</span> : <><PenTool className="w-4 h-4" /> Firmar Asistencia</>}
                           </button>
 
-                          <div className="bg-white border border-gray-200 p-3 rounded-xl shadow-sm mt-2">
-                            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-widest">¿Asistencia Recuperada?</label>
+                          <div className="bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-gray-700 p-3 rounded-xl shadow-sm mt-2">
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 block uppercase tracking-widest">¿Asistencia Recuperada?</label>
                             <input
                               type="date"
-                              className="w-full text-sm p-2 border border-gray-300 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-2 font-medium text-gray-700"
+                              className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-2 font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#0B1120]"
                               value={fechaRecuperacionInput}
                               onChange={(e) => setFechaRecuperacionInput(e.target.value)}
                               max={hoyStr}
@@ -250,9 +250,9 @@ export default function CalendarioProfesor() {
                   )}
                 </div>
               ) : (
-                <div className="bg-gray-50 border-dashed border-2 border-gray-200 rounded-[2rem] p-8 text-center h-full flex flex-col justify-center min-h-[300px]">
+                <div className="bg-gray-50 dark:bg-[#0B1120] border-dashed border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-8 text-center h-full flex flex-col justify-center min-h-[300px]">
                   <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">
                     {esTutorUni ? "Selecciona un día en verde para ver el sello de firma del Hospital." : "Selecciona un día en el calendario para ver los detalles o firmar."}
                   </p>
                 </div>

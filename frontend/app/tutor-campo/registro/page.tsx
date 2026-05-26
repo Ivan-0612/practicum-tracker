@@ -103,21 +103,21 @@ function RegistroTutorCampoForm() {
 
   // ── Render ──
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
 
       {/* Cabecera corporativa */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center text-center mb-8">
         <Image src="/logo-ufv.png" alt="Logo UFV" width={64} height={64} className="object-contain mb-3" />
-        <h2 className="text-2xl font-black text-ufv-azul-oscuro tracking-tight">
+        <h2 className="text-2xl font-black text-ufv-azul-oscuro dark:text-white tracking-tight">
           Practicum <span className="text-ufv-rosa-claro">Tracker</span>
         </h2>
-        <p className="mt-1 text-xs text-gray-500 font-bold uppercase tracking-widest">
+        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">
           Universidad Francisco de Vitoria
         </p>
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-10 px-6 shadow-xl rounded-2xl sm:px-10 border-t-4 border-t-ufv-azul">
+        <div className="bg-white dark:bg-[#0f172a] py-10 px-6 shadow-sm rounded-2xl sm:px-10 border border-gray-100 dark:border-gray-700">
 
           {/* ──────────── CARGANDO ──────────── */}
           {paso === "cargando" && (
@@ -131,8 +131,8 @@ function RegistroTutorCampoForm() {
           {paso === "token_invalido" && (
             <div className="text-center space-y-4">
               <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-              <h3 className="text-xl font-black text-gray-800">Enlace no válido</h3>
-              <p className="text-sm text-gray-500 font-medium">
+              <h3 className="text-xl font-black text-gray-800 dark:text-white">Enlace no válido</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                 {contexto.ya_usado
                   ? "Este enlace ya fue utilizado. Si el tutor ya se registró, puede acceder directamente con su cuenta."
                   : "El enlace ha caducado o no es correcto. Pide al alumno que genere uno nuevo desde su panel."}
@@ -152,9 +152,9 @@ function RegistroTutorCampoForm() {
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-1">
                   <ShieldCheck className="w-5 h-5 text-ufv-azul" />
-                  <h3 className="text-xl font-black text-ufv-azul-oscuro">Registro como Tutor de Campo</h3>
+                  <h3 className="text-xl font-black text-ufv-azul-oscuro dark:text-white">Registro como Tutor de Campo</h3>
                 </div>
-                <p className="text-sm text-gray-500 font-medium">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                   Has sido invitado a evaluar a <span className="font-bold text-gray-700">{contexto.alumno_nombre}</span> en la especialidad de <span className="font-bold text-gray-700">{contexto.especialidad}</span>.
                 </p>
                 {contexto.centro_practicas && (
@@ -167,7 +167,7 @@ function RegistroTutorCampoForm() {
 
               <form onSubmit={handleSubmitEmail} className="space-y-5">
                 <div>
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                     Tu email profesional
                   </label>
                   <div className="relative">
@@ -181,13 +181,13 @@ function RegistroTutorCampoForm() {
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="tu@email.com"
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-200 bg-gray-50 dark:bg-[#0B1120] focus:bg-white dark:focus:bg-[#0B1120] focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
                     />
                   </div>
                 </div>
 
                 {/* Cláusula informativa */}
-                <div className={`rounded-xl border p-4 transition-colors ${aceptaPrivacidad ? "border-ufv-azul bg-blue-50" : "border-gray-200 bg-gray-50"}`}>
+                <div className={`rounded-xl border p-4 transition-colors ${aceptaPrivacidad ? "border-ufv-azul bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0B1120]"}`}>
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -195,7 +195,7 @@ function RegistroTutorCampoForm() {
                       onChange={(e) => setAceptaPrivacidad(e.target.checked)}
                       className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-ufv-azul shrink-0"
                     />
-                    <span className="text-xs text-gray-600 leading-relaxed">
+                    <span className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                       He leído y acepto la{" "}
                       <a
                         href="/politica-privacidad"
@@ -218,7 +218,7 @@ function RegistroTutorCampoForm() {
                 </div>
 
                 {errorGeneral && (
-                  <p className="text-red-600 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">
+                  <p className="text-red-600 dark:text-red-400 text-xs font-bold bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-800">
                     ⚠️ {errorGeneral}
                   </p>
                 )}
@@ -241,15 +241,15 @@ function RegistroTutorCampoForm() {
           {paso === "password_nueva" && (
             <>
               <div className="mb-6">
-                <h3 className="text-xl font-black text-ufv-azul-oscuro mb-1">Crea tu contraseña</h3>
-                <p className="text-sm text-gray-500 font-medium">
+                <h3 className="text-xl font-black text-ufv-azul-oscuro dark:text-white mb-1">Crea tu contraseña</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                   El correo <span className="font-bold text-gray-700">{email}</span> no tiene cuenta todavía. Elige una contraseña para registrarte.
                 </p>
               </div>
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                     Nueva contraseña
                   </label>
                   <div className="relative">
@@ -262,7 +262,7 @@ function RegistroTutorCampoForm() {
                       value={password}
                       onChange={e => { setPassword(e.target.value); setErrorPassword(""); }}
                       placeholder="Mínimo 8 caracteres"
-                      className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
+                      className="block w-full pl-10 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-200 bg-gray-50 dark:bg-[#0B1120] focus:bg-white dark:focus:bg-[#0B1120] focus:ring-2 focus:ring-ufv-azul focus:border-ufv-azul sm:text-sm transition-all outline-none"
                     />
                     <button
                       type="button"
@@ -284,7 +284,7 @@ function RegistroTutorCampoForm() {
                 </div>
 
                 {errorGeneral && (
-                  <p className="text-red-600 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">
+                  <p className="text-red-600 dark:text-red-400 text-xs font-bold bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-800">
                     ⚠️ {errorGeneral}
                   </p>
                 )}
@@ -293,7 +293,7 @@ function RegistroTutorCampoForm() {
                   <button
                     type="button"
                     onClick={() => { setPaso("email"); setErrorGeneral(""); }}
-                    className="flex-1 py-3 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors text-sm"
+                    className="flex-1 py-3 font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-sm"
                   >
                     Atrás
                   </button>
@@ -317,8 +317,8 @@ function RegistroTutorCampoForm() {
           {paso === "confirmar_existente" && (
             <>
               <div className="mb-6">
-                <h3 className="text-xl font-black text-ufv-azul-oscuro mb-1">Ya tienes cuenta</h3>
-                <p className="text-sm text-gray-500 font-medium">
+                <h3 className="text-xl font-black text-ufv-azul-oscuro dark:text-white mb-1">Ya tienes cuenta</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                   El correo <span className="font-bold text-gray-700">{email}</span> ya está registrado en la plataforma.
                   Confirma para quedar asignado como tutor de <span className="font-bold text-gray-700">{contexto.alumno_nombre}</span>.
                 </p>
@@ -334,7 +334,7 @@ function RegistroTutorCampoForm() {
                 <button
                   type="button"
                   onClick={() => { setPaso("email"); setErrorGeneral(""); }}
-                  className="flex-1 py-3 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors text-sm"
+                  className="flex-1 py-3 font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-sm"
                 >
                   Atrás
                 </button>
@@ -357,8 +357,8 @@ function RegistroTutorCampoForm() {
           {paso === "exito" && (
             <div className="text-center space-y-4 py-2">
               <CheckCircle2 className="w-14 h-14 text-ufv-azul mx-auto" />
-              <h3 className="text-2xl font-black text-ufv-azul-oscuro">¡Todo listo!</h3>
-              <p className="text-sm text-gray-500 font-medium">
+              <h3 className="text-2xl font-black text-ufv-azul-oscuro dark:text-white">¡Todo listo!</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                 Quedas asignado como tutor de campo de <span className="font-bold text-gray-700">{contexto.alumno_nombre}</span>. Ya puedes acceder a la plataforma con tu correo y contraseña.
               </p>
               <button
@@ -380,7 +380,7 @@ function RegistroTutorCampoForm() {
 export default function RegistroTutorCampoPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-ufv-azul animate-spin" />
       </div>
     }>

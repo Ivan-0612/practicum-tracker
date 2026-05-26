@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { X, Briefcase, GraduationCap, Loader2, Save, AlertCircle, Calendar, Building } from "lucide-react";
+import { useToast } from "@/components/ToastProvider";
 
 interface ModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ const generarPeriodos = () => {
 
 export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlumno, onSuccess }: ModalProps) {
   const [especialidades, setEspecialidades] = useState<any[]>([]);
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   
@@ -124,7 +126,7 @@ export default function ModalNuevaRotacion({ isOpen, onClose, alumnoId, emailAlu
       if (res.ok) {
         onSuccess();
         onClose();
-        alert("✅ Nueva rotación asignada con éxito.");
+        toast.success("Nueva rotación asignada con éxito.");
       } else {
         const errData = await res.json();
         setError(errData.detail || "Error al asignar rotación");

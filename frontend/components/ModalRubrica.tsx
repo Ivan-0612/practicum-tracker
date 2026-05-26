@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { X, BookOpen, FileJson, AlertCircle, Tag, Clapperboard, Loader2, Download } from "lucide-react";
+import { useToast } from "@/components/ToastProvider";
 
 interface ModalRubricaProps {
   isOpen: boolean;
@@ -100,6 +101,7 @@ export default function ModalRubrica({
   const [nombreActual, setNombreActual] = useState(especialidadNombre);
   const [isLoadingMolde, setIsLoadingMolde] = useState(false);
   const [errorMolde, setErrorMolde] = useState("");
+  const { toast } = useToast();
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   // Blob URL del PDF — evita que X-Frame-Options/CSP de Supabase bloqueen el iframe en producción.
@@ -189,7 +191,7 @@ export default function ModalRubrica({
   const descargarManualPdf = async () => {
     const pdfUrl = process.env.NEXT_PUBLIC_SUPABASE_PDF_URL;
     if (!pdfUrl) {
-      alert("No hay URL de manual configurada.");
+      toast.warning("No hay URL de manual configurada. Contacta con el administrador.");
       return;
     }
 
@@ -210,7 +212,7 @@ export default function ModalRubrica({
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      alert("No se pudo descargar el PDF del manual.");
+      toast.error("No se pudo descargar el PDF. Inténtalo de nuevo.");
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -220,24 +222,24 @@ export default function ModalRubrica({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-5xl h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+      <div className="bg-white dark:bg-[#0f172a] rounded-2xl w-full max-w-5xl h-[90vh] overflow-hidden shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col">
         
-        <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50 shrink-0">
+        <div className="px-6 pt-6 pb-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-700 shrink-0">
           <div>
-            <h3 className="text-xl font-black text-ufv-azul-oscuro flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-ufv-rosa-oscuro" /> Manual de Evaluación
+            <h3 className="text-lg font-black text-ufv-azul-oscuro dark:text-white flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-ufv-rosa-oscuro" /> Manual de Evaluación
             </h3>
-            <p className="text-sm text-gray-500 font-bold mt-1">Especialidad: {especialidadNombre || "Cargando..."}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">Especialidad: {especialidadNombre || "Cargando..."}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex border-b border-gray-200 bg-white shrink-0 px-6 pt-4">
-          <button onClick={() => setActiveTab("pdf")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "pdf" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}><BookOpen className="w-4 h-4" /> Introducción</button>
-          <button onClick={() => setActiveTab("molde")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "molde" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}><Clapperboard className="w-4 h-4" /> Especialidades</button>
+        <div className="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f172a] shrink-0 px-6 pt-4">
+          <button onClick={() => setActiveTab("pdf")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "pdf" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"}`}><BookOpen className="w-4 h-4" /> Introducción</button>
+          <button onClick={() => setActiveTab("molde")} className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === "molde" ? "border-ufv-azul text-ufv-azul" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"}`}><Clapperboard className="w-4 h-4" /> Especialidades</button>
         </div>
 
-        <div className="p-6 md:p-8 overflow-y-auto flex-grow bg-gray-50">
+        <div className="p-6 md:p-8 overflow-y-auto flex-grow bg-gray-50 dark:bg-[#0B1120]">
           {activeTab === "pdf" && (
             <div className="space-y-3">
               <div className="flex justify-end">

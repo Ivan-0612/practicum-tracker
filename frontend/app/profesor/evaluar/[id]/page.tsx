@@ -241,29 +241,6 @@ export default function PantallaEvaluacion() {
   const esUltimaPagina = paginaActual === totalPaginas - 1;
   const esPrimeraPagina = paginaActual === 0;
 
-  const resumenBloques = paginas.map((pagina, idx) => {
-    const elementos = pagina.datos?.elementos || [];
-    const totalBloque = elementos.length;
-    const completadasBloque = elementos.filter((item: any) => {
-      const respuesta = respuestas[item.id];
-      return pagina.tipo === "sinon"
-        ? respuesta?.valor_sinon !== undefined && respuesta?.valor_sinon !== null
-        : respuesta?.valor_nivel !== undefined && respuesta?.valor_nivel !== null;
-    }).length;
-
-    return {
-      idx,
-      tipo: pagina.tipo,
-      titulo: pagina.tipo === "sinon" ? "Actividades Específicas (NIC)" : `Unidad ${pagina.datos?.numero || idx + 1}`,
-      subtitulo: pagina.tipo === "sinon" ? pagina.datos?.titulo || "Bloque inicial" : pagina.datos?.titulo || "Bloque competencial",
-      totalBloque,
-      completadasBloque,
-      porcentaje: totalBloque > 0 ? Math.round((completadasBloque / totalBloque) * 100) : 0,
-    };
-  });
-
-  const progresoGlobalBloques = totalCount > 0 ? Math.round((respondidasCount / totalCount) * 100) : 0;
-
   return (
     <div className="min-h-screen bg-gray-50 pb-28 md:pb-32">
 

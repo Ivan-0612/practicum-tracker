@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database import get_db
 from .. import models, schemas, security
-from typing import List
+from typing import List, Optional
 import shutil
 import os
 from io import BytesIO
@@ -1063,15 +1063,28 @@ def eliminar_usuario(
 def obtener_estadisticas(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(security.get_current_user),
+    periodo_academico: Optional[str] = None,
+    curso: Optional[int] = None,
+    especialidad_id: Optional[str] = None,
 ):
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
 
     from sqlalchemy import func as sqlfunc, distinct, not_, exists
 
+    def _apply_filters(q):
+        """Aplica los filtros de periodo, curso y especialidad a una query de Rotacion."""
+        if periodo_academico:
+            q = q.filter(models.Rotacion.periodo_academico == periodo_academico)
+        if curso is not None:
+            q = q.filter(models.Rotacion.curso == curso)
+        if especialidad_id:
+            q = q.filter(models.Rotacion.especialidad_id == especialidad_id)
+        return q
+
     # Base: solo rotaciones cuyo alumno existe en la tabla alumnos
     # (filtra huérfanas de cascades fallidos)
-    rot_validas = (
+    rot_validas = _apply_filters(
         db.query(models.Rotacion)
         .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
         .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
@@ -1083,13 +1096,12 @@ def obtener_estadisticas(
     rotaciones_completadas = rot_validas.filter(models.Rotacion.completada == True).count()
 
     # % evaluaciones completadas: cuadernillos guardados sobre rotaciones válidas
-    rot_validas_ids = (
+    rot_validas_ids = _apply_filters(
         db.query(models.Rotacion.id)
         .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
         .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
         .filter(models.Usuario.activo == True)
-        .subquery()
-    )
+    ).subquery()
     rotaciones_con_cuadernillo = (
         db.query(models.CuadernilloRespuesta)
         .filter(models.CuadernilloRespuesta.rotacion_id.in_(db.query(rot_validas_ids)))
@@ -1099,62 +1111,72 @@ def obtener_estadisticas(
         (rotaciones_con_cuadernillo / total_rotaciones * 100) if total_rotaciones > 0 else 0, 1
     )
 
-    # Alumnos activos sin rotación
+    # Alumnos activos (total sin filtros — es un dato de registro, no de rotación)
     total_alumnos = (
         db.query(models.Alumno)
         .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
         .filter(models.Usuario.activo == True)
         .count()
     )
+    # Alumnos con rotación en el filtro activo
+    _rotacion_exists_sq = _apply_filters(
+        db.query(models.Rotacion.alumno_id)
+        .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(models.Usuario.activo == True)
+    ).distinct().subquery()
     alumnos_con_rotacion = (
         db.query(models.Alumno)
         .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
         .filter(
             models.Usuario.activo == True,
-            exists().where(models.Rotacion.alumno_id == models.Alumno.id),
+            models.Alumno.id.in_(db.query(_rotacion_exists_sq)),
         )
         .count()
     )
     alumnos_sin_rotacion = total_alumnos - alumnos_con_rotacion
 
-    # Rotaciones activas (válidas) sin tutor asignado
-    rot_activas_validas_ids = (
+    # Rotaciones activas sin tutor asignado
+    rot_activas_validas_ids = _apply_filters(
         db.query(models.Rotacion.id)
         .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
         .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
         .filter(models.Usuario.activo == True, models.Rotacion.completada == False)
-        .subquery()
-    )
-    rot_activas_con_tutor = (
-        db.query(models.AsignacionTutor.rotacion_id)
-        .filter(models.AsignacionTutor.rotacion_id.in_(db.query(rot_activas_validas_ids)))
+    ).subquery()
+    rot_con_tutor_campo = (
+        db.query(models.InvitacionTutorCampo.rotacion_id)
+        .filter(
+            models.InvitacionTutorCampo.rotacion_id.in_(db.query(rot_activas_validas_ids)),
+            models.InvitacionTutorCampo.usado == True,
+        )
         .distinct()
         .subquery()
     )
-    alumnos_sin_tutor = (
+    alumnos_sin_tutor = _apply_filters(
         db.query(models.Rotacion)
         .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
         .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
         .filter(
             models.Usuario.activo == True,
             models.Rotacion.completada == False,
-            ~models.Rotacion.id.in_(db.query(rot_activas_con_tutor)),
+            ~models.Rotacion.id.in_(db.query(rot_con_tutor_campo)),
         )
-        .count()
-    )
+    ).count()
 
-    # Centros más usados: trim + agrupación sobre rotaciones válidas (top 6)
+    # Centros más usados (top 6)
     centros_raw = (
-        db.query(
-            sqlfunc.trim(models.Rotacion.centro_practicas).label("centro"),
-            sqlfunc.count(models.Rotacion.id).label("n"),
-        )
-        .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
-        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
-        .filter(
-            models.Usuario.activo == True,
-            models.Rotacion.centro_practicas != None,
-            sqlfunc.trim(models.Rotacion.centro_practicas) != "",
+        _apply_filters(
+            db.query(
+                sqlfunc.trim(models.Rotacion.centro_practicas).label("centro"),
+                sqlfunc.count(models.Rotacion.id).label("n"),
+            )
+            .join(models.Alumno, models.Rotacion.alumno_id == models.Alumno.id)
+            .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+            .filter(
+                models.Usuario.activo == True,
+                models.Rotacion.centro_practicas != None,
+                sqlfunc.trim(models.Rotacion.centro_practicas) != "",
+            )
         )
         .group_by(sqlfunc.trim(models.Rotacion.centro_practicas))
         .order_by(sqlfunc.count(models.Rotacion.id).desc())
@@ -1163,27 +1185,47 @@ def obtener_estadisticas(
     )
     centros_mas_usados = [{"nombre": c[0], "total": c[1]} for c in centros_raw]
 
-    # Distribución por especialidad (top 5), solo rotaciones válidas
-    especialidades_raw = (
-        db.query(
-            models.Especialidad.nombre,
-            sqlfunc.count(models.Rotacion.id).label("n"),
-        )
-        .outerjoin(
-            models.Rotacion,
-            (models.Rotacion.especialidad_id == models.Especialidad.id)
-            & models.Rotacion.alumno_id.in_(
-                db.query(models.Alumno.id)
-                .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
-                .filter(models.Usuario.activo == True)
-                .subquery()
-            ),
-        )
-        .group_by(models.Especialidad.nombre)
-        .order_by(sqlfunc.count(models.Rotacion.id).desc())
-        .limit(5)
-        .all()
+    # Distribución por especialidad (top 5)
+    # Cuando hay filtro por especialidad_id, el outerjoin solo mostraría esa esp.
+    # Usamos un inner join directo en ese caso para simplificar.
+    _alumnos_activos_ids = (
+        db.query(models.Alumno.id)
+        .join(models.Usuario, models.Alumno.usuario_id == models.Usuario.id)
+        .filter(models.Usuario.activo == True)
+        .subquery()
     )
+    _esp_join_cond = (
+        (models.Rotacion.especialidad_id == models.Especialidad.id)
+        & models.Rotacion.alumno_id.in_(db.query(_alumnos_activos_ids))
+    )
+    if periodo_academico:
+        _esp_join_cond = _esp_join_cond & (models.Rotacion.periodo_academico == periodo_academico)
+    if curso is not None:
+        _esp_join_cond = _esp_join_cond & (models.Rotacion.curso == curso)
+    # Nota: si hay filtro por especialidad_id, mostramos solo esa especialidad (inner join)
+    if especialidad_id:
+        especialidades_raw = (
+            db.query(
+                models.Especialidad.nombre,
+                sqlfunc.count(models.Rotacion.id).label("n"),
+            )
+            .join(models.Rotacion, _esp_join_cond & (models.Rotacion.especialidad_id == especialidad_id))
+            .filter(models.Especialidad.id == especialidad_id)
+            .group_by(models.Especialidad.nombre)
+            .all()
+        )
+    else:
+        especialidades_raw = (
+            db.query(
+                models.Especialidad.nombre,
+                sqlfunc.count(models.Rotacion.id).label("n"),
+            )
+            .outerjoin(models.Rotacion, _esp_join_cond)
+            .group_by(models.Especialidad.nombre)
+            .order_by(sqlfunc.count(models.Rotacion.id).desc())
+            .limit(5)
+            .all()
+        )
     distribucion_especialidades = [{"nombre": e[0], "total": e[1]} for e in especialidades_raw]
 
     return {

@@ -78,7 +78,7 @@ export default function ImportarAlumnosExcel() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         <Breadcrumb items={[
           { label: "Panel", href: "/admin/panel" },
@@ -86,12 +86,12 @@ export default function ImportarAlumnosExcel() {
           { label: "Importar Excel" },
         ]} />
 
-        <div className="bg-white shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 border-b border-gray-100 pb-8 mb-8">
+        <div className="bg-white dark:bg-[#0f172a] shadow-sm rounded-2xl p-6 md:p-10 border border-gray-100 dark:border-gray-700">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 border-b border-gray-100 dark:border-gray-700 pb-8 mb-8">
             <Image src="/logo-ufv.png" alt="Logo UFV" width={56} height={56} className="object-contain" />
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-ufv-rosa-oscuro mb-2">Importación masiva</p>
-              <h1 className="text-3xl font-black text-ufv-azul-oscuro">Subir alumnos desde Excel</h1>
+              <h1 className="text-3xl font-black text-ufv-azul-oscuro dark:text-white">Subir alumnos desde Excel</h1>
               <p className="text-sm text-gray-500 mt-2 max-w-2xl">
                 Sube la plantilla de alumnos (solo columna de correo) y el sistema pre-registrará cada fila de forma independiente.
                 El resto de datos se completan después desde la pantalla de Registro del alumno.
@@ -117,8 +117,8 @@ export default function ImportarAlumnosExcel() {
                 />
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 leading-relaxed">
-                <p className="font-bold text-gray-800 mb-2">Comprobaciones automáticas</p>
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0B1120] p-4 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="font-bold text-gray-800 dark:text-gray-200 mb-2">Comprobaciones automáticas</p>
                 <ul className="space-y-2 list-disc pl-5">
                   <li>Si un email ya existe, esa fila no se crea.</li>
                   <li>Las filas con correo vacío o mal formateado se saltan sin cortar la importación.</li>
@@ -156,8 +156,8 @@ export default function ImportarAlumnosExcel() {
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-white border border-gray-200 p-4">
-                <p className="text-sm font-black text-gray-800 mb-3">Resumen de importación</p>
+              <div className="rounded-2xl bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-gray-700 p-4">
+                <p className="text-sm font-black text-gray-800 dark:text-gray-200 mb-3">Resumen de importación</p>
                 {resultado ? (
                   <div className="space-y-3 text-sm">
                     <p className="text-gray-600">
@@ -171,18 +171,18 @@ export default function ImportarAlumnosExcel() {
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">Aquí aparecerá el resumen cuando termines la importación.</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Aquí aparecerá el resumen cuando termines la importación.</p>
                 )}
               </div>
 
               {resultado && resultado.fallos.length > 0 && (
-                <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden">
-                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                    <p className="text-sm font-black text-gray-800">Filas rechazadas</p>
+                <div className="rounded-2xl bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-[#0B1120] border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-sm font-black text-gray-800 dark:text-gray-200">Filas rechazadas</p>
                   </div>
                   <div className="max-h-[28rem] overflow-y-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-white sticky top-0">
+                      <thead className="bg-white dark:bg-[#0f172a] sticky top-0">
                         <tr className="text-gray-500 uppercase tracking-wider font-bold border-b border-gray-100">
                           <th className="text-left p-3">Fila</th>
                           <th className="text-left p-3">Email</th>

@@ -88,10 +88,10 @@ export default function CalendarioAsistenciaAlumno() {
 
   const fichajeActivo = diaSeleccionado ? fichajesDict[diaSeleccionado] : null;
 
-  if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse">Cargando tu calendario...</div>;
+  if (loading) return <div className="p-10 text-center text-ufv-azul font-bold animate-pulse dark:text-white">Cargando tu calendario...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] p-4 md:p-8">
       <div className="max-w-6xl mx-auto pb-20">
         
         {/* BOTÓN VOLVER */}
@@ -101,9 +101,9 @@ export default function CalendarioAsistenciaAlumno() {
         ]} />
 
         {/* CABECERA CORPORATIVA Y CONTENEDOR PRINCIPAL */}
-        <div className="bg-ufv-blanco shadow-xl rounded-3xl p-6 md:p-10 border-t-4 border-ufv-azul mb-8">
+        <div className="bg-white dark:bg-[#0f172a] shadow-sm rounded-2xl p-6 md:p-10 border border-gray-100 dark:border-gray-700 mb-8">
           
-          <div className="flex flex-col md:flex-row items-start md:items-center mb-10 gap-6 border-b border-gray-100 pb-8">
+          <div className="flex flex-col md:flex-row items-start md:items-center mb-10 gap-6 border-b border-gray-100 dark:border-gray-700 pb-8">
             <Image 
               src="/logo-ufv.png" 
               alt="Logo UFV" 
@@ -112,7 +112,7 @@ export default function CalendarioAsistenciaAlumno() {
               className="object-contain" 
             />
             <div>
-              <h1 className="text-3xl font-black text-ufv-azul-oscuro">Mi Calendario de Asistencia</h1>
+              <h1 className="text-3xl font-black text-ufv-azul-oscuro dark:text-white">Mi Calendario de Asistencia</h1>
               <p className="text-xs font-bold text-ufv-rosa-oscuro uppercase tracking-widest mt-1">
                 Universidad Francisco de Vitoria
               </p>
@@ -127,10 +127,10 @@ export default function CalendarioAsistenciaAlumno() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               {/* ZONA CALENDARIO */}
-              <div className="lg:col-span-2 bg-white rounded-[2rem] p-6 md:p-8 border border-gray-200 shadow-sm">
+              <div className="lg:col-span-2 bg-white dark:bg-[#0B1120] rounded-2xl p-6 md:p-8 border border-gray-200 dark:border-gray-700 shadow-sm">
                 
                 <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-xl font-black text-ufv-azul-oscuro">{formatoMes}</h2>
+                  <h2 className="text-xl font-black text-ufv-azul-oscuro dark:text-white">{formatoMes}</h2>
                   <div className="flex gap-2">
                     <button onClick={() => cambiarMes(-1)} className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
                     <button onClick={() => cambiarMes(1)} className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors"><ChevronRight className="w-5 h-5" /></button>
@@ -181,10 +181,10 @@ export default function CalendarioAsistenciaAlumno() {
               {/* ZONA DETALLES FICHAJE ACTIVO */}
               <div className="lg:col-span-1">
                 {diaSeleccionado ? (
-                  <div className="bg-white rounded-[2rem] p-6 border border-gray-200 shadow-sm sticky top-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="border-b border-gray-100 pb-4 mb-6">
+                  <div className="bg-white dark:bg-[#0f172a] rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm sticky top-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-6">
                       <p className="text-xs font-black text-ufv-azul uppercase tracking-widest mb-1">Detalles de la jornada</p>
-                      <h3 className="font-extrabold text-ufv-azul-oscuro text-lg leading-tight capitalize">
+                      <h3 className="font-extrabold text-ufv-azul-oscuro dark:text-white text-lg leading-tight capitalize">
                         {new Date(diaSeleccionado).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </h3>
                     </div>
@@ -222,9 +222,9 @@ export default function CalendarioAsistenciaAlumno() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-[2rem] p-10 flex flex-col items-center justify-center h-full text-center sticky top-8 min-h-[300px]">
+                  <div className="bg-gray-50/50 dark:bg-[#0B1120] border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-10 flex flex-col items-center justify-center h-full text-center sticky top-8 min-h-[300px]">
                     <CalendarDays className="w-12 h-12 text-gray-300 mb-3" />
-                    <p className="text-gray-500 font-medium">Haz clic en un día del calendario para comprobar si ha sido validado por tu tutor del hospital.</p>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Haz clic en un día del calendario para comprobar si ha sido validado por tu tutor del hospital.</p>
                   </div>
                 )}
               </div>

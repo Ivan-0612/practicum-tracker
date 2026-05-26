@@ -81,7 +81,7 @@ export default function VistaEvaluacionAlumno() {
   // --- Estados de carga ---
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 space-y-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-[#0B1120] space-y-4">
         <div className="w-10 h-10 border-2 border-ufv-azul border-t-transparent rounded-full animate-spin" />
         <p className="text-gray-500 font-medium">Cargando rúbrica...</p>
       </div>
@@ -90,7 +90,7 @@ export default function VistaEvaluacionAlumno() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-[#0B1120] p-6 text-center">
         <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
         <h2 className="text-xl font-bold text-gray-800 mb-2">Error de carga</h2>
         <p className="text-gray-500 mb-6">{error}</p>
@@ -121,10 +121,10 @@ export default function VistaEvaluacionAlumno() {
   const esUltimaPagina = paginaActual === totalPaginas - 1;
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${rotacion_completada ? "pb-24" : ""}`}>
+    <div className={`min-h-screen bg-gray-50 dark:bg-[#0B1120] ${rotacion_completada ? "pb-24" : ""}`}>
 
       {/* CABECERA FLOTANTE SUPERIOR */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm px-4 py-4 md:px-8 flex items-center justify-between">
+      <header className="bg-white dark:bg-[#0f172a] border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 shadow-sm px-4 py-4 md:px-8 flex items-center justify-between">
         <Breadcrumb className="" items={[
           { label: "Dashboard", href: "/alumno/dashboard" },
           { label: "Evaluación" },
@@ -162,7 +162,7 @@ export default function VistaEvaluacionAlumno() {
             <span className="text-gray-500 font-bold text-sm">{alumno.curso}º Enfermería</span>
           </div>
 
-          <h1 className="text-2xl md:text-4xl font-black text-ufv-azul-oscuro tracking-tight mb-2">
+          <h1 className="text-2xl md:text-4xl font-black text-ufv-azul-oscuro dark:text-white tracking-tight mb-2">
             {alumno.nombre_completo}
           </h1>
           <p className="text-sm md:text-base text-gray-500 font-medium">
@@ -176,12 +176,12 @@ export default function VistaEvaluacionAlumno() {
         {!rotacion_completada ? (
 
           /* VISTA: EVALUACIÓN EN CURSO (Oculta) */
-          <section className="bg-white p-8 md:p-16 rounded-2xl md:rounded-3xl shadow-md border border-gray-100 text-center">
+          <section className="bg-white dark:bg-[#0f172a] p-8 md:p-16 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 text-center">
             <div className="w-16 h-16 md:w-24 md:h-24 bg-blue-50 border-2 border-dashed border-blue-200 rounded-full flex items-center justify-center mx-auto mb-6">
               <Clock className="w-8 h-8 md:w-10 md:h-10 text-ufv-azul opacity-70" />
             </div>
             <div className="space-y-3">
-              <h2 className="text-xl md:text-2xl font-black text-ufv-azul-oscuro">Calificaciones ocultas</h2>
+              <h2 className="text-xl md:text-2xl font-black text-ufv-azul-oscuro dark:text-white">Calificaciones ocultas</h2>
               <p className="text-sm md:text-base text-gray-500 max-w-md mx-auto font-medium leading-relaxed">
                 Tu profesor está cumplimentando el cuadernillo de seguimiento.
                 Los resultados serán visibles de forma oficial una vez que la evaluación haya sido cerrada y firmada.
@@ -221,7 +221,7 @@ export default function VistaEvaluacionAlumno() {
             {paginaInfo.tipo === "sinon" && (
               <>
                 {/* Banner de tutores — solo en la primera página */}
-                <div className="bg-ufv-azul-oscuro rounded-2xl md:rounded-3xl p-5 md:p-8 text-white shadow-md flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 relative overflow-hidden mb-6">
+                <div className="bg-ufv-azul-oscuro rounded-2xl p-5 md:p-8 text-white shadow-md flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 relative overflow-hidden mb-6">
                   <div className="absolute -right-4 -top-4 opacity-10 pointer-events-none hidden md:block">
                     <Users className="w-40 h-40" />
                   </div>
@@ -256,18 +256,18 @@ export default function VistaEvaluacionAlumno() {
                 </div>
 
                 {/* Bloque SÍ/NO */}
-                <section className="bg-white rounded-2xl md:rounded-3xl shadow-md border border-gray-100 overflow-hidden">
+                <section className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden">
                   <div className="bg-ufv-azul-oscuro p-4 md:p-6">
                     <h2 className="text-white text-lg md:text-xl font-black">Actividades Específicas (NIC)</h2>
                     <p className="text-blue-200 text-xs md:text-sm mt-1">{paginaInfo.datos.titulo}</p>
                   </div>
 
-                  <div className="p-4 md:p-6 divide-y divide-gray-100">
+                  <div className="p-4 md:p-6 divide-y divide-gray-100 dark:divide-gray-700">
                     {paginaInfo.datos.elementos.map((item: any) => {
                       const valorPrevia = borrador[item.id]?.valor_sinon;
                       return (
-                        <div key={item.id} className="py-4 md:py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8">
-                          <p className="text-sm md:text-base text-gray-700 font-medium leading-relaxed flex-1">{item.texto}</p>
+                        <div key={item.id} className="py-4 md:py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 dark:text-gray-300">
+                          <p className="text-sm md:text-base text-gray-700 dark:text-gray-300 font-medium leading-relaxed flex-1">{item.texto}</p>
                           <div className="flex bg-gray-100 rounded-lg p-1 shrink-0 w-full md:w-auto">
                             <button
                               disabled
@@ -294,13 +294,13 @@ export default function VistaEvaluacionAlumno() {
             {paginaInfo.tipo === "apartado" && (() => {
               const apartado = paginaInfo.datos;
               return (
-                <section className="bg-white rounded-2xl md:rounded-3xl shadow-md border border-gray-100 p-4 md:p-8">
+                <section className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 p-4 md:p-8">
 
-                  <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 border-b border-gray-100 pb-4">
+                  <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 border-b border-gray-100 dark:border-gray-700 pb-4">
                     <div className="bg-ufv-azul-claro text-white font-black text-lg md:text-2xl w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
                       {apartado.numero}
                     </div>
-                    <h2 className="text-base md:text-xl font-black text-gray-800 leading-tight">{apartado.titulo}</h2>
+                    <h2 className="text-base md:text-xl font-black text-gray-800 dark:text-white leading-tight">{apartado.titulo}</h2>
                   </div>
 
                   {/* TABLA DE CRITERIOS */}
@@ -348,9 +348,9 @@ export default function VistaEvaluacionAlumno() {
                     {apartado.elementos.map((item: any, idx: number) => {
                       const nivelPrevia = borrador[item.id]?.valor_nivel;
                       return (
-                        <div key={item.id} className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 md:p-6">
+                        <div key={item.id} className="bg-gray-50/50 dark:bg-[#0B1120] border border-gray-100 dark:border-gray-700 rounded-xl p-4 md:p-6">
                           <div className="flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start">
-                            <p className="text-sm md:text-base text-gray-700 font-medium leading-relaxed flex-1">
+                            <p className="text-sm md:text-base text-gray-700 dark:text-gray-300 font-medium leading-relaxed flex-1">
                               <span className="font-bold text-ufv-azul mr-2">{idx + 1}.</span>{item.texto}
                             </p>
                             <div className="flex gap-2 w-full md:w-auto shrink-0 justify-between md:justify-start">
@@ -380,12 +380,12 @@ export default function VistaEvaluacionAlumno() {
                     const comentarioPrevia = borrador[idComentario]?.comentario;
                     if (!comentarioPrevia) return null;
                     return (
-                      <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-200">
-                        <label className="block text-xs md:text-sm font-bold text-ufv-azul-oscuro mb-2 md:mb-3 flex items-center gap-2">
+                      <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-200 dark:border-gray-700">
+                        <label className="block text-xs md:text-sm font-bold text-ufv-azul-oscuro dark:text-gray-300 mb-2 md:mb-3 flex items-center gap-2">
                           <Info className="w-4 h-4 text-ufv-azul" />
                           Observaciones del Apartado {apartado.numero}
                         </label>
-                        <div className="w-full border-2 border-transparent bg-gray-50 text-gray-600 rounded-xl p-4 text-sm italic font-medium">
+                        <div className="w-full border-2 border-transparent bg-gray-50 dark:bg-[#0B1120] text-gray-600 dark:text-gray-400 rounded-xl p-4 text-sm italic font-medium">
                           "{comentarioPrevia}"
                         </div>
                       </div>
@@ -402,7 +402,7 @@ export default function VistaEvaluacionAlumno() {
 
       {/* BARRA INFERIOR DE NAVEGACIÓN (solo cuando la evaluación está completa) */}
       {rotacion_completada && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-40">
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#0f172a] border-t border-gray-200 dark:border-gray-700 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-40">
           <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
 
             <button
