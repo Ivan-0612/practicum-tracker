@@ -904,17 +904,16 @@ export default function AdminPanel() {
 
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Sin Tutor</span>
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Sin Tutor de Campo</span>
                     <div className="bg-red-50 p-1.5 rounded-lg"><Users className="w-4 h-4 text-red-500" /></div>
                   </div>
                   <p className={`text-3xl font-black ${estadisticas.alumnos_sin_tutor > 0 ? "text-red-500" : "text-gray-400"}`}>{estadisticas.alumnos_sin_tutor}</p>
-                  <p className="text-xs text-gray-400 mt-1 font-medium">rotaciones activas sin tutor</p>
-                  <div className="mt-3">
-                    {estadisticas.alumnos_sin_tutor > 0
-                      ? <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md uppercase tracking-wider"><AlertCircle className="w-3 h-3" /> Requiere atención</span>
-                      : <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md uppercase tracking-wider"><CheckCircle className="w-3 h-3" /> Todo asignado</span>
-                    }
-                  </div>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">de {estadisticas.rotaciones_activas} rotaciones activas</p>
+                  {estadisticas.rotaciones_activas > 0 && (
+                    <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-red-400 rounded-full" style={{ width: `${Math.round(estadisticas.alumnos_sin_tutor / estadisticas.rotaciones_activas * 100)}%` }} />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -975,13 +974,13 @@ export default function AdminPanel() {
 
         {/* CONTENIDO 2: GESTIÓN DE ESPECIALIDADES (pestaña Gestión) */}
         <div className={`${panelTab !== "gestion" ? "hidden" : ""}`}>
-          <div className="max-w-4xl mx-auto bg-ufv-blanco p-8 rounded-3xl shadow-xl border-t-4 border-ufv-azul relative flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-blue-50 p-2.5 rounded-xl text-ufv-azul"><Settings className="w-6 h-6" /></div>
+          <div className="max-w-5xl mx-auto space-y-5">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-50 p-2 rounded-xl text-ufv-azul"><Settings className="w-5 h-5" /></div>
               <h2 className="text-xl font-black text-ufv-azul-oscuro">Gestión de Especialidades</h2>
             </div>
 
-            <div className="mb-5 bg-gray-50 border border-gray-200 rounded-2xl p-1 grid grid-cols-3 gap-1">
+            <div className="bg-white border border-gray-200 rounded-2xl p-1 grid grid-cols-3 gap-1 shadow-sm">
               <button
                 type="button"
                 onClick={() => setEspecialidadesTab("json")}
@@ -1004,9 +1003,10 @@ export default function AdminPanel() {
                 Plantilla Excel
               </button>
             </div>
-            
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
             {especialidadesTab === "json" && (
-            <form onSubmit={handleCrearEspecialidad} className="space-y-4 border-t border-gray-100 pt-6">
+            <form onSubmit={handleCrearEspecialidad} className="space-y-4">
               <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Nombre de la Especialidad</label>
                   <input type="text" required value={nombreEspecialidad} onChange={e => setNombreEspecialidad(e.target.value)} className="w-full border border-gray-200 p-3 rounded-xl bg-gray-50 focus:bg-white focus:border-ufv-azul outline-none transition-all" />
@@ -1022,7 +1022,7 @@ export default function AdminPanel() {
             )}
 
             {especialidadesTab === "mapping" && (
-            <div className="space-y-6 border-t border-gray-100 pt-6">
+            <div className="space-y-6">
               
               {/* SECCIÓN 1: PLANTILLA GLOBAL DE UNIDADES DE COMPETENCIA */}
               <div className="space-y-4">
@@ -1163,7 +1163,7 @@ export default function AdminPanel() {
             )}
 
             {especialidadesTab === "excel" && !wizardStep && (
-            <div className="space-y-4 border-t border-gray-100 pt-6">
+            <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
                   <FileSpreadsheet className="w-4 h-4" /> Estado de Plantillas por Especialidad
@@ -1215,7 +1215,7 @@ export default function AdminPanel() {
             )}
 
             {especialidadesTab === "excel" && wizardStep && (
-            <div className="space-y-4 border-t border-gray-100 pt-6">
+            <div className="space-y-4">
               {/* --- WIZARD UI --- */}
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -1500,8 +1500,9 @@ export default function AdminPanel() {
               )}
             </div>
             )}
+            </div>
 
-            <div className="mt-4 pt-6 border-t border-gray-100 flex-1 flex flex-col">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 flex flex-col">
               <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Especialidades Activas</h3>
               
               {/* BUSCADOR DE LA LISTA */}
@@ -1546,11 +1547,11 @@ export default function AdminPanel() {
 
         {/* CONTENIDO 3: GESTIÓN DE USUARIOS (pestaña Usuarios) */}
         <div className={`${panelTab !== "usuarios" ? "hidden" : ""}`}>
-          <div className="max-w-4xl mx-auto bg-white dark:bg-[#0f172a] p-6 rounded-3xl shadow-xl border-t-4 border-ufv-azul flex flex-col transition-colors border-gray-100 dark:border-gray-700">
-            
+          <div className="max-w-5xl mx-auto space-y-5">
+
             {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-xl text-ufv-azul"><Users className="w-6 h-6" /></div>
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-xl text-ufv-azul"><Users className="w-5 h-5" /></div>
               <div>
                 <h2 className="text-xl font-black text-ufv-azul-oscuro dark:text-white">Gestión de Usuarios</h2>
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">Cuentas de acceso al sistema</p>
@@ -1558,7 +1559,7 @@ export default function AdminPanel() {
             </div>
 
             {/* Sub-tabs */}
-            <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl p-1 flex gap-1">
+            <div className="bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-gray-700 rounded-2xl p-1 flex gap-1 shadow-sm">
               <button
                 type="button"
                 onClick={() => setUsuariosTab("gestion")}
@@ -1575,6 +1576,7 @@ export default function AdminPanel() {
               </button>
             </div>
 
+            <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 md:p-8">
             {usuariosTab === "gestion" && (
               <>
                 {/* Stats */}
@@ -1703,6 +1705,7 @@ export default function AdminPanel() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

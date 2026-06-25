@@ -34,13 +34,14 @@ export default function ListaProfesores() {
     setIsLoading(true);
     const token = Cookies.get("practicum_token");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/profesores?page_size=200`, {
         headers: { "Authorization": `Bearer ${token}` },
         cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
-        setProfesores(data);
+        // El endpoint devuelve { total, page, page_size, resultados: [...] }, no un array directo
+        setProfesores(Array.isArray(data.resultados) ? data.resultados : []);
       }
     } catch (error) {
       console.error("Error al cargar profesores", error);
