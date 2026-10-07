@@ -12,9 +12,19 @@ from dotenv import load_dotenv
 from ..utils.periodo_academico_utils import normalizar_periodo_academico
 
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from ..utils.red_utils import obtener_ip_cliente
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=obtener_ip_cliente)
+
+
+def normalizar_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+
+def filtro_email(email: str):
+    # Los correos se guardan tal y como venían en el Excel o en el formulario,
+    # con mayúsculas a veces. Comparamos sin distinguir mayúsculas/minúsculas.
+    return func.lower(models.Usuario.email) == normalizar_email(email)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticación"])
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -35,7 +45,10 @@ conf = ConnectionConfig(
 
 
 @router.post("/login")
-@limiter.limit("5/minute")  # <--- EL ESCUDO ANTI-ATAQUES POR IP ESTÁ ACTIVO
+# Límite por IP. Es holgado porque muchos usuarios entran desde la misma red
+# (la de la UFV o la de un hospital comparten IP pública). La protección
+# contra fuerza bruta la da el bloqueo por cuenta (MAX_INTENTOS) de abajo.
+@limiter.limit("30/minute")
 def login(
     request: Request,  # <--- SlowAPI necesita esto obligatoriamente
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -43,7 +56,7 @@ def login(
 ):
     usuario = (
         db.query(models.Usuario)
-        .filter(models.Usuario.email == form_data.username)
+        .filter(filtro_email(form_data.username))
         .first()
     )
 
@@ -121,7 +134,7 @@ def verificar_email_registro(
 ):
     usuario = (
         db.query(models.Usuario)
-        .filter(models.Usuario.email == datos.email, models.Usuario.rol == "estudiante")
+        .filter(filtro_email(datos.email), models.Usuario.rol == "estudiante")
         .first()
     )
 
@@ -175,7 +188,7 @@ def completar_registro_alumno(
 ):
     usuario = (
         db.query(models.Usuario)
-        .filter(models.Usuario.email == datos.email, models.Usuario.rol == "estudiante")
+        .filter(filtro_email(datos.email), models.Usuario.rol == "estudiante")
         .first()
     )
     if not usuario or not usuario.activo:
@@ -289,7 +302,7 @@ async def solicitar_recuperacion(
     datos: schemas.SolicitarRecuperacion, db: Session = Depends(get_db)
 ):
     usuario = (
-        db.query(models.Usuario).filter(models.Usuario.email == datos.email).first()
+        db.query(models.Usuario).filter(filtro_email(datos.email)).first()
     )
 
     if usuario:

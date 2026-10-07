@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Cookies from "js-cookie";
 import { ArrowLeft, ArrowRight, CheckCircle2, UserPlus, AlertCircle, ExternalLink } from "lucide-react";
 import { validarPasswordFuerte } from "@/lib/utils";
+import { despertarServidor } from "@/lib/servidor";
 
 type Especialidad = { id: string; nombre: string };
 type Centro = {
@@ -29,6 +30,10 @@ export default function RegistroAlumnoPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
+
+  useEffect(() => {
+    despertarServidor();
+  }, []);
 
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [centros, setCentros] = useState<Centro[]>([]);

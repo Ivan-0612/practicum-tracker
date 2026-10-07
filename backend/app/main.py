@@ -5,9 +5,11 @@ from . import models
 from .routers import auth, alumnos, admin, profesores, cuadernillos, tutores_campo
 from sqlalchemy import text
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from .utils.red_utils import obtener_ip_cliente
 
 # Esta línea le dice a SQLAlchemy que cree las tablas en Supabase
 Base.metadata.create_all(bind=engine)
@@ -51,9 +53,18 @@ app = FastAPI(
     version="1.0.0",
 )
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=obtener_ip_cliente)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# Respuesta en el mismo formato que el resto de errores ({"detail": ...}) para
+# que el frontend pueda mostrar el mensaje al usuario.
+@app.exception_handler(RateLimitExceeded)
+async def limite_superado(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo."},
+    )
 
 
 # permitir que el frontend se conecte

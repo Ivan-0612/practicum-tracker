@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff, Lock, Mail, ArrowLeft, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 import Cookies from "js-cookie";
+import { despertarServidor, fetchConReintento, leerJson } from "@/lib/servidor";
 
 type Modo = "login" | "recuperar";
 
@@ -19,6 +20,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMensaje, setErrorMensaje] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [despertando, setDespertando] = useState(false);
+
+  useEffect(() => {
+    despertarServidor();
+  }, []);
 
   // --- Estado recuperación ---
   const [emailRecuperacion, setEmailRecuperacion] = useState("");
@@ -29,23 +35,34 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setDespertando(false);
     setErrorMensaje("");
 
     try {
       const formData = new URLSearchParams();
-      formData.append("username", email);
+      formData.append("username", email.trim().toLowerCase());
       formData.append("password", password);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData,
-      });
+      const response = await fetchConReintento(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formData,
+        },
+        () => setDespertando(true)
+      );
 
-      const data = await response.json();
+      const data = await leerJson(response);
 
       if (!response.ok) {
-        throw new Error(data.detail || "Error al iniciar sesión");
+        const detalle = typeof data.detail === "string" ? data.detail : "";
+        throw new Error(
+          detalle ||
+            (response.status >= 500
+              ? "El servidor ha tenido un problema. Vuelve a intentarlo en unos segundos."
+              : "Error al iniciar sesión")
+        );
       }
 
       Cookies.set("practicum_token", data.access_token, { expires: 1 });
@@ -63,6 +80,7 @@ export default function LoginPage() {
       setErrorMensaje(error.message);
     } finally {
       setIsLoading(false);
+      setDespertando(false);
     }
   };
 
@@ -73,10 +91,10 @@ export default function LoginPage() {
     setErrorRecuperacion("");
 
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/recuperar-password/solicitar`, {
+      await fetchConReintento(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/recuperar-password/solicitar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailRecuperacion })
+        body: JSON.stringify({ email: emailRecuperacion.trim() })
       });
       setMensajeRecuperacion("Si el correo está registrado, recibirás el enlace en unos minutos. Revisa también la carpeta de spam.");
     } catch {
@@ -175,6 +193,13 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </div>
+
+                {despertando && !errorMensaje && (
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-bold">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    El servidor se está iniciando tras un rato sin uso. Puede tardar hasta un minuto, no cierres la página.
+                  </div>
+                )}
 
                 {errorMensaje && (
                   <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-xs font-bold">
