@@ -7,7 +7,7 @@ python-dotenv
 # --- BASE DE DATOS (PostgreSQL + ORM) ---
 sqlalchemy
 alembic
-psycopg2-binary
+psycopg[binary]
 pydantic-settings
 
 # --- SEGURIDAD Y RGPD ---
