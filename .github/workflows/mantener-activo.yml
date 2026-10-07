@@ -1,0 +1,27 @@
+# Supabase (plan gratuito) pausa el proyecto tras 7 dias sin actividad y el
+# backend deja de arrancar. Esta tarea hace una consulta de solo lectura cada
+# 3 dias para que la base de datos nunca se quede inactiva.
+name: Mantener activa la base de datos
+
+on:
+  schedule:
+    - cron: "0 7 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar el backend (despierta Render y Supabase)
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 30 --retry-all-errors --max-time 180 \
+            "https://gestion-practicas-7ont.onrender.com/api/v1/tutores-campo/verificar-token?token=keepalive"
+
+      # GitHub desactiva las tareas programadas de un repositorio publico
+      # tras 60 dias sin actividad; esto lo evita sin hacer commits.
+      - name: Evitar que GitHub desactive esta tarea
+        uses: liskin/gh-workflow-keepalive@v1
