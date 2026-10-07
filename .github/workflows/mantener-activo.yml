@@ -1,6 +1,7 @@
 # Supabase (plan gratuito) pausa el proyecto tras 7 dias sin actividad y el
 # backend deja de arrancar. Esta tarea hace una consulta de solo lectura cada
 # 3 dias para que la base de datos nunca se quede inactiva.
+# Si falla, GitHub avisa por correo a la cuenta que la creo.
 name: Mantener activa la base de datos
 
 on:
@@ -22,6 +23,8 @@ jobs:
             "https://gestion-practicas-7ont.onrender.com/api/v1/tutores-campo/verificar-token?token=keepalive"
 
       # GitHub desactiva las tareas programadas de un repositorio publico
-      # tras 60 dias sin actividad; esto lo evita sin hacer commits.
+      # tras 60 dias sin actividad. Volver a activarla reinicia ese plazo.
       - name: Evitar que GitHub desactive esta tarea
-        uses: liskin/gh-workflow-keepalive@v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/mantener-activo.yml/enable"
